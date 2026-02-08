@@ -1,0 +1,184 @@
+{# Simulate mode hand partial — switches on sim_phase #}
+<div class="space-y-5 flash-in">
+    {# Poker table #}
+    {% set vis_count = sim_state.board_visible %}
+    {% set visible_board = sim_state.board_cards[:vis_count] if vis_count > 0 else [] %}
+
+    {% set hero_seat = {
+        'position': sim_state.hero_position,
+        'is_hero': true,
+        'is_active': true,
+        'cards': sim_state.hero_hand,
+        'stack': ('%.1f' | format(sim_state.hero_stack)),
+    } %}
+
+    {% set show_villain = sim_state.sim_phase == 'showdown' %}
+    {% set villain_seat = {
+        'position': sim_state.villain_position,
+        'is_hero': false,
+        'is_active': not sim_state.hand_over or show_villain,
+        'cards': sim_state.villain_hand if show_villain else none,
+        'show_cards': show_villain,
+        'stack': ('%.1f' | format(sim_state.villain_stack)),
+    } %}
+
+    {# Build 6-seat layout: hero at seat 1, villain at seat 4 #}
+    {% set empty_seat = {'position': '', 'is_hero': false, 'is_active': false, 'cards': none} %}
+    {% set sim_seats = [hero_seat, empty_seat, empty_seat, villain_seat, empty_seat, empty_seat] %}
+
+    {% with board=visible_board, seats=sim_seats, dealer_seat=(0 if sim_state.hero_is_sb else 3),
+            pot=('%.1f BB' | format(sim_state.pot)),
+            situation=sim_state.street|capitalize if sim_state.street != 'preflop' else 'Preflop' %}
+        {% include "partials/poker_table.html" %}
+    {% endwith %}
+
+    {# Street indicator #}
+    {% if sim_state.street != 'preflop' %}
+    <div class="text-center">
+        <span class="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded
+                     {% if sim_state.street == 'flop' %}bg-emerald-900/40 text-emerald-400
+                     {% elif sim_state.street == 'turn' %}bg-blue-900/40 text-blue-400
+                     {% else %}bg-purple-900/40 text-purple-400{% endif %}">
+            {{ sim_state.street }}
+        </span>
+    </div>
+    {% endif %}
+
+    {# Hand info #}
+    <div class="text-center text-sm">
+        <span class="text-gray-500 font-mono">{{ sim_state.hero_hand_key }}</span>
+        <span class="mx-2 text-gray-700">|</span>
+        <span class="text-gray-400">{{ sim_state.hero_position }}</span>
+        <span class="mx-2 text-gray-700">|</span>
+        <span class="text-xs text-gray-500">Pot: {{ '%.1f' | format(sim_state.pot) }} BB</span>
+    </div>
+
+    {# --- Phase-specific content --- #}
+
+    {% if sim_state.sim_phase == 'preflop_decision' %}
+    {# Hero acts preflop #}
+    {% if sim_state.villain_last_action %}
+    <p class="text-center text-xs text-gray-500">
+        Villain {{ sim_state.villain_last_action }}{% if sim_state.villain_last_action == 'raise' %}d to 2.5 BB{% elif sim_state.villain_last_action == 'call' %}ed{% endif %}.
+    </p>
+    {% endif %}
+    <form hx-post="/api/sim/action" hx-target="#sim-zone" hx-swap="innerHTML">
+        <input type="hidden" name="sim_state" value='{{ sim_state | tojson }}'>
+        <div class="flex justify-center gap-3 flex-wrap">
+            {% for action in available_actions %}
+            <button type="submit" name="action" value="{{ action }}"
+                    class="px-6 py-3 rounded-lg font-semibold transition-all text-sm
+                    {% if action == 'raise' %}bg-emerald-700 hover:bg-emerald-600 text-white
+                    {% elif action == 'call' %}bg-blue-700 hover:bg-blue-600 text-white
+                    {% else %}bg-gray-700 hover:bg-gray-600 text-gray-200{% endif %}">
+                {% if action == 'raise' and not sim_state.villain_last_action %}Raise{% elif action == 'raise' %}3-Bet{% else %}{{ action|capitalize }}{% endif %}
+            </button>
+            {% endfor %}
+        </div>
+    </form>
+
+    {% elif sim_state.sim_phase == 'postflop_decision' %}
+    {# Hero acts postflop #}
+    {% if sim_state.villain_last_action %}
+    <p class="text-center text-xs text-gray-500">
+        Villain {{ sim_state.villain_last_action }}{% if 'bet' in sim_state.villain_last_action %}s{% elif sim_state.villain_last_action == 'check' %}s{% elif sim_state.villain_last_action == 'raise' %}s{% endif %}.
+    </p>
+    {% endif %}
+    <form hx-post="/api/sim/action" hx-target="#sim-zone" hx-swap="innerHTML">
+        <input type="hidden" name="sim_state" value='{{ sim_state | tojson }}'>
+        <div class="flex justify-center gap-2 flex-wrap">
+            {% for action in available_actions %}
+            <button type="submit" name="action" value="{{ action }}"
+                    class="px-5 py-2.5 rounded-lg font-semibold transition-all text-sm
+                    {% if action == 'check' or action == 'fold' %}bg-gray-700 hover:bg-gray-600
+                    {% elif action == 'call' %}bg-blue-700 hover:bg-blue-600
+                    {% elif action == 'bet_s' %}bg-emerald-800 hover:bg-emerald-700
+                    {% elif action == 'bet_m' %}bg-emerald-700 hover:bg-emerald-600
+                    {% elif action == 'bet_l' or action == 'raise' %}bg-emerald-600 hover:bg-emerald-500
+                    {% endif %}">
+                {% if action == 'bet_s' %}Bet 33%
+                {% elif action == 'bet_m' %}Bet 66%
+                {% elif action == 'bet_l' %}Bet 100%
+                {% else %}{{ action|capitalize }}{% endif %}
+            </button>
+            {% endfor %}
+        </div>
+    </form>
+
+    {% elif sim_state.sim_phase == 'showdown' %}
+    {# Showdown — both hands revealed #}
+    <div class="text-center space-y-2">
+        <div class="flex items-center justify-center gap-2">
+            {% if sim_state.winner == 'hero' %}
+            <span class="text-emerald-400 text-2xl font-bold">&#10003;</span>
+            <span class="text-emerald-400 font-semibold">You win {{ '%.1f' | format(sim_state.pot) }} BB!</span>
+            {% elif sim_state.winner == 'villain' %}
+            <span class="text-red-400 text-2xl font-bold">&#10007;</span>
+            <span class="text-red-400 font-semibold">Villain wins {{ '%.1f' | format(sim_state.pot) }} BB</span>
+            {% else %}
+            <span class="text-gray-400 text-2xl font-bold">=</span>
+            <span class="text-gray-400 font-semibold">Split pot</span>
+            {% endif %}
+        </div>
+        <p class="text-xs text-gray-500">
+            Villain had {{ sim_state.villain_hand_key }}
+        </p>
+    </div>
+    <div class="flex justify-center gap-3 pt-2">
+        <form hx-post="/api/sim/next_hand" hx-target="#sim-zone" hx-swap="innerHTML">
+            <input type="hidden" name="sim_state" value='{{ sim_state | tojson }}'>
+            <button type="submit"
+                    class="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg
+                           font-semibold transition-all text-sm">
+                Next Hand &rarr;
+            </button>
+        </form>
+        <form hx-post="/api/sim/quit" hx-target="#sim-zone" hx-swap="innerHTML">
+            <input type="hidden" name="sim_state" value='{{ sim_state | tojson }}'>
+            <button type="submit"
+                    class="px-6 py-3 bg-gray-900 hover:bg-gray-800 rounded-lg
+                           text-gray-400 transition-all text-sm border border-gray-800">
+                End Session
+            </button>
+        </form>
+    </div>
+
+    {% elif sim_state.sim_phase == 'hand_over' %}
+    {# Someone folded #}
+    <div class="text-center space-y-2">
+        {% if sim_state.winner == 'hero' %}
+        <div class="flex items-center justify-center gap-2">
+            <span class="text-emerald-400 text-xl font-bold">&#10003;</span>
+            <span class="text-emerald-400 font-semibold text-sm">Villain folds. You win {{ '%.1f' | format(sim_state.pot) }} BB</span>
+        </div>
+        {% elif sim_state.winner == 'villain' %}
+        <div class="flex items-center justify-center gap-2">
+            <span class="text-red-400 text-xl font-bold">&#10007;</span>
+            <span class="text-red-400 font-semibold text-sm">You fold</span>
+        </div>
+        {% endif %}
+    </div>
+    <div class="flex justify-center gap-3 pt-2">
+        <form hx-post="/api/sim/next_hand" hx-target="#sim-zone" hx-swap="innerHTML">
+            <input type="hidden" name="sim_state" value='{{ sim_state | tojson }}'>
+            <button type="submit"
+                    class="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg
+                           font-semibold transition-all text-sm">
+                Next Hand &rarr;
+            </button>
+        </form>
+        <form hx-post="/api/sim/quit" hx-target="#sim-zone" hx-swap="innerHTML">
+            <input type="hidden" name="sim_state" value='{{ sim_state | tojson }}'>
+            <button type="submit"
+                    class="px-6 py-3 bg-gray-900 hover:bg-gray-800 rounded-lg
+                           text-gray-400 transition-all text-sm border border-gray-800">
+                End Session
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+    {# OOB stack/hand updates #}
+    <span id="hand-num" hx-swap-oob="innerHTML">{{ sim_state.hand_number }}</span>
+    <span id="hero-stack" hx-swap-oob="innerHTML">{{ '%.1f' | format(sim_state.hero_stack + sim_state.hero_total_invested) }} bb</span>
+</div>

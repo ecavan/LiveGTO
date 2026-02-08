@@ -22,6 +22,22 @@
     </div>
     <p class="text-center text-gray-400 text-xs">{{ feedback.explanation }}</p>
 
+    {# Next Hand button — placed before educational content so user doesn't have to scroll #}
+    <div class="text-center pt-2">
+        <form hx-post="/api/preflop/next" hx-target="#scenario-zone" hx-swap="innerHTML">
+            <input type="hidden" name="streak" value="{{ streak }}">
+            {% if filter_position %}<input type="hidden" name="filter_position" value="{{ filter_position }}">{% endif %}
+            <button type="submit"
+                    class="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg
+                           font-semibold transition-all text-sm">
+                Next Hand &rarr;
+            </button>
+        </form>
+    </div>
+
+    {# OOB streak update #}
+    <span id="streak-val" hx-swap-oob="innerHTML">{{ streak }}</span>
+
     {# Range grid (revealed after answer) #}
     {% if feedback.range %}
     <div class="overflow-x-auto pt-2">
@@ -71,24 +87,10 @@
     </div>
     {% endif %}
 
-    {# Next Hand button #}
-    <div class="text-center pt-2">
-        <form hx-post="/api/preflop/next" hx-target="#scenario-zone" hx-swap="innerHTML">
-            <input type="hidden" name="streak" value="{{ streak }}">
-            <button type="submit"
-                    class="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg
-                           font-semibold transition-all text-sm">
-                Next Hand &rarr;
-            </button>
-        </form>
-    </div>
-
-    {# OOB streak update #}
-    <span id="streak-val" hx-swap-oob="innerHTML">{{ streak }}</span>
-
     {% else %}
     {# --- Decision mode: action buttons, no ranges --- #}
     <form hx-post="/api/preflop/answer" hx-target="#scenario-zone" hx-swap="innerHTML">
+        {% if filter_position %}<input type="hidden" name="filter_position" value="{{ filter_position }}">{% endif %}
         <input type="hidden" name="type" value="{{ scenario.type }}">
         <input type="hidden" name="position" value="{{ scenario.position }}">
         <input type="hidden" name="hand_key" value="{{ scenario.hand_key }}">

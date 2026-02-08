@@ -7,6 +7,21 @@
 {% endblock %}
 
 {% block content %}
+<div class="flex justify-center gap-2 flex-wrap mb-4">
+    {% set positions = ['UTG', 'MP', 'CO', 'BTN', 'SB'] %}
+    <a href="/preflop"
+       class="px-2.5 py-1 text-xs rounded-full transition-all
+              {% if not filter_position %}bg-gray-700 text-white ring-1 ring-gray-500{% else %}bg-gray-800/60 text-gray-500 hover:text-gray-300{% endif %}">
+        All
+    </a>
+    {% for pos in positions %}
+    <a href="/preflop{% if filter_position != pos %}?position={{ pos }}{% endif %}"
+       class="px-2.5 py-1 text-xs rounded-full transition-all
+              {% if filter_position == pos %}bg-emerald-800 text-emerald-300 ring-1 ring-emerald-600{% else %}bg-gray-800/60 text-gray-500 hover:text-gray-300{% endif %}">
+        {{ pos }}
+    </a>
+    {% endfor %}
+</div>
 <div id="scenario-zone" class="flash-in">
     {% include "partials/scenario_preflop.html" %}
 </div>

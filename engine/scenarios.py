@@ -49,9 +49,12 @@ def build_seats(hero_position, hero_hand_cards=None, active_positions=None):
     return seats, dealer_seat
 
 
-def generate_preflop_rfi():
+def generate_preflop_rfi(position=None):
     """Generate a raise-first-in scenario."""
-    position = random.choice(['UTG', 'MP', 'CO', 'BTN', 'SB'])
+    if position and position in RFI_RANGES:
+        pass  # use specified position
+    else:
+        position = random.choice(['UTG', 'MP', 'CO', 'BTN', 'SB'])
     deck = Deck()
     hand = deck.draw(2)
     hand_key = hand_to_key(hand[0], hand[1])
@@ -82,9 +85,13 @@ def generate_preflop_rfi():
     }
 
 
-def generate_preflop_facing():
+def generate_preflop_facing(position=None):
     """Generate a facing-open scenario."""
     matchups = list(FACING_OPEN.keys())
+    if position:
+        filtered = [(h, o) for h, o in matchups if h == position]
+        if filtered:
+            matchups = filtered
     hero_pos, opener_pos = random.choice(matchups)
 
     deck = Deck()
@@ -123,11 +130,11 @@ def generate_preflop_facing():
     }
 
 
-def generate_preflop():
+def generate_preflop(position=None):
     """Generate a random preflop scenario (RFI or facing open)."""
     if random.random() < 0.5:
-        return generate_preflop_rfi()
-    return generate_preflop_facing()
+        return generate_preflop_rfi(position)
+    return generate_preflop_facing(position)
 
 
 # --- Position-to-OOP/IP mapping for play mode ---
@@ -135,14 +142,20 @@ IP_POSITIONS = {'BTN', 'CO'}
 OOP_POSITIONS = {'UTG', 'MP', 'SB', 'BB'}
 
 
-def generate_postflop():
+def generate_postflop(position=None, texture=None):
     """Generate a postflop decision scenario."""
-    deck = Deck()
-    hand = deck.draw(2)
-    board = deck.draw(3)
+    if position not in ('OOP', 'IP'):
+        position = random.choice(['OOP', 'IP'])
 
-    position = random.choice(['OOP', 'IP'])
-    texture = classify_texture(board)
+    # Deal hand + board, retry up to 100 times for texture match
+    for _ in range(100):
+        deck = Deck()
+        hand = deck.draw(2)
+        board = deck.draw(3)
+        actual_texture = classify_texture(board)
+        if texture is None or actual_texture == texture:
+            break
+    texture = actual_texture
     bucket = classify_hand(hand, board, texture)
 
     # Randomly decide if facing a bet or acting first
@@ -282,7 +295,7 @@ def compute_street_data(hand_dicts, board_dicts, position):
     }
 
 
-def generate_play_scenario():
+def generate_play_scenario(position=None):
     """Generate a full hand for play mode (preflop + postflop combined).
 
     Deals hand + board upfront, computes both preflop and postflop data.
@@ -296,8 +309,11 @@ def generate_play_scenario():
     board_cards = [card_to_dict(c) for c in board]
     hand_key = hand_to_key(hand[0], hand[1])
 
-    # Pick a random position for hero
-    position = random.choice(POSITION_ORDER)
+    # Pick a random position for hero (or use specified)
+    if position and position in POSITION_ORDER:
+        pass
+    else:
+        position = random.choice(POSITION_ORDER)
 
     # --- Preflop data ---
     # Determine if this is RFI or facing open based on position

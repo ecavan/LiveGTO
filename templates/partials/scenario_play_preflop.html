@@ -23,6 +23,43 @@
     </div>
     <p class="text-center text-gray-400 text-xs">{{ feedback.explanation }}</p>
 
+    {# Continue button — placed before range grid so user doesn't have to scroll #}
+    <div class="text-center pt-2">
+        {% if show_flop %}
+        <form hx-post="/api/play/postflop" hx-target="#scenario-zone" hx-swap="innerHTML">
+            <input type="hidden" name="streak" value="{{ streak }}">
+            {% if filter_position %}<input type="hidden" name="filter_position" value="{{ filter_position }}">{% endif %}
+            <input type="hidden" name="hand" value='{{ scenario.hand | tojson }}'>
+            <input type="hidden" name="hand_key" value="{{ scenario.hand_key }}">
+            <input type="hidden" name="board_full" value='{{ scenario.board | tojson }}'>
+            <input type="hidden" name="position" value="{{ scenario.position }}">
+            <input type="hidden" name="seats" value='{{ scenario.seats | tojson }}'>
+            <input type="hidden" name="dealer_seat" value="{{ scenario.dealer_seat }}">
+            <input type="hidden" name="pot" value="{{ scenario.pot }}">
+            <input type="hidden" name="postflop_position" value="{{ scenario.postflop_position }}">
+            <input type="hidden" name="facing_bet" value="{{ scenario.facing_bet }}">
+            <button type="submit"
+                    class="px-8 py-3 bg-emerald-800 hover:bg-emerald-700 rounded-lg
+                           font-semibold transition-all text-sm">
+                See the Flop &rarr;
+            </button>
+        </form>
+        {% else %}
+        <form hx-post="/api/play/next" hx-target="#scenario-zone" hx-swap="innerHTML">
+            <input type="hidden" name="streak" value="{{ streak }}">
+            {% if filter_position %}<input type="hidden" name="filter_position" value="{{ filter_position }}">{% endif %}
+            <button type="submit"
+                    class="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg
+                           font-semibold transition-all text-sm">
+                Next Hand &rarr;
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    {# OOB streak update #}
+    <span id="streak-val" hx-swap-oob="innerHTML">{{ streak }}</span>
+
     {# Range grid (revealed after answer) #}
     {% if feedback.range %}
     <div class="overflow-x-auto pt-2">
@@ -72,45 +109,10 @@
     </div>
     {% endif %}
 
-    {# Continue button — "See Flop" or "Next Hand" #}
-    <div class="text-center pt-2">
-        {% if show_flop %}
-        <form hx-post="/api/play/postflop" hx-target="#scenario-zone" hx-swap="innerHTML">
-            {# Carry all state forward — use single quotes for JSON values #}
-            <input type="hidden" name="streak" value="{{ streak }}">
-            <input type="hidden" name="hand" value='{{ scenario.hand | tojson }}'>
-            <input type="hidden" name="hand_key" value="{{ scenario.hand_key }}">
-            <input type="hidden" name="board_full" value='{{ scenario.board | tojson }}'>
-            <input type="hidden" name="position" value="{{ scenario.position }}">
-            <input type="hidden" name="seats" value='{{ scenario.seats | tojson }}'>
-            <input type="hidden" name="dealer_seat" value="{{ scenario.dealer_seat }}">
-            <input type="hidden" name="pot" value="{{ scenario.pot }}">
-            <input type="hidden" name="postflop_position" value="{{ scenario.postflop_position }}">
-            <input type="hidden" name="facing_bet" value="{{ scenario.facing_bet }}">
-            <button type="submit"
-                    class="px-8 py-3 bg-emerald-800 hover:bg-emerald-700 rounded-lg
-                           font-semibold transition-all text-sm">
-                See the Flop &rarr;
-            </button>
-        </form>
-        {% else %}
-        <form hx-post="/api/play/next" hx-target="#scenario-zone" hx-swap="innerHTML">
-            <input type="hidden" name="streak" value="{{ streak }}">
-            <button type="submit"
-                    class="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg
-                           font-semibold transition-all text-sm">
-                Next Hand &rarr;
-            </button>
-        </form>
-        {% endif %}
-    </div>
-
-    {# OOB streak update #}
-    <span id="streak-val" hx-swap-oob="innerHTML">{{ streak }}</span>
-
     {% else %}
     {# --- Decision mode: action buttons, no ranges --- #}
     <form hx-post="/api/play/preflop" hx-target="#scenario-zone" hx-swap="innerHTML">
+        {% if filter_position %}<input type="hidden" name="filter_position" value="{{ filter_position }}">{% endif %}
         {# Shared #}
         <input type="hidden" name="hand" value='{{ scenario.hand | tojson }}'>
         <input type="hidden" name="hand_key" value="{{ scenario.hand_key }}">

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block streak %}
+<span class="text-gray-400 font-mono text-sm">
+    <span class="text-gray-500">Hand</span>
+    <span id="hand-num" class="ml-1 font-bold">{{ sim_state.hand_number }}</span>
+    <span class="mx-2 text-gray-700">|</span>
+    <span id="hero-stack" class="text-emerald-400 font-bold">{{ '%.1f' | format(sim_state.hero_stack + sim_state.hero_total_invested) }} bb</span>
+</span>
+{% endblock %}
+
+{% block content %}
+<div id="sim-zone" class="flash-in">
+    {% include "partials/sim_hand.html" %}
+</div>
+{% endblock %}

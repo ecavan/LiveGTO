@@ -66,6 +66,14 @@
                         <span class="suit">{{ card.suit_symbol }}</span>
                     </div>
                     {% endfor %}
+                {% elif seat.show_cards and seat.cards %}
+                    {# Villain showdown: face-up cards #}
+                    {% for card in seat.cards %}
+                    <div class="card-box {{ 'card-red' if card.color == 'red' else 'card-black' }}">
+                        <span>{{ card.rank }}</span>
+                        <span class="suit">{{ card.suit_symbol }}</span>
+                    </div>
+                    {% endfor %}
                 {% elif seat.is_active %}
                     {# Opponent: face-down cards #}
                     <div class="card-back"></div>
@@ -76,7 +84,12 @@
                     <div class="card-back" style="opacity: 0.2;"></div>
                 {% endif %}
             </div>
-            <div class="seat-label">{{ seat.position }}</div>
+            <div class="seat-label">
+                {{ seat.position }}
+                {% if seat.stack is defined and seat.stack is not none %}
+                <span class="text-yellow-400/80"> {{ seat.stack }}bb</span>
+                {% endif %}
+            </div>
             {% if loop.index0 == dealer_seat %}
             <div class="dealer-chip">D</div>
             {% endif %}

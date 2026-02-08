@@ -1,0 +1,64 @@
+{# Session review after ending simulate mode #}
+<div class="space-y-6 flash-in max-w-lg mx-auto">
+    <h2 class="text-xl font-bold text-center">Session Review</h2>
+
+    {# P/L display #}
+    <div class="text-center">
+        <div class="text-4xl font-bold font-mono
+                    {% if review.total_pl > 0 %}text-emerald-400{% elif review.total_pl < 0 %}text-red-400{% else %}text-gray-400{% endif %}">
+            {% if review.total_pl > 0 %}+{% endif %}{{ review.total_pl }} BB
+        </div>
+        <p class="text-xs text-gray-500 mt-1">
+            {{ review.hands_played }} hands | {{ review.bb_per_hand }} BB/hand
+        </p>
+    </div>
+
+    {# Stats row #}
+    <div class="grid grid-cols-2 gap-3">
+        <div class="bg-gray-900/60 rounded-lg p-3 text-center">
+            <div class="text-emerald-400 font-bold font-mono">+{{ review.biggest_win }}</div>
+            <div class="text-xs text-gray-500">Biggest Win</div>
+        </div>
+        <div class="bg-gray-900/60 rounded-lg p-3 text-center">
+            <div class="text-red-400 font-bold font-mono">{{ review.biggest_loss }}</div>
+            <div class="text-xs text-gray-500">Biggest Loss</div>
+        </div>
+    </div>
+
+    {# Top mistakes #}
+    {% if review.top_mistakes %}
+    <div class="bg-gray-900/60 rounded-xl p-4">
+        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+            Top Mistakes
+        </h3>
+        <div class="space-y-2">
+            {% for m in review.top_mistakes %}
+            <div class="flex items-center gap-3 text-sm">
+                <span class="text-red-400 font-mono text-xs w-8">{{ (m.deviation * 100) | int }}%</span>
+                <span class="text-gray-400">
+                    Hand #{{ m.hand_num }}: {{ m.hero_hand }} on {{ m.street }}
+                    — played <span class="text-red-400">{{ m.hero_action }}</span>,
+                    GTO says <span class="text-emerald-400">{{ m.gto_action }}</span>
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <p class="text-center text-gray-500 text-sm">No significant mistakes detected!</p>
+    {% endif %}
+
+    {# Play again #}
+    <div class="flex justify-center gap-3 pt-2">
+        <a href="/simulate"
+           class="px-8 py-3 bg-emerald-800 hover:bg-emerald-700 rounded-lg
+                  font-semibold transition-all text-sm">
+            Play Again
+        </a>
+        <a href="/"
+           class="px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg
+                  text-gray-400 transition-all text-sm">
+            Home
+        </a>
+    </div>
+</div>

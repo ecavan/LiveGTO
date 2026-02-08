@@ -1,0 +1,62 @@
+{# Range vs Range display — included in postflop feedback sections #}
+{% if feedback.range_vs_range %}
+{% set rvr = feedback.range_vs_range %}
+<div class="bg-gray-900/60 rounded-xl p-4 space-y-3">
+    <div class="flex items-center justify-between">
+        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            Range vs Range
+        </h3>
+        <span class="text-xs px-2 py-0.5 rounded-full
+                    {% if rvr.advantage_color == 'emerald' %}bg-emerald-900/60 text-emerald-400
+                    {% elif rvr.advantage_color == 'red' %}bg-red-900/60 text-red-400
+                    {% else %}bg-gray-800 text-gray-400{% endif %}">
+            {{ rvr.advantage_label }}
+        </span>
+    </div>
+
+    {# Equity display #}
+    <div class="flex items-center gap-3">
+        <span class="text-xs text-emerald-400 w-16 font-mono">Hero {{ rvr.hero_equity }}%</span>
+        <div class="flex-1 bg-gray-800 rounded-full h-3 overflow-hidden flex">
+            <div class="h-full bg-emerald-600 rounded-l-full" style="width: {{ rvr.hero_equity }}%"></div>
+            <div class="h-full bg-red-700 rounded-r-full" style="width: {{ rvr.villain_equity }}%"></div>
+        </div>
+        <span class="text-xs text-red-400 w-16 font-mono text-right">{{ rvr.villain_equity }}% Villain</span>
+    </div>
+
+    {# Bucket distribution bars #}
+    <div class="space-y-1">
+        {% set bucket_colors = {
+            'premium': 'emerald', 'nut': 'emerald', 'strong': 'emerald',
+            'good': 'yellow', 'medium': 'yellow',
+            'draw': 'blue',
+            'weak_made': 'orange', 'weak_draw': 'orange', 'air': 'red'
+        } %}
+        {% for bucket in ['premium', 'nut', 'strong', 'good', 'medium', 'draw', 'weak_made', 'weak_draw', 'air'] %}
+        {% set hp = (rvr.hero_dist.get(bucket, 0) * 100) | int %}
+        {% set vp = (rvr.villain_dist.get(bucket, 0) * 100) | int %}
+        {% if hp > 0 or vp > 0 %}
+        <div class="flex items-center gap-2 text-xs">
+            <span class="text-gray-500 w-20 shrink-0 font-mono truncate
+                        {% if bucket == feedback.bucket %}text-yellow-400 font-bold{% endif %}">
+                {{ bucket }}
+            </span>
+            <div class="flex-1 flex gap-0.5">
+                <div class="flex-1 flex justify-end">
+                    <div class="bg-emerald-700/60 h-2 rounded-l" style="width: {{ hp * 3 }}%"></div>
+                </div>
+                <div class="flex-1">
+                    <div class="bg-red-700/60 h-2 rounded-r" style="width: {{ vp * 3 }}%"></div>
+                </div>
+            </div>
+            <span class="text-gray-600 w-16 font-mono text-right">{{ hp }}% / {{ vp }}%</span>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    <div class="flex justify-between text-xs text-gray-600">
+        <span>Hero</span>
+        <span>Villain</span>
+    </div>
+</div>
+{% endif %}

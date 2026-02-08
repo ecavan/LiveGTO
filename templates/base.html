@@ -172,28 +172,28 @@
             z-index: 15;
         }
         .chip-icon {
-            width: 1.4rem; height: 1.4rem;
+            width: 1.6rem; height: 1.6rem;
             border-radius: 50%;
             background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
-            border: 2px solid #fbbf24;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+            border: 2.5px solid #fbbf24;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.6);
         }
         .chip-amount {
-            font-size: 0.6rem;
+            font-size: 0.7rem;
             font-weight: 700;
             color: #fbbf24;
-            background: rgba(0,0,0,0.7);
-            padding: 0.1rem 0.35rem;
-            border-radius: 0.2rem;
+            background: rgba(0,0,0,0.8);
+            padding: 0.15rem 0.4rem;
+            border-radius: 0.25rem;
             white-space: nowrap;
         }
-        /* Chip positions near each seat, offset toward center */
-        .bet-chip-1 { left: 50%; bottom: 22%; transform: translateX(-50%); }
-        .bet-chip-2 { left: 22%; top: 60%; }
-        .bet-chip-3 { left: 22%; top: 32%; }
-        .bet-chip-4 { left: 50%; top: 18%; transform: translateX(-50%); }
-        .bet-chip-5 { right: 22%; top: 32%; }
-        .bet-chip-6 { right: 22%; top: 60%; }
+        /* Chip positions near each seat, offset toward center of table */
+        .bet-chip-1 { left: 50%; bottom: 28%; transform: translateX(-50%); }
+        .bet-chip-2 { left: 28%; top: 58%; }
+        .bet-chip-3 { left: 28%; top: 34%; }
+        .bet-chip-4 { left: 50%; top: 22%; transform: translateX(-50%); }
+        .bet-chip-5 { right: 28%; top: 34%; }
+        .bet-chip-6 { right: 28%; top: 58%; }
 
         /* --- Animations --- */
         @keyframes flash-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -231,6 +231,9 @@
             .range-cell { width: 1.4rem; height: 1.4rem; font-size: 0.45rem; line-height: 1.4rem; }
             .range-cell-hero { outline-width: 2px; }
             .pot-display { font-size: 0.65rem; }
+            .chip-icon { width: 1.2rem; height: 1.2rem; border-width: 2px; }
+            .chip-amount { font-size: 0.55rem; padding: 0.1rem 0.3rem; }
+            .bet-chip { gap: 0.15rem; }
         }
     </style>
 </head>

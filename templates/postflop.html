@@ -7,6 +7,35 @@
 {% endblock %}
 
 {% block content %}
+<div class="flex justify-center gap-2 flex-wrap mb-3">
+    <a href="/postflop{% if filter_texture %}?texture={{ filter_texture }}{% endif %}"
+       class="px-2.5 py-1 text-xs rounded-full transition-all
+              {% if not filter_position %}bg-gray-700 text-white ring-1 ring-gray-500{% else %}bg-gray-800/60 text-gray-500 hover:text-gray-300{% endif %}">
+        Any Pos
+    </a>
+    {% for pos in ['OOP', 'IP'] %}
+    <a href="/postflop?position={{ pos }}{% if filter_texture %}&texture={{ filter_texture }}{% endif %}"
+       class="px-2.5 py-1 text-xs rounded-full transition-all
+              {% if filter_position == pos %}bg-emerald-800 text-emerald-300 ring-1 ring-emerald-600{% else %}bg-gray-800/60 text-gray-500 hover:text-gray-300{% endif %}">
+        {{ pos }}
+    </a>
+    {% endfor %}
+</div>
+<div class="flex justify-center gap-2 flex-wrap mb-4">
+    <a href="/postflop{% if filter_position %}?position={{ filter_position }}{% endif %}"
+       class="px-2.5 py-1 text-xs rounded-full transition-all
+              {% if not filter_texture %}bg-gray-700 text-white ring-1 ring-gray-500{% else %}bg-gray-800/60 text-gray-500 hover:text-gray-300{% endif %}">
+        Any Board
+    </a>
+    {% set textures = [('monotone', 'Monotone'), ('paired', 'Paired'), ('wet', 'Wet'), ('high_dry', 'High Dry'), ('low_dry', 'Low Dry')] %}
+    {% for tex_key, tex_label in textures %}
+    <a href="/postflop?texture={{ tex_key }}{% if filter_position %}&position={{ filter_position }}{% endif %}"
+       class="px-2.5 py-1 text-xs rounded-full transition-all
+              {% if filter_texture == tex_key %}bg-amber-800 text-amber-300 ring-1 ring-amber-600{% else %}bg-gray-800/60 text-gray-500 hover:text-gray-300{% endif %}">
+        {{ tex_label }}
+    </a>
+    {% endfor %}
+</div>
 <div id="scenario-zone" class="flash-in">
     {% include "partials/scenario_postflop.html" %}
 </div>
