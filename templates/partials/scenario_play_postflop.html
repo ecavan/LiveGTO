@@ -15,7 +15,7 @@
     </div>
 
     {# Action form #}
-    <form id="play-postflop-form">
+    <form hx-post="/api/play/postflop_answer" hx-target="#scenario-zone" hx-swap="innerHTML">
         <input type="hidden" name="hand_key" value="{{ scenario.hand_key }}">
         <input type="hidden" name="postflop_position" value="{{ scenario.postflop_position }}">
         <input type="hidden" name="bucket" value="{{ scenario.bucket }}">
@@ -30,12 +30,7 @@
 
         <div class="flex justify-center gap-2 flex-wrap">
             {% for action in scenario.postflop_actions %}
-            <button type="button"
-                    hx-post="/api/play/postflop_answer"
-                    hx-include="#play-postflop-form"
-                    hx-target="#scenario-zone"
-                    hx-swap="innerHTML"
-                    hx-vals='{"action": "{{ action }}"}'
+            <button type="submit" name="action" value="{{ action }}"
                     class="px-5 py-2.5 rounded-lg font-semibold transition-all text-sm
                     {% if action == 'check' %}
                         bg-gray-700 hover:bg-gray-600

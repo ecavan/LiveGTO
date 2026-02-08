@@ -8,7 +8,7 @@
     <p class="text-center text-gray-500 text-sm font-mono">{{ scenario.hand_key }}</p>
 
     {# Action form with ALL state (preflop + postflop) #}
-    <form id="play-form">
+    <form hx-post="/api/play/preflop" hx-target="#scenario-zone" hx-swap="innerHTML">
         {# Shared #}
         <input type="hidden" name="hand" value="{{ scenario.hand | tojson }}">
         <input type="hidden" name="hand_key" value="{{ scenario.hand_key }}">
@@ -47,12 +47,7 @@
 
         <div class="flex justify-center gap-3 flex-wrap">
             {% for action in scenario.preflop_actions %}
-            <button type="button"
-                    hx-post="/api/play/preflop"
-                    hx-include="#play-form"
-                    hx-target="#scenario-zone"
-                    hx-swap="innerHTML"
-                    hx-vals='{"action": "{{ action }}"}'
+            <button type="submit" name="action" value="{{ action }}"
                     class="px-6 py-3 rounded-lg font-semibold transition-all text-sm
                     {% if action == 'raise' %}
                         bg-emerald-700 hover:bg-emerald-600 text-white

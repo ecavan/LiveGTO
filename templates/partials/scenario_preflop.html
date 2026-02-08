@@ -1,5 +1,4 @@
 <div class="space-y-5 flash-in">
-    {# Poker table #}
     {% with board=scenario.board, seats=scenario.seats, dealer_seat=scenario.dealer_seat,
             pot=None, situation=scenario.situation %}
         {% include "partials/poker_table.html" %}
@@ -7,8 +6,7 @@
 
     <p class="text-center text-gray-500 text-sm font-mono">{{ scenario.hand_key }}</p>
 
-    {# Action form #}
-    <form id="preflop-form">
+    <form hx-post="/api/preflop/answer" hx-target="#scenario-zone" hx-swap="innerHTML">
         <input type="hidden" name="type" value="{{ scenario.type }}">
         <input type="hidden" name="position" value="{{ scenario.position }}">
         <input type="hidden" name="hand_key" value="{{ scenario.hand_key }}">
@@ -28,12 +26,7 @@
 
         <div class="flex justify-center gap-3 flex-wrap">
             {% for action in scenario.actions %}
-            <button type="button"
-                    hx-post="/api/preflop/answer"
-                    hx-include="#preflop-form"
-                    hx-target="#scenario-zone"
-                    hx-swap="innerHTML"
-                    hx-vals='{"action": "{{ action }}"}'
+            <button type="submit" name="action" value="{{ action }}"
                     class="px-6 py-3 rounded-lg font-semibold transition-all text-sm
                     {% if action == 'raise' %}
                         bg-emerald-700 hover:bg-emerald-600 text-white

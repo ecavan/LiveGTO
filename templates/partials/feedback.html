@@ -1,5 +1,4 @@
 <div class="space-y-6 flash-in">
-    <!-- Result banner -->
     <div class="p-5 rounded-xl {{ 'bg-emerald-900/40 border border-emerald-800/60' if feedback.is_correct else 'bg-red-900/40 border border-red-800/60' }}">
         <div class="text-center text-xl font-bold mb-2
                     {{ 'text-emerald-400' if feedback.is_correct else 'text-red-400' }}">
@@ -8,7 +7,6 @@
         <p class="text-center text-gray-300 text-sm">{{ feedback.explanation }}</p>
     </div>
 
-    <!-- Range grid -->
     {% if feedback.range %}
     <div class="overflow-x-auto">
         <div class="text-xs text-gray-500 text-center mb-2">
@@ -57,15 +55,10 @@
     </div>
     {% endif %}
 
-    <!-- Next hand button -->
     <div class="text-center pt-2">
-        <form id="next-form">
+        <form hx-post="/api/{{ mode }}/next" hx-target="#scenario-zone" hx-swap="innerHTML">
             <input type="hidden" name="streak" value="{{ streak }}">
-            <button type="button"
-                    hx-post="/api/{{ mode }}/next"
-                    hx-include="#next-form"
-                    hx-target="#scenario-zone"
-                    hx-swap="innerHTML"
+            <button type="submit"
                     class="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg
                            font-semibold transition-all text-sm">
                 Next Hand &rarr;
@@ -74,5 +67,4 @@
     </div>
 </div>
 
-<!-- OOB streak update -->
 <span id="streak-val" hx-swap-oob="innerHTML">{{ streak }}</span>

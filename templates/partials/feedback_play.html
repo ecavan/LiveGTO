@@ -57,9 +57,10 @@
     </div>
     {% endif %}
 
-    {# Continue button #}
+    {# Continue button — "See Flop" or "Next Hand" #}
     <div class="text-center pt-2">
-        <form id="play-continue-form">
+        {% if show_flop %}
+        <form hx-post="/api/play/postflop" hx-target="#scenario-zone" hx-swap="innerHTML">
             {# Carry all state forward #}
             <input type="hidden" name="streak" value="{{ streak }}">
             <input type="hidden" name="hand" value="{{ form.get('hand', '[]') }}">
@@ -80,29 +81,22 @@
             <input type="hidden" name="postflop_actions" value="{{ form.get('postflop_actions', '[]') }}">
             <input type="hidden" name="postflop_action_labels" value="{{ form.get('postflop_action_labels', '{}') }}">
             <input type="hidden" name="range_breakdown" value="{{ form.get('range_breakdown', '{}') }}">
-
-            {% if show_flop %}
-            <button type="button"
-                    hx-post="/api/play/postflop"
-                    hx-include="#play-continue-form"
-                    hx-target="#scenario-zone"
-                    hx-swap="innerHTML"
+            <button type="submit"
                     class="px-8 py-3 bg-emerald-800 hover:bg-emerald-700 rounded-lg
                            font-semibold transition-all text-sm">
                 See the Flop &rarr;
             </button>
-            {% else %}
-            <button type="button"
-                    hx-post="/api/play/next"
-                    hx-include="#play-continue-form"
-                    hx-target="#scenario-zone"
-                    hx-swap="innerHTML"
+        </form>
+        {% else %}
+        <form hx-post="/api/play/next" hx-target="#scenario-zone" hx-swap="innerHTML">
+            <input type="hidden" name="streak" value="{{ streak }}">
+            <button type="submit"
                     class="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg
                            font-semibold transition-all text-sm">
                 Next Hand &rarr;
             </button>
-            {% endif %}
         </form>
+        {% endif %}
     </div>
 </div>
 

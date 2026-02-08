@@ -56,13 +56,9 @@
 
     <!-- Next hand -->
     <div class="text-center pt-2">
-        <form id="next-form">
+        <form hx-post="/api/postflop/next" hx-target="#scenario-zone" hx-swap="innerHTML">
             <input type="hidden" name="streak" value="{{ streak }}">
-            <button type="button"
-                    hx-post="/api/postflop/next"
-                    hx-include="#next-form"
-                    hx-target="#scenario-zone"
-                    hx-swap="innerHTML"
+            <button type="submit"
                     class="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg
                            font-semibold transition-all text-sm">
                 Next Hand &rarr;

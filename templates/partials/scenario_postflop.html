@@ -1,11 +1,9 @@
 <div class="space-y-5 flash-in">
-    {# Poker table #}
     {% with board=scenario.board, seats=scenario.seats, dealer_seat=scenario.dealer_seat,
             pot=(scenario.pot ~ ' BB'), situation=scenario.situation %}
         {% include "partials/poker_table.html" %}
     {% endwith %}
 
-    {# Hand info #}
     <div class="text-center text-sm">
         <span class="text-gray-500 font-mono">{{ scenario.hand_key }}</span>
         <span class="mx-2 text-gray-700">|</span>
@@ -14,8 +12,7 @@
         <span class="text-xs text-gray-500 font-mono">{{ scenario.texture_label }}</span>
     </div>
 
-    {# Action form #}
-    <form id="postflop-form">
+    <form hx-post="/api/postflop/answer" hx-target="#scenario-zone" hx-swap="innerHTML">
         <input type="hidden" name="position" value="{{ scenario.position }}">
         <input type="hidden" name="hand_key" value="{{ scenario.hand_key }}">
         <input type="hidden" name="bucket" value="{{ scenario.bucket }}">
@@ -30,16 +27,9 @@
 
         <div class="flex justify-center gap-2 flex-wrap">
             {% for action in scenario.actions %}
-            <button type="button"
-                    hx-post="/api/postflop/answer"
-                    hx-include="#postflop-form"
-                    hx-target="#scenario-zone"
-                    hx-swap="innerHTML"
-                    hx-vals='{"action": "{{ action }}"}'
+            <button type="submit" name="action" value="{{ action }}"
                     class="px-5 py-2.5 rounded-lg font-semibold transition-all text-sm
-                    {% if action == 'check' %}
-                        bg-gray-700 hover:bg-gray-600
-                    {% elif action == 'fold' %}
+                    {% if action == 'check' or action == 'fold' %}
                         bg-gray-700 hover:bg-gray-600
                     {% elif action == 'call' %}
                         bg-blue-700 hover:bg-blue-600
@@ -47,7 +37,7 @@
                         bg-emerald-800 hover:bg-emerald-700
                     {% elif action == 'bet_m' %}
                         bg-emerald-700 hover:bg-emerald-600
-                    {% elif action == 'bet_l' or action == 'raise' %}
+                    {% else %}
                         bg-emerald-600 hover:bg-emerald-500
                     {% endif %}">
                 {{ scenario.action_labels[action] }}
