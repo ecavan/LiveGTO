@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveGTO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        felt: { DEFAULT: '#0d5c2e', dark: '#0a4a24' },
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <style>
+        body { background: #0a0a0f; }
+        .card-box {
+            width: 4.5rem; height: 6.5rem;
+            border-radius: 0.5rem;
+            border: 2px solid #374151;
+            background: #111827;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            font-weight: 700; font-size: 1.5rem;
+        }
+        .card-box .suit { font-size: 1.1rem; }
+        .card-red { color: #ef4444; }
+        .card-black { color: #e5e7eb; }
+        .board-card {
+            width: 3.5rem; height: 5rem;
+            font-size: 1.15rem;
+        }
+        .board-card .suit { font-size: 0.9rem; }
+        @keyframes flash-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .flash-in { animation: flash-in 0.25s ease-out; }
+        .htmx-request { opacity: 0.6; transition: opacity 0.2s; }
+        .range-cell { width: 1.7rem; height: 1.7rem; font-size: 0.55rem; text-align: center; line-height: 1.7rem; }
+        @media (max-width: 640px) {
+            .card-box { width: 3.5rem; height: 5rem; font-size: 1.2rem; }
+            .card-box .suit { font-size: 0.9rem; }
+            .board-card { width: 2.8rem; height: 4rem; font-size: 1rem; }
+            .range-cell { width: 1.4rem; height: 1.4rem; font-size: 0.45rem; line-height: 1.4rem; }
+        }
+    </style>
+</head>
+<body class="text-gray-100 min-h-screen">
+    <header class="border-b border-gray-800/60 px-4 py-3 flex items-center justify-between">
+        <a href="/" class="text-xl font-bold text-emerald-400 tracking-tight">LiveGTO</a>
+        <div id="streak-display">
+            {% block streak %}{% endblock %}
+        </div>
+    </header>
+    <main class="max-w-2xl mx-auto px-4 py-8">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

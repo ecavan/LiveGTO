@@ -1,0 +1,78 @@
+<div class="space-y-6 flash-in">
+    <!-- Result banner -->
+    <div class="p-5 rounded-xl {{ 'bg-emerald-900/40 border border-emerald-800/60' if feedback.is_correct else 'bg-red-900/40 border border-red-800/60' }}">
+        <div class="text-center text-xl font-bold mb-2
+                    {{ 'text-emerald-400' if feedback.is_correct else 'text-red-400' }}">
+            {{ 'Correct' if feedback.is_correct else 'Incorrect' }}
+        </div>
+        <p class="text-center text-gray-300 text-sm">{{ feedback.explanation }}</p>
+    </div>
+
+    <!-- Range grid -->
+    {% if feedback.range %}
+    <div class="overflow-x-auto">
+        <div class="text-xs text-gray-500 text-center mb-2">
+            {% if feedback.raise_range and feedback.call_range %}
+                <span class="inline-block w-3 h-3 rounded-sm bg-emerald-700 mr-1 align-middle"></span> 3-Bet
+                <span class="inline-block w-3 h-3 rounded-sm bg-blue-800 mr-1 ml-3 align-middle"></span> Call
+                <span class="inline-block w-3 h-3 rounded-sm bg-gray-800 mr-1 ml-3 align-middle"></span> Fold
+            {% else %}
+                <span class="inline-block w-3 h-3 rounded-sm bg-emerald-700 mr-1 align-middle"></span> In range
+                <span class="inline-block w-3 h-3 rounded-sm bg-gray-800 mr-1 ml-3 align-middle"></span> Fold
+            {% endif %}
+            <span class="inline-block w-3 h-3 rounded-sm ring-2 ring-yellow-400 mr-1 ml-3 align-middle"></span> You
+        </div>
+
+        {% set ranks = ['A','K','Q','J','T','9','8','7','6','5','4','3','2'] %}
+        <table class="mx-auto border-collapse">
+            {% for i in range(13) %}
+            <tr>
+                {% for j in range(13) %}
+                    {% if i == j %}
+                        {% set key = ranks[i] ~ ranks[j] %}
+                    {% elif i < j %}
+                        {% set key = ranks[i] ~ ranks[j] ~ 's' %}
+                    {% else %}
+                        {% set key = ranks[j] ~ ranks[i] ~ 'o' %}
+                    {% endif %}
+
+                    {% set in_raise = feedback.raise_range and key in feedback.raise_range %}
+                    {% set in_call = feedback.call_range and key in feedback.call_range %}
+                    {% set in_range = key in feedback.range %}
+                    {% set is_hero = key == feedback.hand_key %}
+
+                    <td class="range-cell border border-gray-800/50
+                              {% if in_raise %}bg-emerald-700/80
+                              {% elif in_call %}bg-blue-800/70
+                              {% elif in_range %}bg-emerald-700/80
+                              {% else %}bg-gray-900/60
+                              {% endif %}
+                              {% if is_hero %}ring-2 ring-yellow-400 z-10 relative{% endif %}">
+                        {{ key }}
+                    </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Next hand button -->
+    <div class="text-center pt-2">
+        <form id="next-form">
+            <input type="hidden" name="streak" value="{{ streak }}">
+            <button type="button"
+                    hx-post="/api/{{ mode }}/next"
+                    hx-include="#next-form"
+                    hx-target="#scenario-zone"
+                    hx-swap="innerHTML"
+                    class="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg
+                           font-semibold transition-all text-sm">
+                Next Hand &rarr;
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- OOB streak update -->
+<span id="streak-val" hx-swap-oob="innerHTML">{{ streak }}</span>

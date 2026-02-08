@@ -1,0 +1,84 @@
+<div class="space-y-6 flash-in">
+    <!-- Situation -->
+    <div class="text-center space-y-1">
+        <span class="inline-block px-4 py-1.5 bg-gray-800/80 rounded-full text-sm font-mono text-gray-300">
+            {{ scenario.situation }}
+        </span>
+        <div class="text-xs text-gray-500">
+            Pot: {{ scenario.pot }} BB
+        </div>
+    </div>
+
+    <!-- Board cards -->
+    <div class="flex justify-center gap-2">
+        {% for card in scenario.board %}
+        <div class="card-box board-card {{ 'card-red' if card.color == 'red' else 'card-black' }}">
+            <span>{{ card.rank }}</span>
+            <span class="suit">{{ card.suit_symbol }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Texture badge -->
+    <div class="text-center">
+        <span class="text-xs text-gray-500 font-mono">{{ scenario.texture_label }}</span>
+    </div>
+
+    <!-- Hole cards -->
+    <div class="flex justify-center gap-3">
+        {% for card in scenario.hand %}
+        <div class="card-box {{ 'card-red' if card.color == 'red' else 'card-black' }}">
+            <span>{{ card.rank }}</span>
+            <span class="suit">{{ card.suit_symbol }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="text-center text-sm">
+        <span class="text-gray-500 font-mono">{{ scenario.hand_key }}</span>
+        <span class="mx-2 text-gray-700">|</span>
+        <span class="text-gray-400">{{ scenario.bucket_label }}</span>
+    </div>
+
+    <!-- Action form -->
+    <form id="postflop-form">
+        <input type="hidden" name="position" value="{{ scenario.position }}">
+        <input type="hidden" name="hand_key" value="{{ scenario.hand_key }}">
+        <input type="hidden" name="bucket" value="{{ scenario.bucket }}">
+        <input type="hidden" name="bucket_label" value="{{ scenario.bucket_label }}">
+        <input type="hidden" name="texture" value="{{ scenario.texture }}">
+        <input type="hidden" name="texture_label" value="{{ scenario.texture_label }}">
+        <input type="hidden" name="strategy" value="{{ scenario.strategy | tojson }}">
+        <input type="hidden" name="correct_actions" value="{{ scenario.correct_actions | tojson }}">
+        <input type="hidden" name="action_labels" value="{{ scenario.action_labels | tojson }}">
+        <input type="hidden" name="range_breakdown" value="{{ scenario.range_breakdown | tojson }}">
+        <input type="hidden" name="streak" value="{{ streak }}">
+
+        <div class="flex justify-center gap-2 flex-wrap">
+            {% for action in scenario.actions %}
+            <button type="button"
+                    hx-post="/api/postflop/answer"
+                    hx-include="#postflop-form"
+                    hx-target="#scenario-zone"
+                    hx-swap="innerHTML"
+                    name="action" value="{{ action }}"
+                    class="px-5 py-2.5 rounded-lg font-semibold transition-all text-sm
+                    {% if action == 'check' %}
+                        bg-gray-700 hover:bg-gray-600
+                    {% elif action == 'fold' %}
+                        bg-gray-700 hover:bg-gray-600
+                    {% elif action == 'call' %}
+                        bg-blue-700 hover:bg-blue-600
+                    {% elif action == 'bet_s' %}
+                        bg-emerald-800 hover:bg-emerald-700
+                    {% elif action == 'bet_m' %}
+                        bg-emerald-700 hover:bg-emerald-600
+                    {% elif action == 'bet_l' or action == 'raise' %}
+                        bg-emerald-600 hover:bg-emerald-500
+                    {% endif %}">
+                {{ scenario.action_labels[action] }}
+            </button>
+            {% endfor %}
+        </div>
+    </form>
+</div>

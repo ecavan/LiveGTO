@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block streak %}
+<span class="text-emerald-400 font-mono text-sm">
+    <span class="text-gray-500">streak</span>
+    <span id="streak-val" class="ml-1 font-bold">{{ streak }}</span>
+</span>
+{% endblock %}
+
+{% block content %}
+<div id="scenario-zone" class="flash-in">
+    {% include "partials/scenario_preflop.html" %}
+</div>
+{% endblock %}
