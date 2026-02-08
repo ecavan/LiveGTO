@@ -1,6 +1,8 @@
 import os
 import json
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, send_from_directory
+
+_PUBLIC_DIR = os.path.join(os.path.dirname(__file__), '..', 'public')
 
 app = Flask(
     __name__,
@@ -50,6 +52,22 @@ def _build_bets(seats, user_action, facing_bet=False):
         bets[hero_idx] = label
 
     return bets if bets else None
+
+
+@app.route('/public/<path:filename>')
+def public_files(filename):
+    return send_from_directory(_PUBLIC_DIR, filename)
+
+
+@app.route('/manifest.json')
+def manifest():
+    return send_from_directory(_PUBLIC_DIR, 'manifest.json')
+
+
+@app.route('/sw.js')
+def service_worker():
+    return send_from_directory(_PUBLIC_DIR, 'sw.js',
+                              mimetype='application/javascript')
 
 
 @app.route('/')

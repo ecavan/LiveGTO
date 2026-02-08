@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0a0a0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="LiveGTO">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon-192.png">
     <title>LiveGTO</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -16,7 +22,6 @@
             }
         }
     </script>
-    <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
     <style>
         body { background: #0a0a0f; }
 
@@ -198,7 +203,6 @@
         /* --- Animations --- */
         @keyframes flash-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .flash-in { animation: flash-in 0.25s ease-out; }
-        .htmx-request { opacity: 0.6; transition: opacity 0.2s; }
 
         /* --- Range grid --- */
         .range-cell { width: 1.7rem; height: 1.7rem; font-size: 0.55rem; text-align: center; line-height: 1.7rem; }
@@ -239,13 +243,15 @@
 </head>
 <body class="text-gray-100 min-h-screen">
     <header class="border-b border-gray-800/60 px-4 py-3 flex items-center justify-between">
-        <a href="/" class="text-xl font-bold text-emerald-400 tracking-tight">LiveGTO</a>
+        <a href="#home" class="text-xl font-bold text-emerald-400 tracking-tight">LiveGTO</a>
         <div id="streak-display">
-            {% block streak %}{% endblock %}
+            <span class="text-emerald-400 font-mono text-sm">
+                <span class="text-gray-500">streak</span>
+                <span id="streak-val" class="ml-1 font-bold">0</span>
+            </span>
         </div>
     </header>
-    <main class="max-w-3xl mx-auto px-4 py-6">
-        {% block content %}{% endblock %}
-    </main>
+    <main id="app" class="max-w-3xl mx-auto px-4 py-6"></main>
+    <script type="module" src="/src/main.js"></script>
 </body>
 </html>

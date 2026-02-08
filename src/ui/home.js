@@ -1,0 +1,48 @@
+/**
+ * Home page — mode selection.
+ */
+import { navigate } from '../router.js';
+
+export function render(container) {
+  container.innerHTML = `
+  <div class="text-center space-y-10 pt-8">
+    <div>
+      <h1 class="text-4xl font-bold text-emerald-400 tracking-tight">LiveGTO</h1>
+      <p class="text-gray-500 mt-2 text-lg">Train your poker instincts</p>
+    </div>
+
+    <div class="grid gap-4 max-w-sm mx-auto">
+      <a href="#simulate"
+         class="block p-6 bg-amber-900/30 rounded-xl border border-amber-700/40
+                hover:border-amber-500/60 hover:bg-amber-900/50 transition-all">
+        <h2 class="text-lg font-semibold text-amber-300">Simulate</h2>
+        <p class="text-sm text-gray-400 mt-1">Heads-up session with AI &mdash; real stacks and session review</p>
+      </a>
+
+      <a href="#play"
+         class="block p-6 bg-emerald-900/30 rounded-xl border border-emerald-700/40
+                hover:border-emerald-500/60 hover:bg-emerald-900/50 transition-all">
+        <h2 class="text-lg font-semibold text-emerald-300">Play</h2>
+        <p class="text-sm text-gray-400 mt-1">Play through full hands &mdash; preflop to postflop</p>
+      </a>
+
+      <div class="grid grid-cols-2 gap-4">
+        <a href="#preflop"
+           class="block p-5 bg-gray-900/80 rounded-xl border border-gray-800
+                  hover:border-emerald-500/60 hover:bg-gray-900 transition-all">
+          <h2 class="text-base font-semibold text-gray-100">Preflop</h2>
+          <p class="text-xs text-gray-500 mt-1">RFI &amp; facing opens</p>
+        </a>
+
+        <a href="#postflop"
+           class="block p-5 bg-gray-900/80 rounded-xl border border-gray-800
+                  hover:border-emerald-500/60 hover:bg-gray-900 transition-all">
+          <h2 class="text-base font-semibold text-gray-100">Postflop</h2>
+          <p class="text-xs text-gray-500 mt-1">Bet sizing &amp; actions</p>
+        </a>
+      </div>
+    </div>
+
+    <p class="text-xs text-gray-600 pt-4">No tracking. No accounts. Just reps.</p>
+  </div>`;
+}
