@@ -4,6 +4,7 @@
    pot: string like "10 BB" or None
    dealer_seat: int index (0-5) of which seat has the dealer button
    situation: optional string for center display
+   bets: optional dict {seat_index: "amount BB"} for chip displays
 #}
 <div class="poker-table">
     <div class="table-felt"></div>
@@ -38,6 +39,16 @@
         <div class="pot-display">{{ pot }}</div>
         {% endif %}
     </div>
+
+    {# --- Bet chips --- #}
+    {% if bets %}
+        {% for seat_idx, amount in bets.items() %}
+        <div class="bet-chip bet-chip-{{ seat_idx|int + 1 }}">
+            <div class="chip-icon"></div>
+            <span class="chip-amount">{{ amount }}</span>
+        </div>
+        {% endfor %}
+    {% endif %}
 
     {# --- Seats --- #}
     {% for seat in seats %}

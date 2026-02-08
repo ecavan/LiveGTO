@@ -6,46 +6,24 @@
 
     <p class="text-center text-gray-500 text-sm font-mono">{{ scenario.hand_key }}</p>
 
-    <form hx-post="/api/preflop/answer" hx-target="#scenario-zone" hx-swap="innerHTML">
-        <input type="hidden" name="type" value="{{ scenario.type }}">
-        <input type="hidden" name="position" value="{{ scenario.position }}">
-        <input type="hidden" name="hand_key" value="{{ scenario.hand_key }}">
-        <input type="hidden" name="correct_action" value="{{ scenario.correct_action }}">
-        <input type="hidden" name="range" value='{{ scenario.range | tojson }}'>
-        <input type="hidden" name="range_size" value="{{ scenario.range_size }}">
-        <input type="hidden" name="streak" value="{{ streak }}">
-        {% if scenario.opener %}
-        <input type="hidden" name="opener" value="{{ scenario.opener }}">
+    {% if feedback %}
+    {# --- Result mode: inline feedback --- #}
+    <div class="flex items-center justify-center gap-2 py-1">
+        {% if feedback.is_correct %}
+        <span class="text-emerald-400 text-2xl font-bold">&#10003;</span>
+        <span class="text-emerald-400 font-semibold text-sm">Correct</span>
+        {% else %}
+        <span class="text-red-400 text-2xl font-bold">&#10007;</span>
+        <span class="text-red-400 font-semibold text-sm">Incorrect</span>
         {% endif %}
-        {% if scenario.raise_range is not none %}
-        <input type="hidden" name="raise_range" value='{{ scenario.raise_range | tojson }}'>
-        {% endif %}
-        {% if scenario.call_range is not none %}
-        <input type="hidden" name="call_range" value='{{ scenario.call_range | tojson }}'>
-        {% endif %}
+    </div>
+    <p class="text-center text-gray-400 text-xs">{{ feedback.explanation }}</p>
 
-        <div class="flex justify-center gap-3 flex-wrap">
-            {% for action in scenario.actions %}
-            <button type="submit" name="action" value="{{ action }}"
-                    class="px-6 py-3 rounded-lg font-semibold transition-all text-sm
-                    {% if action == 'raise' %}
-                        bg-emerald-700 hover:bg-emerald-600 text-white
-                    {% elif action == 'call' %}
-                        bg-blue-700 hover:bg-blue-600 text-white
-                    {% else %}
-                        bg-gray-700 hover:bg-gray-600 text-gray-200
-                    {% endif %}">
-                {{ scenario.action_labels[action] }}
-            </button>
-            {% endfor %}
-        </div>
-    </form>
-
-    {# Range grid — shows what hands are in range for this spot #}
-    {% if scenario.range %}
+    {# Range grid (revealed after answer) #}
+    {% if feedback.range %}
     <div class="overflow-x-auto pt-2">
         <div class="text-xs text-gray-500 text-center mb-2">
-            {% if scenario.raise_range and scenario.call_range %}
+            {% if feedback.raise_range and feedback.call_range %}
                 <span class="inline-block w-3 h-3 rounded-sm bg-emerald-700 mr-1 align-middle"></span> 3-Bet
                 <span class="inline-block w-3 h-3 rounded-sm bg-blue-800 mr-1 ml-3 align-middle"></span> Call
                 <span class="inline-block w-3 h-3 rounded-sm bg-gray-800 mr-1 ml-3 align-middle"></span> Fold
@@ -69,10 +47,10 @@
                         {% set key = ranks[j] ~ ranks[i] ~ 'o' %}
                     {% endif %}
 
-                    {% set in_raise = scenario.raise_range and key in scenario.raise_range %}
-                    {% set in_call = scenario.call_range and key in scenario.call_range %}
-                    {% set in_range = key in scenario.range %}
-                    {% set is_hero = key == scenario.hand_key %}
+                    {% set in_raise = feedback.raise_range and key in feedback.raise_range %}
+                    {% set in_call = feedback.call_range and key in feedback.call_range %}
+                    {% set in_range = key in feedback.range %}
+                    {% set is_hero = key == feedback.hand_key %}
 
                     <td class="range-cell border border-gray-800/50
                               {% if in_raise %}bg-emerald-700/80
@@ -88,5 +66,64 @@
             {% endfor %}
         </table>
     </div>
+    {% endif %}
+
+    {# Next Hand button #}
+    <div class="text-center pt-2">
+        <form hx-post="/api/preflop/next" hx-target="#scenario-zone" hx-swap="innerHTML">
+            <input type="hidden" name="streak" value="{{ streak }}">
+            <button type="submit"
+                    class="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg
+                           font-semibold transition-all text-sm">
+                Next Hand &rarr;
+            </button>
+        </form>
+    </div>
+
+    {# OOB streak update #}
+    <span id="streak-val" hx-swap-oob="innerHTML">{{ streak }}</span>
+
+    {% else %}
+    {# --- Decision mode: action buttons, no ranges --- #}
+    <form hx-post="/api/preflop/answer" hx-target="#scenario-zone" hx-swap="innerHTML">
+        <input type="hidden" name="type" value="{{ scenario.type }}">
+        <input type="hidden" name="position" value="{{ scenario.position }}">
+        <input type="hidden" name="hand_key" value="{{ scenario.hand_key }}">
+        <input type="hidden" name="correct_action" value="{{ scenario.correct_action }}">
+        <input type="hidden" name="range" value='{{ scenario.range | tojson }}'>
+        <input type="hidden" name="range_size" value="{{ scenario.range_size }}">
+        <input type="hidden" name="streak" value="{{ streak }}">
+        {% if scenario.opener %}
+        <input type="hidden" name="opener" value="{{ scenario.opener }}">
+        {% endif %}
+        {% if scenario.raise_range is not none %}
+        <input type="hidden" name="raise_range" value='{{ scenario.raise_range | tojson }}'>
+        {% endif %}
+        {% if scenario.call_range is not none %}
+        <input type="hidden" name="call_range" value='{{ scenario.call_range | tojson }}'>
+        {% endif %}
+        {# Carry table state for re-render on answer #}
+        <input type="hidden" name="hand" value='{{ scenario.hand | tojson }}'>
+        <input type="hidden" name="board" value='{{ scenario.board | tojson }}'>
+        <input type="hidden" name="seats" value='{{ scenario.seats | tojson }}'>
+        <input type="hidden" name="dealer_seat" value="{{ scenario.dealer_seat }}">
+        <input type="hidden" name="situation" value="{{ scenario.situation }}">
+
+        <div class="flex justify-center gap-3 flex-wrap">
+            {% for action in scenario.actions %}
+            <button type="submit" name="action" value="{{ action }}"
+                    class="px-6 py-3 rounded-lg font-semibold transition-all text-sm
+                    {% if action == 'raise' %}
+                        bg-emerald-700 hover:bg-emerald-600 text-white
+                    {% elif action == 'call' %}
+                        bg-blue-700 hover:bg-blue-600 text-white
+                    {% else %}
+                        bg-gray-700 hover:bg-gray-600 text-gray-200
+                    {% endif %}">
+                {{ scenario.action_labels[action] }}
+            </button>
+            {% endfor %}
+        </div>
+    </form>
     {% endif %}
 </div>

@@ -1,6 +1,7 @@
 <div class="space-y-5 flash-in">
     {% with board=scenario.board, seats=scenario.seats, dealer_seat=scenario.dealer_seat,
-            pot=(scenario.pot ~ ' BB'), situation=scenario.situation %}
+            pot=(scenario.pot ~ ' BB'), situation=scenario.situation,
+            bets=scenario.bets|default(none) %}
         {% include "partials/poker_table.html" %}
     {% endwith %}
 
@@ -12,6 +13,90 @@
         <span class="text-xs text-gray-500 font-mono">{{ scenario.texture_label }}</span>
     </div>
 
+    {% if feedback %}
+    {# --- Result mode: inline feedback --- #}
+    <div class="flex items-center justify-center gap-2 py-1">
+        {% if feedback.is_correct %}
+        <span class="text-emerald-400 text-2xl font-bold">&#10003;</span>
+        <span class="text-emerald-400 font-semibold text-sm">Correct</span>
+        {% else %}
+        <span class="text-red-400 text-2xl font-bold">&#10007;</span>
+        <span class="text-red-400 font-semibold text-sm">Incorrect</span>
+        {% endif %}
+    </div>
+    <p class="text-center text-gray-400 text-xs">{{ feedback.explanation }}</p>
+
+    {# Strategy bars (revealed after answer) #}
+    <div class="bg-gray-900/60 rounded-xl p-4 space-y-3">
+        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            Your hand: {{ feedback.bucket_label }}
+        </h3>
+        <div class="space-y-1.5">
+            {% for action, prob in feedback.strategy.items() | sort(attribute='1', reverse=true) %}
+            <div class="flex items-center gap-3">
+                <span class="text-sm text-gray-400 w-20">
+                    {{ feedback.action_labels.get(action, action) }}
+                </span>
+                <div class="flex-1 bg-gray-800 rounded-full h-2.5 overflow-hidden">
+                    <div class="h-full rounded-full
+                                {% if action in feedback.correct_actions %}bg-emerald-500{% else %}bg-gray-600{% endif %}"
+                         style="width: {{ (prob * 100) | int }}%"></div>
+                </div>
+                <span class="text-xs text-gray-500 w-10 text-right font-mono">{{ (prob * 100) | int }}%</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# Range breakdown (revealed after answer) #}
+    {% if feedback.range_breakdown %}
+    <div class="bg-gray-900/60 rounded-xl p-4">
+        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+            Full Range Strategy ({{ feedback.texture_label }})
+        </h3>
+        <div class="space-y-1.5 text-sm">
+            {% for bucket, strat in feedback.range_breakdown.items() %}
+            <div class="flex items-center gap-2">
+                <span class="text-gray-400 w-24 shrink-0 font-mono text-xs
+                            {% if bucket == feedback.bucket %}text-yellow-400 font-bold{% endif %}">
+                    {{ bucket }}
+                </span>
+                <div class="flex-1 flex gap-1 flex-wrap">
+                    {% for action, prob in strat.items() | sort(attribute='1', reverse=true) %}
+                    {% if prob > 0 %}
+                    <span class="text-xs px-1.5 py-0.5 rounded
+                                {% if 'bet' in action or action == 'raise' %}bg-emerald-900/60 text-emerald-400
+                                {% elif action == 'call' %}bg-blue-900/60 text-blue-400
+                                {% elif action == 'check' %}bg-gray-800 text-gray-400
+                                {% else %}bg-gray-800 text-gray-500{% endif %}">
+                        {{ feedback.action_labels.get(action, action) }} {{ (prob * 100) | int }}%
+                    </span>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# Next Hand button #}
+    <div class="text-center pt-2">
+        <form hx-post="/api/postflop/next" hx-target="#scenario-zone" hx-swap="innerHTML">
+            <input type="hidden" name="streak" value="{{ streak }}">
+            <button type="submit"
+                    class="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg
+                           font-semibold transition-all text-sm">
+                Next Hand &rarr;
+            </button>
+        </form>
+    </div>
+
+    {# OOB streak update #}
+    <span id="streak-val" hx-swap-oob="innerHTML">{{ streak }}</span>
+
+    {% else %}
+    {# --- Decision mode: action buttons, no ranges --- #}
     <form hx-post="/api/postflop/answer" hx-target="#scenario-zone" hx-swap="innerHTML">
         <input type="hidden" name="position" value="{{ scenario.position }}">
         <input type="hidden" name="hand_key" value="{{ scenario.hand_key }}">
@@ -24,6 +109,14 @@
         <input type="hidden" name="action_labels" value='{{ scenario.action_labels | tojson }}'>
         <input type="hidden" name="range_breakdown" value='{{ scenario.range_breakdown | tojson }}'>
         <input type="hidden" name="streak" value="{{ streak }}">
+        {# Carry table state for re-render on answer #}
+        <input type="hidden" name="hand" value='{{ scenario.hand | tojson }}'>
+        <input type="hidden" name="board" value='{{ scenario.board | tojson }}'>
+        <input type="hidden" name="seats" value='{{ scenario.seats | tojson }}'>
+        <input type="hidden" name="dealer_seat" value="{{ scenario.dealer_seat }}">
+        <input type="hidden" name="pot" value="{{ scenario.pot }}">
+        <input type="hidden" name="situation" value="{{ scenario.situation }}">
+        <input type="hidden" name="facing_bet" value="{{ scenario.facing_bet }}">
 
         <div class="flex justify-center gap-2 flex-wrap">
             {% for action in scenario.actions %}
@@ -45,36 +138,5 @@
             {% endfor %}
         </div>
     </form>
-
-    {# Range breakdown — shows GTO strategy for each hand bucket on this texture #}
-    {% if scenario.range_breakdown %}
-    <div class="bg-gray-900/60 rounded-xl p-4">
-        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-            Range Strategy ({{ scenario.texture_label }}, {{ scenario.position }})
-        </h3>
-        <div class="space-y-1.5 text-sm">
-            {% for bucket, strat in scenario.range_breakdown.items() %}
-            <div class="flex items-center gap-2">
-                <span class="text-gray-400 w-24 shrink-0 font-mono text-xs
-                            {% if bucket == scenario.bucket %}text-yellow-400 font-bold{% endif %}">
-                    {{ bucket }}
-                </span>
-                <div class="flex-1 flex gap-1">
-                    {% for action, prob in strat.items() | sort(attribute='1', reverse=true) %}
-                    {% if prob > 0 %}
-                    <span class="text-xs px-1.5 py-0.5 rounded
-                                {% if 'bet' in action or action == 'raise' %}bg-emerald-900/60 text-emerald-400
-                                {% elif action == 'call' %}bg-blue-900/60 text-blue-400
-                                {% elif action == 'check' %}bg-gray-800 text-gray-400
-                                {% else %}bg-gray-800 text-gray-500{% endif %}">
-                        {{ scenario.action_labels.get(action, action) }} {{ (prob * 100) | int }}%
-                    </span>
-                    {% endif %}
-                    {% endfor %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
     {% endif %}
 </div>

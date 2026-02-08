@@ -1,7 +1,7 @@
 """Random scenario generators for all game modes."""
 
 import random
-from treys import Deck
+from treys import Card, Deck
 from engine.cards import hand_to_key, card_to_dict
 from engine.ranges import POSITIONS, RFI_RANGES, FACING_OPEN
 from engine.abstraction import classify_hand, BUCKET_LABELS, BUCKETS
@@ -182,6 +182,15 @@ def generate_postflop():
     seats, dealer_seat = build_seats(hero_pos, hand_cards, active)
     pot = random.choice([6, 8, 10, 12, 15, 20])
 
+    # Chip bets: show villain's bet when facing a bet
+    bets = None
+    if facing_bet:
+        villain_seat_idx = next(
+            i for i, s in enumerate(seats) if s['position'] == villain_pos
+        )
+        bet_size = random.choice([3, 4, 5, 6, 7])
+        bets = {villain_seat_idx: f'{bet_size} BB'}
+
     return {
         'type': 'postflop',
         'position': position,
@@ -202,6 +211,74 @@ def generate_postflop():
         'pot': pot,
         'seats': seats,
         'dealer_seat': dealer_seat,
+        'bets': bets,
+    }
+
+
+def dict_to_card_int(card_dict):
+    """Convert a card display dict back to a treys card int."""
+    return Card.new(card_dict['str'])
+
+
+def compute_street_data(hand_dicts, board_dicts, position):
+    """Compute postflop strategy data for a given board length.
+
+    Works for flop (3 cards), turn (4 cards), or river (5 cards).
+
+    Args:
+        hand_dicts: list of 2 card display dicts
+        board_dicts: list of 3-5 card display dicts
+        position: 'OOP' or 'IP'
+
+    Returns:
+        dict with texture, bucket, strategy, actions, etc.
+    """
+    hand_ints = [dict_to_card_int(c) for c in hand_dicts]
+    board_ints = [dict_to_card_int(c) for c in board_dicts]
+
+    texture = classify_texture(board_ints)
+    bucket = classify_hand(hand_ints, board_ints, texture)
+    facing_bet = random.random() < 0.3
+    strategy = get_strategy(position, texture, bucket, facing_bet=facing_bet)
+    correct_actions = get_correct_actions(strategy)
+
+    if facing_bet:
+        actions = ['fold', 'call', 'raise']
+        action_labels = {'fold': 'Fold', 'call': 'Call', 'raise': 'Raise'}
+        situation = f'{position} facing bet'
+    elif position == 'OOP':
+        actions = ['check', 'bet_s', 'bet_m', 'bet_l']
+        action_labels = {'check': 'Check', 'bet_s': 'Bet 33%', 'bet_m': 'Bet 66%', 'bet_l': 'Bet 100%'}
+        situation = 'OOP first to act'
+    else:
+        actions = ['check', 'bet_s', 'bet_m', 'bet_l']
+        action_labels = {'check': 'Check', 'bet_s': 'Bet 33%', 'bet_m': 'Bet 66%', 'bet_l': 'Bet 100%'}
+        situation = 'IP after check'
+
+    range_breakdown = {}
+    for b in BUCKETS:
+        s = get_strategy(position, texture, b, facing_bet=facing_bet)
+        range_breakdown[b] = s
+
+    # Generate bet chip data for facing-bet scenarios
+    bets = None
+    if facing_bet:
+        bet_size = random.choice([3, 4, 5, 6, 7])
+        bets = {'bet_size': bet_size}  # Seat index assigned by caller
+
+    return {
+        'texture': texture,
+        'texture_label': TEXTURE_LABELS[texture],
+        'bucket': bucket,
+        'bucket_label': BUCKET_LABELS[bucket],
+        'strategy': strategy,
+        'correct_actions': correct_actions,
+        'postflop_actions': actions,
+        'postflop_action_labels': action_labels,
+        'postflop_situation': situation,
+        'range_breakdown': range_breakdown,
+        'facing_bet': facing_bet,
+        'bets_info': bets,
     }
 
 
@@ -213,7 +290,7 @@ def generate_play_scenario():
     """
     deck = Deck()
     hand = deck.draw(2)
-    board = deck.draw(3)
+    board = deck.draw(5)  # Deal all 5 cards upfront; reveal incrementally
 
     hand_cards = [card_to_dict(c) for c in hand]
     board_cards = [card_to_dict(c) for c in board]
@@ -258,10 +335,11 @@ def generate_play_scenario():
         preflop_range_size = len(RFI_RANGES[rfi_pos])
         opener_pos = ''
 
-    # --- Postflop data ---
+    # --- Postflop data (computed for flop = first 3 cards) ---
     postflop_position = 'IP' if position in IP_POSITIONS else 'OOP'
-    texture = classify_texture(board)
-    bucket = classify_hand(hand, board, texture)
+    flop = board[:3]  # Use raw ints for initial computation
+    texture = classify_texture(flop)
+    bucket = classify_hand(hand, flop, texture)
     facing_bet = random.random() < 0.3
     strategy = get_strategy(postflop_position, texture, bucket, facing_bet=facing_bet)
     correct_actions = get_correct_actions(strategy)
