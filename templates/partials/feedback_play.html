@@ -61,13 +61,13 @@
     <div class="text-center pt-2">
         {% if show_flop %}
         <form hx-post="/api/play/postflop" hx-target="#scenario-zone" hx-swap="innerHTML">
-            {# Carry all state forward #}
+            {# Carry all state forward — use single quotes for JSON values #}
             <input type="hidden" name="streak" value="{{ streak }}">
-            <input type="hidden" name="hand" value="{{ form.get('hand', '[]') }}">
+            <input type="hidden" name="hand" value='{{ form.get("hand", "[]") }}'>
             <input type="hidden" name="hand_key" value="{{ form.get('hand_key', '') }}">
-            <input type="hidden" name="board" value="{{ form.get('board', '[]') }}">
+            <input type="hidden" name="board" value='{{ form.get("board", "[]") }}'>
             <input type="hidden" name="position" value="{{ form.get('position', '') }}">
-            <input type="hidden" name="seats" value="{{ form.get('seats', '[]') }}">
+            <input type="hidden" name="seats" value='{{ form.get("seats", "[]") }}'>
             <input type="hidden" name="dealer_seat" value="{{ form.get('dealer_seat', '0') }}">
             <input type="hidden" name="pot" value="{{ form.get('pot', '10') }}">
             <input type="hidden" name="postflop_position" value="{{ form.get('postflop_position', '') }}">
@@ -76,11 +76,11 @@
             <input type="hidden" name="texture_label" value="{{ form.get('texture_label', '') }}">
             <input type="hidden" name="bucket" value="{{ form.get('bucket', '') }}">
             <input type="hidden" name="bucket_label" value="{{ form.get('bucket_label', '') }}">
-            <input type="hidden" name="strategy" value="{{ form.get('strategy', '{}') }}">
-            <input type="hidden" name="correct_actions" value="{{ form.get('correct_actions', '[]') }}">
-            <input type="hidden" name="postflop_actions" value="{{ form.get('postflop_actions', '[]') }}">
-            <input type="hidden" name="postflop_action_labels" value="{{ form.get('postflop_action_labels', '{}') }}">
-            <input type="hidden" name="range_breakdown" value="{{ form.get('range_breakdown', '{}') }}">
+            <input type="hidden" name="strategy" value='{{ form.get("strategy", "{}") }}'>
+            <input type="hidden" name="correct_actions" value='{{ form.get("correct_actions", "[]") }}'>
+            <input type="hidden" name="postflop_actions" value='{{ form.get("postflop_actions", "[]") }}'>
+            <input type="hidden" name="postflop_action_labels" value='{{ form.get("postflop_action_labels", "{}") }}'>
+            <input type="hidden" name="range_breakdown" value='{{ form.get("range_breakdown", "{}") }}'>
             <button type="submit"
                     class="px-8 py-3 bg-emerald-800 hover:bg-emerald-700 rounded-lg
                            font-semibold transition-all text-sm">

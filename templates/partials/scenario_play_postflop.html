@@ -22,10 +22,10 @@
         <input type="hidden" name="bucket_label" value="{{ scenario.bucket_label }}">
         <input type="hidden" name="texture" value="{{ scenario.texture }}">
         <input type="hidden" name="texture_label" value="{{ scenario.texture_label }}">
-        <input type="hidden" name="strategy" value="{{ scenario.strategy | tojson }}">
-        <input type="hidden" name="correct_actions" value="{{ scenario.correct_actions | tojson }}">
-        <input type="hidden" name="postflop_action_labels" value="{{ scenario.postflop_action_labels | tojson }}">
-        <input type="hidden" name="range_breakdown" value="{{ scenario.range_breakdown | tojson }}">
+        <input type="hidden" name="strategy" value='{{ scenario.strategy | tojson }}'>
+        <input type="hidden" name="correct_actions" value='{{ scenario.correct_actions | tojson }}'>
+        <input type="hidden" name="postflop_action_labels" value='{{ scenario.postflop_action_labels | tojson }}'>
+        <input type="hidden" name="range_breakdown" value='{{ scenario.range_breakdown | tojson }}'>
         <input type="hidden" name="streak" value="{{ streak }}">
 
         <div class="flex justify-center gap-2 flex-wrap">
@@ -50,4 +50,36 @@
             {% endfor %}
         </div>
     </form>
+
+    {# Range breakdown — shows GTO strategy for each hand bucket on this texture #}
+    {% if scenario.range_breakdown %}
+    <div class="bg-gray-900/60 rounded-xl p-4">
+        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+            Range Strategy ({{ scenario.texture_label }}, {{ scenario.postflop_position }})
+        </h3>
+        <div class="space-y-1.5 text-sm">
+            {% for bucket, strat in scenario.range_breakdown.items() %}
+            <div class="flex items-center gap-2">
+                <span class="text-gray-400 w-24 shrink-0 font-mono text-xs
+                            {% if bucket == scenario.bucket %}text-yellow-400 font-bold{% endif %}">
+                    {{ bucket }}
+                </span>
+                <div class="flex-1 flex gap-1 flex-wrap">
+                    {% for action, prob in strat.items() | sort(attribute='1', reverse=true) %}
+                    {% if prob > 0 %}
+                    <span class="text-xs px-1.5 py-0.5 rounded
+                                {% if 'bet' in action or action == 'raise' %}bg-emerald-900/60 text-emerald-400
+                                {% elif action == 'call' %}bg-blue-900/60 text-blue-400
+                                {% elif action == 'check' %}bg-gray-800 text-gray-400
+                                {% else %}bg-gray-800 text-gray-500{% endif %}">
+                        {{ scenario.postflop_action_labels.get(action, action) }} {{ (prob * 100) | int }}%
+                    </span>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 </div>
