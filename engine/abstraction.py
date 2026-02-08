@@ -29,6 +29,18 @@ BUCKET_LABELS = {
     AIR: 'Air (nothing)',
 }
 
+BUCKET_EXAMPLES = {
+    PREMIUM: ['AA on A72r', 'KK on K83r', 'Full house+', 'Nut flush (Ah on 3-flush)'],
+    NUT: ['Set (e.g. 77 on 7T2)', 'Non-nut flush', 'Top two pair', 'Combo draw (FD+OESD)'],
+    STRONG: ['QQ+ overpair on wet', 'TPTK (e.g. AK on K94)', 'Straight using both cards'],
+    GOOD: ['TT-JJ overpair', 'TP good kicker (e.g. KQ on K85)', 'One-card straight'],
+    MEDIUM: ['Low overpair (88-99)', 'TP weak kicker (e.g. K7 on K94)', 'Middle pair'],
+    DRAW: ['Flush draw (4 to flush)', 'Open-ended straight draw (8 outs)'],
+    WEAK_MADE: ['Bottom pair', 'Underpair below 2nd board card', 'Pocket pair < board'],
+    WEAK_DRAW: ['Gutshot (4 outs)', 'Backdoor flush draw', 'A/K overcard'],
+    AIR: ['No pair, no draw', 'Missed completely'],
+}
+
 
 def classify_hand(hand, board, texture=None):
     """

@@ -7,11 +7,44 @@ app = Flask(
     template_folder=os.path.join(os.path.dirname(__file__), '..', 'templates'),
 )
 
+import random as _random
 from engine.scenarios import (
     generate_preflop, generate_postflop, generate_play_scenario,
     compute_street_data,
 )
 from engine.evaluator import evaluate_preflop, evaluate_postflop
+
+
+# Bet sizing labels for chip display
+_BET_LABELS = {
+    'bet_s': '33%',
+    'bet_m': '66%',
+    'bet_l': '100%',
+    'raise': 'Raise',
+    'call': 'Call',
+}
+
+
+def _build_bets(seats, user_action, facing_bet=False):
+    """Build bet chip dict for poker table display based on user's action."""
+    bets = {}
+    hero_idx = next((i for i, s in enumerate(seats) if s.get('is_hero')), 0)
+    villain_idx = next(
+        (i for i, s in enumerate(seats) if s.get('is_active') and not s.get('is_hero')),
+        None
+    )
+
+    # Show villain's bet if facing a bet
+    if facing_bet and villain_idx is not None:
+        bet_size = _random.choice([3, 4, 5, 6, 7])
+        bets[villain_idx] = f'{bet_size} BB'
+
+    # Show hero's bet/raise/call
+    if user_action in ('bet_s', 'bet_m', 'bet_l', 'raise', 'call'):
+        label = _BET_LABELS.get(user_action, user_action)
+        bets[hero_idx] = label
+
+    return bets if bets else None
 
 
 @app.route('/')
@@ -103,16 +136,19 @@ def postflop_answer():
     streak = streak + 1 if feedback['is_correct'] else 0
 
     # Reconstruct full scenario for re-rendering with poker table
+    seats = json.loads(request.form.get('seats', '[]'))
+    is_facing_bet = request.form.get('facing_bet', '') == 'True'
     full_scenario = {
         **scenario,
         'hand': json.loads(request.form.get('hand', '[]')),
         'board': json.loads(request.form.get('board', '[]')),
-        'seats': json.loads(request.form.get('seats', '[]')),
+        'seats': seats,
         'dealer_seat': int(request.form.get('dealer_seat', 0)),
         'pot': request.form.get('pot', '10'),
         'situation': request.form.get('situation', ''),
-        'facing_bet': request.form.get('facing_bet', '') == 'True',
+        'facing_bet': is_facing_bet,
         'actions': [],
+        'bets': _build_bets(seats, user_action, facing_bet=is_facing_bet),
     }
 
     return render_template('partials/scenario_postflop.html',
@@ -258,13 +294,15 @@ def play_postflop_answer():
     # Reconstruct full scenario for re-rendering
     board_full = json.loads(request.form.get('board_full', '[]'))
     board_visible = json.loads(request.form.get('board_visible', '[]'))
+    seats = json.loads(request.form.get('seats', '[]'))
+    is_facing_bet = request.form.get('facing_bet', '') == 'True'
 
     full_scenario = {
         'hand': json.loads(request.form.get('hand', '[]')),
         'hand_key': request.form['hand_key'],
         'position': request.form.get('position', ''),
         'postflop_position': request.form['postflop_position'],
-        'seats': json.loads(request.form.get('seats', '[]')),
+        'seats': seats,
         'dealer_seat': int(request.form.get('dealer_seat', 0)),
         'pot': request.form.get('pot', '10'),
         'postflop_situation': request.form.get('postflop_situation', ''),
@@ -277,6 +315,7 @@ def play_postflop_answer():
         'strategy': json.loads(request.form['strategy']),
         'correct_actions': json.loads(request.form['correct_actions']),
         'range_breakdown': json.loads(request.form.get('range_breakdown', '{}')),
+        'bets': _build_bets(seats, user_action, facing_bet=is_facing_bet),
     }
 
     return render_template('partials/scenario_play_postflop.html',

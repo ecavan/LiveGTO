@@ -28,9 +28,12 @@
     {% if feedback %}
     {# --- Result mode: inline feedback --- #}
     <div class="flex items-center justify-center gap-2 py-1">
-        {% if feedback.is_correct %}
+        {% if feedback.is_primary %}
         <span class="text-emerald-400 text-2xl font-bold">&#10003;</span>
         <span class="text-emerald-400 font-semibold text-sm">Correct</span>
+        {% elif feedback.is_acceptable %}
+        <span class="text-amber-400 text-2xl font-bold">&#10003;</span>
+        <span class="text-amber-400 font-semibold text-sm">Acceptable</span>
         {% else %}
         <span class="text-red-400 text-2xl font-bold">&#10007;</span>
         <span class="text-red-400 font-semibold text-sm">Incorrect</span>
@@ -66,27 +69,38 @@
         <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
             Range Strategy ({{ feedback.texture_label }}, {{ scenario.postflop_position }})
         </h3>
-        <div class="space-y-1.5 text-sm">
+        <div class="space-y-1 text-sm">
             {% for bucket, strat in feedback.range_breakdown.items() %}
-            <div class="flex items-center gap-2">
-                <span class="text-gray-400 w-24 shrink-0 font-mono text-xs
-                            {% if bucket == feedback.bucket %}text-yellow-400 font-bold{% endif %}">
-                    {{ bucket }}
-                </span>
-                <div class="flex-1 flex gap-1 flex-wrap">
-                    {% for action, prob in strat.items() | sort(attribute='1', reverse=true) %}
-                    {% if prob > 0 %}
-                    <span class="text-xs px-1.5 py-0.5 rounded
-                                {% if 'bet' in action or action == 'raise' %}bg-emerald-900/60 text-emerald-400
-                                {% elif action == 'call' %}bg-blue-900/60 text-blue-400
-                                {% elif action == 'check' %}bg-gray-800 text-gray-400
-                                {% else %}bg-gray-800 text-gray-500{% endif %}">
-                        {{ feedback.action_labels.get(action, action) }} {{ (prob * 100) | int }}%
+            <details class="bucket-details">
+                <summary class="flex items-center gap-2 cursor-pointer py-0.5 hover:bg-gray-800/40 rounded px-1 -mx-1">
+                    <span class="text-gray-400 w-24 shrink-0 font-mono text-xs
+                                {% if bucket == feedback.bucket %}text-yellow-400 font-bold{% endif %}">
+                        {{ bucket }}
                     </span>
-                    {% endif %}
-                    {% endfor %}
+                    <div class="flex-1 flex gap-1 flex-wrap">
+                        {% for action, prob in strat.items() | sort(attribute='1', reverse=true) %}
+                        {% if prob > 0 %}
+                        <span class="text-xs px-1.5 py-0.5 rounded
+                                    {% if 'bet' in action or action == 'raise' %}bg-emerald-900/60 text-emerald-400
+                                    {% elif action == 'call' %}bg-blue-900/60 text-blue-400
+                                    {% elif action == 'check' %}bg-gray-800 text-gray-400
+                                    {% else %}bg-gray-800 text-gray-500{% endif %}">
+                            {{ feedback.action_labels.get(action, action) }} {{ (prob * 100) | int }}%
+                        </span>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </summary>
+                {% if feedback.bucket_examples and feedback.bucket_examples[bucket] %}
+                <div class="ml-1 pl-4 border-l border-gray-800 mt-1 mb-2">
+                    <div class="flex flex-wrap gap-1.5">
+                        {% for ex in feedback.bucket_examples[bucket] %}
+                        <span class="text-xs text-gray-500 bg-gray-800/60 px-1.5 py-0.5 rounded">{{ ex }}</span>
+                        {% endfor %}
+                    </div>
                 </div>
-            </div>
+                {% endif %}
+            </details>
             {% endfor %}
         </div>
     </div>
@@ -151,6 +165,7 @@
         <input type="hidden" name="dealer_seat" value="{{ scenario.dealer_seat }}">
         <input type="hidden" name="pot" value="{{ scenario.pot }}">
         <input type="hidden" name="postflop_situation" value="{{ scenario.postflop_situation }}">
+        <input type="hidden" name="facing_bet" value="{{ scenario.facing_bet|default('False') }}">
 
         <div class="flex justify-center gap-2 flex-wrap">
             {% for action in scenario.postflop_actions %}

@@ -202,6 +202,21 @@
 
         /* --- Range grid --- */
         .range-cell { width: 1.7rem; height: 1.7rem; font-size: 0.55rem; text-align: center; line-height: 1.7rem; }
+        .range-cell-hero {
+            outline: 2.5px solid #facc15;
+            outline-offset: -1px;
+            background: rgba(250, 204, 21, 0.25) !important;
+            z-index: 10;
+            position: relative;
+            font-weight: 700;
+            color: #facc15;
+        }
+
+        /* --- Bucket details (clickable expand) --- */
+        .bucket-details summary { list-style: none; }
+        .bucket-details summary::-webkit-details-marker { display: none; }
+        .bucket-details summary::marker { display: none; content: ''; }
+        .bucket-details[open] summary { background: rgba(31,41,55,0.4); border-radius: 0.375rem; }
 
         /* --- Responsive --- */
         @media (max-width: 640px) {
@@ -214,6 +229,7 @@
             .seat-label { font-size: 0.5rem; }
             .dealer-chip { width: 1rem; height: 1rem; font-size: 0.45rem; }
             .range-cell { width: 1.4rem; height: 1.4rem; font-size: 0.45rem; line-height: 1.4rem; }
+            .range-cell-hero { outline-width: 2px; }
             .pot-display { font-size: 0.65rem; }
         }
     </style>
