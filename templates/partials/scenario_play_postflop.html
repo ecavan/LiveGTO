@@ -1,7 +1,7 @@
 <div class="space-y-5 flash-in">
-    {# Poker table #}
+    {# Poker table with board revealed #}
     {% with board=scenario.board, seats=scenario.seats, dealer_seat=scenario.dealer_seat,
-            pot=(scenario.pot ~ ' BB'), situation=scenario.situation %}
+            pot=(scenario.pot ~ ' BB'), situation=scenario.postflop_situation %}
         {% include "partials/poker_table.html" %}
     {% endwith %}
 
@@ -15,24 +15,24 @@
     </div>
 
     {# Action form #}
-    <form id="postflop-form">
-        <input type="hidden" name="position" value="{{ scenario.position }}">
+    <form id="play-postflop-form">
         <input type="hidden" name="hand_key" value="{{ scenario.hand_key }}">
+        <input type="hidden" name="postflop_position" value="{{ scenario.postflop_position }}">
         <input type="hidden" name="bucket" value="{{ scenario.bucket }}">
         <input type="hidden" name="bucket_label" value="{{ scenario.bucket_label }}">
         <input type="hidden" name="texture" value="{{ scenario.texture }}">
         <input type="hidden" name="texture_label" value="{{ scenario.texture_label }}">
         <input type="hidden" name="strategy" value="{{ scenario.strategy | tojson }}">
         <input type="hidden" name="correct_actions" value="{{ scenario.correct_actions | tojson }}">
-        <input type="hidden" name="action_labels" value="{{ scenario.action_labels | tojson }}">
+        <input type="hidden" name="postflop_action_labels" value="{{ scenario.postflop_action_labels | tojson }}">
         <input type="hidden" name="range_breakdown" value="{{ scenario.range_breakdown | tojson }}">
         <input type="hidden" name="streak" value="{{ streak }}">
 
         <div class="flex justify-center gap-2 flex-wrap">
-            {% for action in scenario.actions %}
+            {% for action in scenario.postflop_actions %}
             <button type="button"
-                    hx-post="/api/postflop/answer"
-                    hx-include="#postflop-form"
+                    hx-post="/api/play/postflop_answer"
+                    hx-include="#play-postflop-form"
                     hx-target="#scenario-zone"
                     hx-swap="innerHTML"
                     hx-vals='{"action": "{{ action }}"}'
@@ -50,7 +50,7 @@
                     {% elif action == 'bet_l' or action == 'raise' %}
                         bg-emerald-600 hover:bg-emerald-500
                     {% endif %}">
-                {{ scenario.action_labels[action] }}
+                {{ scenario.postflop_action_labels[action] }}
             </button>
             {% endfor %}
         </div>

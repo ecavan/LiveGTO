@@ -1,0 +1,75 @@
+{# Poker table component.
+   seats: list of 6 dicts {position, is_hero, is_active, cards (list|None)}
+   board: list of card dicts (0-5), empty for preflop
+   pot: string like "10 BB" or None
+   dealer_seat: int index (0-5) of which seat has the dealer button
+   situation: optional string for center display
+#}
+<div class="poker-table">
+    <div class="table-felt"></div>
+
+    {# --- Board area (center) --- #}
+    <div class="board-area">
+        {% if situation %}
+        <div class="text-xs text-gray-300/80 font-mono mb-1">{{ situation }}</div>
+        {% endif %}
+
+        <div class="board-cards">
+            {% if board and board|length > 0 %}
+                {% for card in board %}
+                <div class="card-box board-card {{ 'card-red' if card.color == 'red' else 'card-black' }}">
+                    <span>{{ card.rank }}</span>
+                    <span class="suit">{{ card.suit_symbol }}</span>
+                </div>
+                {% endfor %}
+                {# Empty slots for unrevealed cards #}
+                {% for _ in range(5 - board|length) %}
+                <div class="board-slot"></div>
+                {% endfor %}
+            {% else %}
+                {# No board yet (preflop) #}
+                {% for _ in range(5) %}
+                <div class="board-slot"></div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        {% if pot %}
+        <div class="pot-display">{{ pot }}</div>
+        {% endif %}
+    </div>
+
+    {# --- Seats --- #}
+    {% for seat in seats %}
+    <div class="seat seat-{{ loop.index }}
+                {% if seat.is_hero %}seat-hero seat-active
+                {% elif seat.is_active %}seat-active
+                {% else %}seat-inactive{% endif %}">
+        <div class="seat-info" style="position: relative;">
+            <div class="seat-cards">
+                {% if seat.is_hero and seat.cards %}
+                    {# Hero: face-up cards #}
+                    {% for card in seat.cards %}
+                    <div class="card-box {{ 'card-red' if card.color == 'red' else 'card-black' }}">
+                        <span>{{ card.rank }}</span>
+                        <span class="suit">{{ card.suit_symbol }}</span>
+                    </div>
+                    {% endfor %}
+                {% elif seat.is_active %}
+                    {# Opponent: face-down cards #}
+                    <div class="card-back"></div>
+                    <div class="card-back"></div>
+                {% else %}
+                    {# Folded: no cards #}
+                    <div class="card-back" style="opacity: 0.2;"></div>
+                    <div class="card-back" style="opacity: 0.2;"></div>
+                {% endif %}
+            </div>
+            <div class="seat-label">{{ seat.position }}</div>
+            {% if loop.index0 == dealer_seat %}
+            <div class="dealer-chip">D</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>

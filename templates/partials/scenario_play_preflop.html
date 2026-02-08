@@ -1,0 +1,69 @@
+<div class="space-y-5 flash-in">
+    {# Poker table — no board for preflop #}
+    {% with board=[], seats=scenario.seats, dealer_seat=scenario.dealer_seat,
+            pot=None, situation=scenario.preflop_situation %}
+        {% include "partials/poker_table.html" %}
+    {% endwith %}
+
+    <p class="text-center text-gray-500 text-sm font-mono">{{ scenario.hand_key }}</p>
+
+    {# Action form with ALL state (preflop + postflop) #}
+    <form id="play-form">
+        {# Shared #}
+        <input type="hidden" name="hand" value="{{ scenario.hand | tojson }}">
+        <input type="hidden" name="hand_key" value="{{ scenario.hand_key }}">
+        <input type="hidden" name="board" value="{{ scenario.board | tojson }}">
+        <input type="hidden" name="position" value="{{ scenario.position }}">
+        <input type="hidden" name="seats" value="{{ scenario.seats | tojson }}">
+        <input type="hidden" name="dealer_seat" value="{{ scenario.dealer_seat }}">
+        <input type="hidden" name="pot" value="{{ scenario.pot }}">
+        <input type="hidden" name="streak" value="{{ streak }}">
+
+        {# Preflop data #}
+        <input type="hidden" name="preflop_type" value="{{ scenario.preflop_type }}">
+        <input type="hidden" name="preflop_correct" value="{{ scenario.preflop_correct }}">
+        <input type="hidden" name="preflop_range" value="{{ scenario.preflop_range | tojson }}">
+        <input type="hidden" name="preflop_range_size" value="{{ scenario.preflop_range_size }}">
+        <input type="hidden" name="preflop_opener" value="{{ scenario.preflop_opener }}">
+        {% if scenario.preflop_raise_range is not none %}
+        <input type="hidden" name="preflop_raise_range" value="{{ scenario.preflop_raise_range | tojson }}">
+        {% endif %}
+        {% if scenario.preflop_call_range is not none %}
+        <input type="hidden" name="preflop_call_range" value="{{ scenario.preflop_call_range | tojson }}">
+        {% endif %}
+
+        {# Postflop data (carried forward) #}
+        <input type="hidden" name="postflop_position" value="{{ scenario.postflop_position }}">
+        <input type="hidden" name="postflop_situation" value="{{ scenario.postflop_situation }}">
+        <input type="hidden" name="texture" value="{{ scenario.texture }}">
+        <input type="hidden" name="texture_label" value="{{ scenario.texture_label }}">
+        <input type="hidden" name="bucket" value="{{ scenario.bucket }}">
+        <input type="hidden" name="bucket_label" value="{{ scenario.bucket_label }}">
+        <input type="hidden" name="strategy" value="{{ scenario.strategy | tojson }}">
+        <input type="hidden" name="correct_actions" value="{{ scenario.correct_actions | tojson }}">
+        <input type="hidden" name="postflop_actions" value="{{ scenario.postflop_actions | tojson }}">
+        <input type="hidden" name="postflop_action_labels" value="{{ scenario.postflop_action_labels | tojson }}">
+        <input type="hidden" name="range_breakdown" value="{{ scenario.range_breakdown | tojson }}">
+
+        <div class="flex justify-center gap-3 flex-wrap">
+            {% for action in scenario.preflop_actions %}
+            <button type="button"
+                    hx-post="/api/play/preflop"
+                    hx-include="#play-form"
+                    hx-target="#scenario-zone"
+                    hx-swap="innerHTML"
+                    hx-vals='{"action": "{{ action }}"}'
+                    class="px-6 py-3 rounded-lg font-semibold transition-all text-sm
+                    {% if action == 'raise' %}
+                        bg-emerald-700 hover:bg-emerald-600 text-white
+                    {% elif action == 'call' %}
+                        bg-blue-700 hover:bg-blue-600 text-white
+                    {% else %}
+                        bg-gray-700 hover:bg-gray-600 text-gray-200
+                    {% endif %}">
+                {{ scenario.preflop_action_labels[action] }}
+            </button>
+            {% endfor %}
+        </div>
+    </form>
+</div>

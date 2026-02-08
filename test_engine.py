@@ -115,7 +115,7 @@ print("\n=== FLASK ROUTES ===")
 import json
 from api.index import app
 with app.test_client() as c:
-    for route in ["/", "/preflop", "/postflop"]:
+    for route in ["/", "/preflop", "/postflop", "/play"]:
         r = c.get(route)
         print(f"  GET {route}: {r.status_code}")
 
