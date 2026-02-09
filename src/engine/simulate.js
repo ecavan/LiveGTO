@@ -281,6 +281,7 @@ export function generateMultiwayHand(numPlayers, stacks, handNumber, heroOffset)
     board_visible: 0,
     street: 'preflop',
     current_bet: bbAmt,
+    opener_idx: -1,
     last_raiser_idx: -1,
     action_queue: [...preflopOrder],
     action_queue_pos: 0,

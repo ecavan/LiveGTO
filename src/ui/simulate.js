@@ -10,6 +10,8 @@ import {
   POSITIONS_BY_COUNT, SEAT_MAPS,
 } from '../engine/simulate.js';
 import { renderPokerTable, renderActionButtons } from './components.js';
+import { initVillainRange, narrowPreflop, narrowPostflop, getRangeStats } from '../engine/rangeTracker.js';
+import { buildGrid } from '../engine/ranges.js';
 
 let simState = null;
 
@@ -588,13 +590,30 @@ function mwVillainAct(state, playerIdx) {
     action = villainPreflopAct(player.hand_key, player.position, facingBet);
   } else {
     const boardVis = state.board_strs.slice(0, state.board_visible);
-    // Determine OOP/IP based on position
     const ipPositions = new Set(['BTN', 'CO']);
     const vPos = ipPositions.has(player.position) ? 'IP' : 'OOP';
     action = villainPostflopAct(player.hand_strs, boardVis, vPos, facingBet);
   }
 
-  return mwApplyAction(state, playerIdx, action, actorName);
+  state = mwApplyAction(state, playerIdx, action, actorName);
+
+  // Narrow villain's estimated range based on action
+  if (!player.is_hero && player.estimated_range && !player.folded) {
+    if (street === 'preflop') {
+      const openerPos = state.opener_idx >= 0 ? state.players[state.opener_idx].position : null;
+      const preflopAction = state.last_raiser_idx === playerIdx ? 'raise' : action;
+      narrowPreflop(player.estimated_range, player.position, preflopAction, openerPos);
+    } else {
+      const boardVis = state.board_strs.slice(0, state.board_visible);
+      const hero = state.players[state.hero_idx];
+      const blocked = new Set([...boardVis, ...hero.hand_strs]);
+      const ipPositions = new Set(['BTN', 'CO']);
+      const posLabel = ipPositions.has(player.position) ? 'IP' : 'OOP';
+      narrowPostflop(player.estimated_range, boardVis, blocked, posLabel, action, facingBet);
+    }
+  }
+
+  return state;
 }
 
 function mwApplyAction(state, playerIdx, action, actorName) {
@@ -642,6 +661,10 @@ function mwApplyAction(state, playerIdx, action, actorName) {
   player.street_invested += additional;
   state.pot += additional;
   state.current_bet = player.street_invested;
+  // Track first preflop raiser as opener (for FACING_OPEN lookups)
+  if (state.street === 'preflop' && state.opener_idx < 0) {
+    state.opener_idx = playerIdx;
+  }
   state.last_raiser_idx = playerIdx;
 
   if (action.includes('bet')) {
@@ -788,6 +811,63 @@ function buildMultiwaySeats(state) {
   return seats;
 }
 
+function renderVillainRanges(state) {
+  const villains = state.players.filter(p => !p.is_hero && !p.folded && p.estimated_range);
+  if (villains.length === 0) return '';
+
+  const grid = buildGrid();
+  const hero = state.players[state.hero_idx];
+
+  const panels = villains.map((v, vi) => {
+    const stats = getRangeStats(v.estimated_range);
+    const isFirst = vi === 0;
+
+    let rows = '';
+    for (let i = 0; i < 13; i++) {
+      let cells = '';
+      for (let j = 0; j < 13; j++) {
+        const key = grid[i][j];
+        const weight = v.estimated_range.get(key) || 0;
+        const isHero = key === hero.hand_key;
+        const heroClass = isHero ? 'range-cell-hero' : '';
+
+        let bg;
+        if (weight > 0.05) {
+          const alpha = Math.round(weight * 80) / 100; // 0.01 to 0.80
+          bg = `background: rgba(16, 185, 129, ${alpha})`;
+        } else {
+          bg = 'background: rgba(17, 24, 39, 0.6)';
+        }
+
+        cells += `<td class="range-cell border border-gray-800/50 ${heroClass}" style="${bg}">${key}</td>`;
+      }
+      rows += `<tr>${cells}</tr>`;
+    }
+
+    return `<details class="bucket-details" ${isFirst ? 'open' : ''}>
+      <summary class="flex items-center justify-between px-3 py-1.5 cursor-pointer hover:bg-gray-800/40 rounded-lg transition-colors">
+        <span class="text-sm font-semibold text-gray-300">${v.position}</span>
+        <span class="text-xs text-gray-500">${stats.combos} combos (${stats.pct}%)</span>
+      </summary>
+      <div class="overflow-x-auto pt-2 pb-1">
+        <table class="mx-auto border-collapse">${rows}</table>
+      </div>
+    </details>`;
+  }).join('');
+
+  const legend = `
+    <span class="inline-block w-3 h-3 rounded-sm mr-1 align-middle" style="background: rgba(16,185,129,0.8)"></span> Likely
+    <span class="inline-block w-3 h-3 rounded-sm mr-1 ml-2 align-middle" style="background: rgba(16,185,129,0.3)"></span> Possible
+    <span class="inline-block w-3 h-3 rounded-sm mr-1 ml-2 align-middle" style="background: rgba(17,24,39,0.6)"></span> Out
+    <span class="inline-block w-3 h-3 rounded-sm mr-1 ml-2 align-middle" style="outline: 2px solid #facc15; background: rgba(250,204,21,0.25);"></span> You`;
+
+  return `<div class="bg-gray-900/40 rounded-xl p-3 space-y-2">
+    <div class="text-xs text-gray-500 text-center uppercase tracking-wider font-semibold">Estimated Ranges</div>
+    <div class="text-xs text-gray-500 text-center">${legend}</div>
+    ${panels}
+  </div>`;
+}
+
 function renderMultiwayHand(container) {
   const state = simState;
   const zone = container.querySelector('#sim-zone');
@@ -881,6 +961,7 @@ function renderMultiwayHand(container) {
       <span class="text-xs text-gray-500">Pot: ${state.pot.toFixed(1)} BB</span>
     </div>
     ${phaseContent}
+    ${renderVillainRanges(state)}
     ${renderActionLog(state.action_log)}
   </div>`;
 
@@ -908,6 +989,7 @@ function renderMultiwayHand(container) {
 
       simState = generateMultiwayHand(numPlayers, stacks, handNumber, heroOffset);
       simState.session_log = sessionLog;
+      initRangesForState(simState);
       simState = mwRunUntilHero(simState);
       renderMultiwayHand(container);
     });
@@ -919,9 +1001,16 @@ function renderMultiwayHand(container) {
   }
 }
 
+function initRangesForState(state) {
+  for (const p of state.players) {
+    p.estimated_range = p.is_hero ? null : initVillainRange(p.position);
+  }
+}
+
 function startMultiwaySession(container, numPlayers) {
   const stacks = Array(numPlayers).fill(100.0);
   simState = generateMultiwayHand(numPlayers, stacks, 1, 0);
+  initRangesForState(simState);
   simState = mwRunUntilHero(simState);
   renderMultiwayHand(container);
 }

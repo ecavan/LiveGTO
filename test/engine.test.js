@@ -12,6 +12,7 @@ import { generatePreflop, generatePostflop, generatePlayScenario } from '../src/
 import { evaluatePreflop, evaluatePostflop } from '../src/engine/feedback.js';
 import { computeRangeVsRange } from '../src/engine/rangeAnalysis.js';
 import { generateSimHand, villainPreflopAct, resolveShowdown, computeSessionReview, generateMultiwayHand, resolveMultiwayShowdown, getMultiwayPostflopOrder } from '../src/engine/simulate.js';
+import { expandHandKey, initVillainRange, narrowPreflop, narrowPostflop, getRangeStats } from '../src/engine/rangeTracker.js';
 
 // Helper: test hand classification
 function testHand(label, handStrs, boardStrs, expectedBucket, expectedTexture) {
@@ -431,5 +432,103 @@ describe('Texture distribution (smoke test)', () => {
     for (const t of TEXTURES) {
       expect(counts[t]).toBeGreaterThan(0);
     }
+  });
+});
+
+// --- Range Tracker Tests ---
+
+describe('Range Tracker', () => {
+  it('expandHandKey returns 6 combos for pairs', () => {
+    const combos = expandHandKey('AA');
+    expect(combos.length).toBe(6);
+    // All combos should have rank A
+    for (const [c1, c2] of combos) {
+      expect(c1[0]).toBe('A');
+      expect(c2[0]).toBe('A');
+      expect(c1[1]).not.toBe(c2[1]); // different suits
+    }
+  });
+
+  it('expandHandKey returns 4 combos for suited hands', () => {
+    const combos = expandHandKey('AKs');
+    expect(combos.length).toBe(4);
+    for (const [c1, c2] of combos) {
+      expect(c1[0]).toBe('A');
+      expect(c2[0]).toBe('K');
+      expect(c1[1]).toBe(c2[1]); // same suit
+    }
+  });
+
+  it('expandHandKey returns 12 combos for offsuit hands', () => {
+    const combos = expandHandKey('AKo');
+    expect(combos.length).toBe(12);
+    for (const [c1, c2] of combos) {
+      expect(c1[0]).toBe('A');
+      expect(c2[0]).toBe('K');
+      expect(c1[1]).not.toBe(c2[1]); // different suits
+    }
+  });
+
+  it('initVillainRange weights RFI hands at 1.0 and others at 0', () => {
+    const range = initVillainRange('BTN');
+    const rfiSize = RFI_RANGES['BTN'].size;
+    let inCount = 0;
+    for (const [key, w] of range) {
+      if (w > 0) inCount++;
+      if (RFI_RANGES['BTN'].has(key)) expect(w).toBe(1.0);
+      else expect(w).toBe(0);
+    }
+    expect(inCount).toBe(rfiSize);
+    expect(range.size).toBe(169);
+  });
+
+  it('narrowPreflop narrows to call range', () => {
+    const range = initVillainRange('BTN');
+    narrowPreflop(range, 'BTN', 'call', 'UTG');
+    const callRange = FACING_OPEN['BTN|UTG'].call;
+    const stats = getRangeStats(range);
+    expect(stats.combos).toBe(callRange.size);
+    // AA should be out (not in call range)
+    expect(range.get('AA')).toBe(0);
+    // JJ should be in (in call range)
+    expect(range.get('JJ')).toBe(1.0);
+  });
+
+  it('narrowPreflop narrows to raise range (3-bet)', () => {
+    const range = initVillainRange('BTN');
+    narrowPreflop(range, 'BTN', 'raise', 'UTG');
+    const raiseRange = FACING_OPEN['BTN|UTG'].raise;
+    const stats = getRangeStats(range);
+    expect(stats.combos).toBe(raiseRange.size);
+    expect(range.get('AA')).toBe(1.0);
+    expect(range.get('72o')).toBe(0);
+  });
+
+  it('narrowPostflop reduces weights based on action', () => {
+    const range = initVillainRange('BTN');
+    const board = ['9s', '5h', '3d'];
+    const blocked = new Set(['Ah', 'Kd', ...board]);
+    narrowPostflop(range, board, blocked, 'IP', 'bet_l', false);
+    // After betting large, premiums should retain high weight, air should drop
+    // (premiums bet large ~55%, air bets large ~40%)
+    // Since weights are normalized, just check that some hands reduced
+    const stats = getRangeStats(range);
+    expect(stats.combos).toBeLessThan(RFI_RANGES['BTN'].size);
+  });
+
+  it('narrowPostflop zeros out hands blocked by board', () => {
+    const range = new Map([['99', 1.0], ['AA', 1.0], ['72o', 0]]);
+    const board = ['9s', '9h', '3d']; // paired board uses two 9s
+    const blocked = new Set(['Ah', 'Kd', ...board]);
+    narrowPostflop(range, board, blocked, 'OOP', 'check', false);
+    // 99 combos: need two 9s but board uses 9s and 9h, leaving only 9c and 9d → 1 combo
+    // Should still have some weight
+    expect(range.get('99')).toBeGreaterThan(0);
+  });
+
+  it('getRangeStats counts hands above threshold', () => {
+    const range = new Map([['AA', 1.0], ['KK', 0.5], ['QQ', 0.01], ['72o', 0]]);
+    const stats = getRangeStats(range);
+    expect(stats.combos).toBe(2); // AA and KK above 0.05
   });
 });
