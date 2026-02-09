@@ -13,6 +13,7 @@ import { evaluatePreflop, evaluatePostflop } from '../src/engine/feedback.js';
 import { computeRangeVsRange } from '../src/engine/rangeAnalysis.js';
 import { generateSimHand, villainPreflopAct, resolveShowdown, computeSessionReview, generateMultiwayHand, resolveMultiwayShowdown, getMultiwayPostflopOrder } from '../src/engine/simulate.js';
 import { expandHandKey, initVillainRange, narrowPreflop, narrowPostflop, getRangeStats } from '../src/engine/rangeTracker.js';
+import { analyzeBlockers } from '../src/engine/blockers.js';
 
 // Helper: test hand classification
 function testHand(label, handStrs, boardStrs, expectedBucket, expectedTexture) {
@@ -530,5 +531,93 @@ describe('Range Tracker', () => {
     const range = new Map([['AA', 1.0], ['KK', 0.5], ['QQ', 0.01], ['72o', 0]]);
     const stats = getRangeStats(range);
     expect(stats.combos).toBe(2); // AA and KK above 0.05
+  });
+});
+
+describe('Blocker Analysis', () => {
+  it('detects nut flush draw blocker on two-tone board', () => {
+    const insights = analyzeBlockers(['Ah', 'Kd'], ['9h', '7h', '2c']);
+    const nfd = insights.find(i => i.type === 'flush_draw' && i.text.includes('nut flush draw'));
+    expect(nfd).toBeDefined();
+    expect(nfd.text).toContain('Ah');
+  });
+
+  it('detects nut flush on monotone board', () => {
+    const insights = analyzeBlockers(['Ah', 'Kh'], ['Qh', 'Jh', '3h']);
+    const nf = insights.find(i => i.type === 'flush');
+    expect(nf).toBeDefined();
+    expect(nf.text).toContain('Ah');
+  });
+
+  it('detects K-high flush draw blocker', () => {
+    const insights = analyzeBlockers(['Kh', '2d'], ['9h', '7h', '3c']);
+    const kfd = insights.find(i => i.text.includes('K-high flush draw'));
+    expect(kfd).toBeDefined();
+  });
+
+  it('detects set blocker when hero matches board rank', () => {
+    const insights = analyzeBlockers(['Ah', 'Kd'], ['As', '7c', '2d']);
+    const setBlock = insights.find(i => i.type === 'set');
+    expect(setBlock).toBeDefined();
+    expect(setBlock.text).toContain('AA');
+  });
+
+  it('detects overpair blockers on lower board', () => {
+    const insights = analyzeBlockers(['Ah', 'Kd'], ['Qs', '7c', '2d']);
+    const aa = insights.find(i => i.type === 'overpair' && i.text.includes('AA'));
+    const kk = insights.find(i => i.type === 'overpair' && i.text.includes('KK'));
+    expect(aa).toBeDefined();
+    expect(kk).toBeDefined();
+  });
+
+  it('returns no blocker insights for irrelevant hand', () => {
+    const insights = analyzeBlockers(['5c', '3c'], ['Qs', '7d', '2h']);
+    const blockers = insights.filter(i => i.impact === 'positive');
+    expect(blockers.length).toBe(0);
+  });
+
+  it('detects straight blocker on connected board', () => {
+    const insights = analyzeBlockers(['Qh', '2d'], ['9s', 'Tc', 'Jd']);
+    const sb = insights.find(i => i.type === 'straight');
+    expect(sb).toBeDefined();
+    expect(sb.text).toContain('Q');
+  });
+
+  // Unblocker tests
+  it('detects flush draw unblocker on two-tone board', () => {
+    const insights = analyzeBlockers(['5c', '3d'], ['9h', '7h', '2c']);
+    const ub = insights.find(i => i.type === 'unblock_flush_draw');
+    expect(ub).toBeDefined();
+    expect(ub.impact).toBe('negative');
+    expect(ub.text).toContain('no h');
+  });
+
+  it('detects flush unblocker on monotone board', () => {
+    const insights = analyzeBlockers(['5c', '3d'], ['9h', '7h', '2h']);
+    const ub = insights.find(i => i.type === 'unblock_flush');
+    expect(ub).toBeDefined();
+    expect(ub.impact).toBe('negative');
+  });
+
+  it('detects top set unblocker when hero misses top card', () => {
+    const insights = analyzeBlockers(['5c', '3d'], ['Qs', '7d', '2h']);
+    const ub = insights.find(i => i.type === 'unblock_set');
+    expect(ub).toBeDefined();
+    expect(ub.text).toContain('QQ');
+  });
+
+  it('detects overpair unblockers on low board', () => {
+    const insights = analyzeBlockers(['5c', '3d'], ['8s', '7d', '2h']);
+    const aa = insights.find(i => i.type === 'unblock_overpair' && i.text.includes('AA'));
+    const kk = insights.find(i => i.type === 'unblock_overpair' && i.text.includes('KK'));
+    expect(aa).toBeDefined();
+    expect(kk).toBeDefined();
+    expect(aa.impact).toBe('negative');
+  });
+
+  it('does not show overpair unblockers on high boards', () => {
+    const insights = analyzeBlockers(['5c', '3d'], ['Qs', '7d', '2h']);
+    const overpairUb = insights.filter(i => i.type === 'unblock_overpair');
+    expect(overpairUb.length).toBe(0);
   });
 });

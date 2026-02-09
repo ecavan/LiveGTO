@@ -9,9 +9,14 @@ import {
   renderStrategyBars, renderRangeBreakdown, renderRangeVsRange, renderExplanation, renderRangeGrid,
 } from './components.js';
 import { getStreak, incrementStreak, resetStreak } from '../state.js';
+import { initVillainRange, narrowPreflop, narrowPostflop, getRangeStats } from '../engine/rangeTracker.js';
+import { buildGrid } from '../engine/ranges.js';
+import { analyzeBlockers } from '../engine/blockers.js';
 
 let scenario = null;
 let streetIndex = 0; // 0=preflop, 1=flop, 2=turn, 3=river
+let heroRange = null;
+let villainRange = null;
 
 const STREETS = ['preflop', 'flop', 'turn', 'river'];
 
@@ -20,6 +25,13 @@ function visibleBoard() {
   if (streetIndex === 1) return scenario.board.slice(0, 3);
   if (streetIndex === 2) return scenario.board.slice(0, 4);
   return scenario.board.slice(0, 5);
+}
+
+function visibleBoardStrs() {
+  if (streetIndex === 0) return [];
+  if (streetIndex === 1) return scenario.board_strs.slice(0, 3);
+  if (streetIndex === 2) return scenario.board_strs.slice(0, 4);
+  return scenario.board_strs.slice(0, 5);
 }
 
 function renderStreetIndicator() {
@@ -33,6 +45,96 @@ function renderStreetIndicator() {
   </div>`;
 }
 
+function renderPlayRanges() {
+  const grid = buildGrid();
+  const panels = [];
+
+  if (heroRange) {
+    const stats = getRangeStats(heroRange);
+    let rows = '';
+    for (let i = 0; i < 13; i++) {
+      let cells = '';
+      for (let j = 0; j < 13; j++) {
+        const key = grid[i][j];
+        const weight = heroRange.get(key) || 0;
+        let bg;
+        if (weight > 0.05) {
+          const alpha = Math.round(weight * 80) / 100;
+          bg = `background: rgba(59, 130, 246, ${alpha})`;
+        } else {
+          bg = 'background: rgba(17, 24, 39, 0.6)';
+        }
+        cells += `<td class="range-cell border border-gray-800/50" style="${bg}">${key}</td>`;
+      }
+      rows += `<tr>${cells}</tr>`;
+    }
+    panels.push(`<details class="bucket-details" open>
+      <summary class="flex items-center justify-between px-3 py-1.5 cursor-pointer hover:bg-gray-800/40 rounded-lg transition-colors">
+        <span class="text-sm font-semibold text-emerald-400">You (${scenario.position})</span>
+        <span class="text-xs text-gray-500">${stats.combos} combos (${stats.pct}%)</span>
+      </summary>
+      <div class="overflow-x-auto pt-2 pb-1">
+        <table class="mx-auto border-collapse">${rows}</table>
+      </div>
+    </details>`);
+  }
+
+  if (villainRange) {
+    const stats = getRangeStats(villainRange);
+    const villainLabel = scenario.preflop_opener || 'Villain';
+    let rows = '';
+    for (let i = 0; i < 13; i++) {
+      let cells = '';
+      for (let j = 0; j < 13; j++) {
+        const key = grid[i][j];
+        const weight = villainRange.get(key) || 0;
+        let bg;
+        if (weight > 0.05) {
+          const alpha = Math.round(weight * 80) / 100;
+          bg = `background: rgba(16, 185, 129, ${alpha})`;
+        } else {
+          bg = 'background: rgba(17, 24, 39, 0.6)';
+        }
+        cells += `<td class="range-cell border border-gray-800/50" style="${bg}">${key}</td>`;
+      }
+      rows += `<tr>${cells}</tr>`;
+    }
+    panels.push(`<details class="bucket-details">
+      <summary class="flex items-center justify-between px-3 py-1.5 cursor-pointer hover:bg-gray-800/40 rounded-lg transition-colors">
+        <span class="text-sm font-semibold text-gray-300">${villainLabel}</span>
+        <span class="text-xs text-gray-500">${stats.combos} combos (${stats.pct}%)</span>
+      </summary>
+      <div class="overflow-x-auto pt-2 pb-1">
+        <table class="mx-auto border-collapse">${rows}</table>
+      </div>
+    </details>`);
+  }
+
+  if (panels.length === 0) return '';
+
+  const legend = `
+    <span class="inline-block w-3 h-3 rounded-sm mr-1 align-middle" style="background: rgba(59,130,246,0.8)"></span> Your range
+    <span class="inline-block w-3 h-3 rounded-sm mr-1 ml-2 align-middle" style="background: rgba(16,185,129,0.8)"></span> Villain
+    <span class="inline-block w-3 h-3 rounded-sm mr-1 ml-2 align-middle" style="background: rgba(17,24,39,0.6)"></span> Out`;
+
+  return `<div class="bg-gray-900/40 rounded-xl p-3 space-y-2">
+    <div class="text-xs text-gray-500 text-center uppercase tracking-wider font-semibold">Estimated Ranges</div>
+    <div class="text-xs text-gray-500 text-center">${legend}</div>
+    ${panels.join('')}
+  </div>`;
+}
+
+function renderBlockerChips(insights) {
+  if (!insights || insights.length === 0) return '';
+  const chips = insights.map(i => {
+    const cls = i.impact === 'negative'
+      ? 'bg-red-900/40 text-red-400 border-red-800/50'
+      : 'bg-amber-900/40 text-amber-400 border-amber-800/50';
+    return `<span class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${cls} border">${i.text}</span>`;
+  }).join('');
+  return `<div class="flex flex-wrap justify-center gap-1.5 mt-1">${chips}</div>`;
+}
+
 function renderDecision(container) {
   const zone = container.querySelector('#scenario-zone');
   const board = visibleBoard();
@@ -44,6 +146,7 @@ function renderDecision(container) {
       ${renderPokerTable({ seats: scenario.seats, board: [], dealerSeat: scenario.dealer_seat, situation: scenario.preflop_situation })}
       <p class="text-center text-gray-500 text-sm font-mono">${scenario.hand_key}</p>
       ${renderActionButtons(scenario.preflop_actions, scenario.preflop_action_labels)}
+      ${renderPlayRanges()}
     </div>`;
   } else {
     // Postflop decision
@@ -62,7 +165,9 @@ function renderDecision(container) {
         <span class="mx-2 text-gray-700">|</span>
         <span class="text-xs text-gray-500 font-mono">${streetData.texture_label}</span>
       </div>
+      ${renderBlockerChips(analyzeBlockers(scenario.hand_strs, boardStrs))}
       ${renderActionButtons(streetData.postflop_actions, streetData.postflop_action_labels)}
+      ${renderPlayRanges()}
     </div>`;
   }
 
@@ -89,6 +194,12 @@ function handleAnswer(action, container) {
       opener: scenario.preflop_opener,
     };
     feedback = evaluatePreflop(action, preflopScenario);
+
+    // Narrow hero range based on preflop action
+    if (heroRange) {
+      const openerPos = scenario.preflop_opener || null;
+      narrowPreflop(heroRange, scenario.position, action, openerPos);
+    }
   } else {
     const sd = scenario._currentStreetData;
     const postflopScenario = {
@@ -106,6 +217,22 @@ function handleAnswer(action, container) {
       facing_bet: sd.facing_bet,
     };
     feedback = evaluatePostflop(action, postflopScenario);
+
+    // Narrow hero range based on postflop action
+    if (heroRange) {
+      const boardStrs = visibleBoardStrs();
+      const blocked = new Set(boardStrs);
+      narrowPostflop(heroRange, boardStrs, blocked, scenario.postflop_position, action, sd.facing_bet, 0);
+    }
+
+    // Narrow villain range based on implied action (villain checked to hero or bet)
+    if (villainRange) {
+      const boardStrs = visibleBoardStrs();
+      const blocked = new Set([...boardStrs, ...scenario.hand_strs]);
+      const villainPos = scenario.postflop_position === 'IP' ? 'OOP' : 'IP';
+      const villainAction = sd.facing_bet ? 'bet_m' : 'check';
+      narrowPostflop(villainRange, boardStrs, blocked, villainPos, villainAction, false, 0.30);
+    }
   }
 
   if (feedback.is_correct) incrementStreak();
@@ -125,6 +252,7 @@ function handleAnswer(action, container) {
     feedbackContent = `
       ${renderFeedbackBanner(feedback)}
       <p class="text-center text-gray-400 text-xs">${feedback.explanation}</p>
+      ${renderBlockerChips(analyzeBlockers(scenario.hand_strs, visibleBoardStrs()))}
       ${feedback.range_vs_range ? renderRangeVsRange(feedback.range_vs_range, feedback.bucket) : ''}
       ${feedback.explanation_points ? renderExplanation(feedback.explanation_points) : ''}
       ${feedback.strategy ? renderStrategyBars(feedback.strategy, feedback.correct_actions, feedback.action_labels, feedback.bucket_label) : ''}`;
@@ -139,6 +267,7 @@ function handleAnswer(action, container) {
     })}
     <p class="text-center text-gray-500 text-sm font-mono">${scenario.hand_key}</p>
     ${feedbackContent}
+    ${renderPlayRanges()}
     <div class="text-center pt-2">
       <button id="next-btn" class="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition-all text-sm">
         ${nextLabel} &rarr;
@@ -159,6 +288,19 @@ function handleAnswer(action, container) {
 function newHand(container) {
   scenario = generatePlayScenario();
   streetIndex = 0;
+
+  // Init hero range from position
+  heroRange = initVillainRange(scenario.position);
+
+  // Init villain range — for facing scenarios, villain is the opener
+  if (scenario.preflop_opener) {
+    villainRange = initVillainRange(scenario.preflop_opener);
+    // Villain opened, so narrow to their RFI range (already done by init)
+  } else {
+    // RFI scenario — no defined villain yet, but one exists at the table
+    villainRange = null;
+  }
+
   renderDecision(container);
 }
 

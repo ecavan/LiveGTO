@@ -12,6 +12,7 @@ import {
 import { renderPokerTable, renderActionButtons } from './components.js';
 import { initVillainRange, narrowPreflop, narrowPostflop, getRangeStats } from '../engine/rangeTracker.js';
 import { buildGrid } from '../engine/ranges.js';
+import { analyzeBlockers } from '../engine/blockers.js';
 
 let simState = null;
 
@@ -51,6 +52,31 @@ function renderActionLog(log) {
   }).join('');
   return `<div class="bg-gray-900/60 rounded-xl p-3 max-h-40 overflow-y-auto" id="action-log">
     <div class="text-xs space-y-0.5">${entries}</div>
+  </div>`;
+}
+
+function renderBlockerChips(insights) {
+  if (!insights || insights.length === 0) return '';
+  const chips = insights.map(i => {
+    const cls = i.impact === 'negative'
+      ? 'bg-red-900/40 text-red-400 border-red-800/50'
+      : 'bg-amber-900/40 text-amber-400 border-amber-800/50';
+    return `<span class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${cls} border">${i.text}</span>`;
+  }).join('');
+  return `<div class="flex flex-wrap justify-center gap-1.5 mt-1">${chips}</div>`;
+}
+
+function renderPotOdds(pot, betToCall) {
+  if (betToCall <= 0) return '';
+  const totalPot = pot + betToCall;
+  const pct = Math.round((betToCall / totalPot) * 100);
+  const ratio = (totalPot / betToCall).toFixed(1);
+  return `<div class="text-center text-xs text-gray-500 mt-1">
+    Pot odds: <span class="text-amber-400 font-mono">${pct}%</span>
+    <span class="text-gray-600 mx-1">|</span>
+    <span class="text-gray-400 font-mono">${ratio}:1</span>
+    <span class="text-gray-600 mx-1">|</span>
+    Need <span class="text-amber-400 font-mono">${pct}%</span> equity to call
   </div>`;
 }
 
@@ -361,7 +387,18 @@ function renderSimHand(container) {
   if (state.sim_phase === 'preflop_decision' || state.sim_phase === 'postflop_decision') {
     const actions = getAvailableActions(state);
     const labels = getActionLabels(actions, state);
-    phaseContent = `${villainMsg}${renderActionButtons(actions, labels)}`;
+    let extras = '';
+    if (state.street !== 'preflop' && state.board_strs) {
+      const boardVis = state.board_strs.slice(0, state.board_visible);
+      extras += renderBlockerChips(analyzeBlockers(state.hero_hand_strs, boardVis));
+    }
+    const facingBet = state.villain_last_action && state.villain_last_action !== 'check'
+      && ['raise', 'bet_s', 'bet_m', 'bet_l'].includes(state.villain_last_action);
+    if (facingBet) {
+      const betToCall = state.villain_street_invested - state.hero_street_invested;
+      extras += renderPotOdds(state.pot - betToCall, betToCall);
+    }
+    phaseContent = `${villainMsg}${extras}${renderActionButtons(actions, labels)}`;
   } else if (state.sim_phase === 'showdown') {
     const pot = state.pot.toFixed(1);
     let resultHtml;
@@ -755,6 +792,21 @@ function mwProcessHeroAction(state, heroAction) {
 
   const wasRaiser = state.last_raiser_idx;
   state = mwApplyAction(state, state.hero_idx, heroAction, actorName);
+
+  // Narrow hero's represented range
+  if (hero.estimated_range && !hero.folded) {
+    if (state.street === 'preflop') {
+      const openerPos = state.opener_idx >= 0 && state.opener_idx !== state.hero_idx
+        ? state.players[state.opener_idx].position : null;
+      const preflopAction = state.last_raiser_idx === state.hero_idx ? 'raise' : heroAction;
+      narrowPreflop(hero.estimated_range, hero.position, preflopAction, openerPos);
+    } else if (boardVis) {
+      const blocked = new Set(boardVis);
+      const posLabel = new Set(['BTN', 'CO']).has(hero.position) ? 'IP' : 'OOP';
+      narrowPostflop(hero.estimated_range, boardVis, blocked, posLabel, heroAction, facingBet, 0);
+    }
+  }
+
   if (state.hand_over) return state;
 
   // If hero raised, rebuild action queue for remaining players
@@ -811,60 +863,73 @@ function buildMultiwaySeats(state) {
   return seats;
 }
 
-function renderVillainRanges(state) {
-  const villains = state.players.filter(p => !p.is_hero && !p.folded && p.estimated_range);
-  if (villains.length === 0) return '';
+function renderRangeGrid13x13(range, grid, color) {
+  let rows = '';
+  for (let i = 0; i < 13; i++) {
+    let cells = '';
+    for (let j = 0; j < 13; j++) {
+      const key = grid[i][j];
+      const weight = range.get(key) || 0;
+      let bg;
+      if (weight > 0.05) {
+        const alpha = Math.round(weight * 80) / 100;
+        bg = `background: rgba(${color}, ${alpha})`;
+      } else {
+        bg = 'background: rgba(17, 24, 39, 0.6)';
+      }
+      cells += `<td class="range-cell border border-gray-800/50" style="${bg}">${key}</td>`;
+    }
+    rows += `<tr>${cells}</tr>`;
+  }
+  return `<table class="mx-auto border-collapse">${rows}</table>`;
+}
 
+function renderAllRanges(state) {
   const grid = buildGrid();
   const hero = state.players[state.hero_idx];
+  const villains = state.players.filter(p => !p.is_hero && !p.folded && p.estimated_range);
+  const hasHeroRange = hero.estimated_range && !hero.folded;
+  if (!hasHeroRange && villains.length === 0) return '';
 
-  const panels = villains.map((v, vi) => {
+  const panels = [];
+
+  // Hero's represented range (blue tones)
+  if (hasHeroRange) {
+    const stats = getRangeStats(hero.estimated_range);
+    panels.push(`<details class="bucket-details" open>
+      <summary class="flex items-center justify-between px-3 py-1.5 cursor-pointer hover:bg-gray-800/40 rounded-lg transition-colors">
+        <span class="text-sm font-semibold text-emerald-400">You (${hero.position})</span>
+        <span class="text-xs text-gray-500">${stats.combos} combos (${stats.pct}%)</span>
+      </summary>
+      <div class="overflow-x-auto pt-2 pb-1">
+        ${renderRangeGrid13x13(hero.estimated_range, grid, '59, 130, 246')}
+      </div>
+    </details>`);
+  }
+
+  // Villain ranges (green tones)
+  for (const v of villains) {
     const stats = getRangeStats(v.estimated_range);
-    const isFirst = vi === 0;
-
-    let rows = '';
-    for (let i = 0; i < 13; i++) {
-      let cells = '';
-      for (let j = 0; j < 13; j++) {
-        const key = grid[i][j];
-        const weight = v.estimated_range.get(key) || 0;
-        const isHero = key === hero.hand_key;
-        const heroClass = isHero ? 'range-cell-hero' : '';
-
-        let bg;
-        if (weight > 0.05) {
-          const alpha = Math.round(weight * 80) / 100; // 0.01 to 0.80
-          bg = `background: rgba(16, 185, 129, ${alpha})`;
-        } else {
-          bg = 'background: rgba(17, 24, 39, 0.6)';
-        }
-
-        cells += `<td class="range-cell border border-gray-800/50 ${heroClass}" style="${bg}">${key}</td>`;
-      }
-      rows += `<tr>${cells}</tr>`;
-    }
-
-    return `<details class="bucket-details" ${isFirst ? 'open' : ''}>
+    panels.push(`<details class="bucket-details">
       <summary class="flex items-center justify-between px-3 py-1.5 cursor-pointer hover:bg-gray-800/40 rounded-lg transition-colors">
         <span class="text-sm font-semibold text-gray-300">${v.position}</span>
         <span class="text-xs text-gray-500">${stats.combos} combos (${stats.pct}%)</span>
       </summary>
       <div class="overflow-x-auto pt-2 pb-1">
-        <table class="mx-auto border-collapse">${rows}</table>
+        ${renderRangeGrid13x13(v.estimated_range, grid, '16, 185, 129')}
       </div>
-    </details>`;
-  }).join('');
+    </details>`);
+  }
 
   const legend = `
-    <span class="inline-block w-3 h-3 rounded-sm mr-1 align-middle" style="background: rgba(16,185,129,0.8)"></span> Likely
-    <span class="inline-block w-3 h-3 rounded-sm mr-1 ml-2 align-middle" style="background: rgba(16,185,129,0.3)"></span> Possible
-    <span class="inline-block w-3 h-3 rounded-sm mr-1 ml-2 align-middle" style="background: rgba(17,24,39,0.6)"></span> Out
-    <span class="inline-block w-3 h-3 rounded-sm mr-1 ml-2 align-middle" style="outline: 2px solid #facc15; background: rgba(250,204,21,0.25);"></span> You`;
+    <span class="inline-block w-3 h-3 rounded-sm mr-1 align-middle" style="background: rgba(59,130,246,0.8)"></span> Your range
+    <span class="inline-block w-3 h-3 rounded-sm mr-1 ml-2 align-middle" style="background: rgba(16,185,129,0.8)"></span> Villain
+    <span class="inline-block w-3 h-3 rounded-sm mr-1 ml-2 align-middle" style="background: rgba(17,24,39,0.6)"></span> Out`;
 
   return `<div class="bg-gray-900/40 rounded-xl p-3 space-y-2">
     <div class="text-xs text-gray-500 text-center uppercase tracking-wider font-semibold">Estimated Ranges</div>
     <div class="text-xs text-gray-500 text-center">${legend}</div>
-    ${panels}
+    ${panels.join('')}
   </div>`;
 }
 
@@ -899,7 +964,17 @@ function renderMultiwayHand(container) {
   if (state.sim_phase === 'preflop_decision' || state.sim_phase === 'postflop_decision') {
     const actions = mwGetAvailableActions(state);
     const labels = getActionLabels(actions, state);
-    phaseContent = renderActionButtons(actions, labels);
+    let extras = '';
+    if (state.street !== 'preflop' && state.board_strs) {
+      const boardVis = state.board_strs.slice(0, state.board_visible);
+      extras += renderBlockerChips(analyzeBlockers(hero.hand_strs, boardVis));
+    }
+    const facingBet = state.current_bet > hero.street_invested;
+    if (facingBet) {
+      const betToCall = state.current_bet - hero.street_invested;
+      extras += renderPotOdds(state.pot - betToCall, betToCall);
+    }
+    phaseContent = `${extras}${renderActionButtons(actions, labels)}`;
   } else if (state.sim_phase === 'showdown') {
     const pot = state.pot.toFixed(1);
     const heroWon = state.winner_idxs.includes(state.hero_idx);
@@ -961,7 +1036,7 @@ function renderMultiwayHand(container) {
       <span class="text-xs text-gray-500">Pot: ${state.pot.toFixed(1)} BB</span>
     </div>
     ${phaseContent}
-    ${renderVillainRanges(state)}
+    ${renderAllRanges(state)}
     ${renderActionLog(state.action_log)}
   </div>`;
 
@@ -1003,7 +1078,7 @@ function renderMultiwayHand(container) {
 
 function initRangesForState(state) {
   for (const p of state.players) {
-    p.estimated_range = p.is_hero ? null : initVillainRange(p.position);
+    p.estimated_range = initVillainRange(p.position);
   }
 }
 

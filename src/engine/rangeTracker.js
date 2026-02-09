@@ -123,7 +123,7 @@ export function narrowPreflop(range, villainPos, action, openerPos) {
  * action: the action villain took (check, bet_s, bet_m, bet_l, call, raise, fold)
  * facingBet: whether villain was facing a bet
  */
-export function narrowPostflop(range, boardStrs, blockedCards, posLabel, action, facingBet) {
+export function narrowPostflop(range, boardStrs, blockedCards, posLabel, action, facingBet, noise = NOISE) {
   if (action === 'fold') {
     for (const key of range.keys()) range.set(key, 0);
     return range;
@@ -133,7 +133,7 @@ export function narrowPostflop(range, boardStrs, blockedCards, posLabel, action,
 
   // Determine how many random actions are possible (for noise calc)
   const randomActions = facingBet ? ['call', 'fold', 'raise'] : ['check', 'bet_m'];
-  const pRandom = randomActions.includes(action) ? 1 / randomActions.length : 0;
+  const pRandom = noise > 0 && randomActions.includes(action) ? 1 / randomActions.length : 0;
 
   let maxWeight = 0;
 
@@ -159,8 +159,8 @@ export function narrowPostflop(range, boardStrs, blockedCards, posLabel, action,
     }
     const avgGtoProb = totalProb / validCombos.length;
 
-    // Account for noise: 70% GTO + 30% random
-    const pEffective = (1 - NOISE) * avgGtoProb + NOISE * pRandom;
+    // Account for noise
+    const pEffective = (1 - noise) * avgGtoProb + noise * pRandom;
 
     const newWeight = weight * Math.max(pEffective, 0.001); // floor to avoid zeroing out entirely
     range.set(handKey, newWeight);
