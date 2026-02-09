@@ -23,14 +23,14 @@ def main():
     # Phase 1: Monte Carlo equity
     print("\n[Phase 1] Monte Carlo Equity Engine")
     print("-" * 40)
-    bucket_probs = compute_bucket_probs(n_samples=50_000)
-    equity_matrix = compute_equity_matrix(n_matchups_per_texture=30_000)
+    bucket_probs = compute_bucket_probs(n_samples=150_000)
+    equity_matrix = compute_equity_matrix(n_matchups_per_texture=100_000)
 
     # Phase 2: CFR+ Solver
     print("\n[Phase 2] CFR+ Solver")
     print("-" * 40)
 
-    n_iterations = 10_000
+    n_iterations = 25_000
     all_strategies = {
         'OOP': {},
         'IP': {},

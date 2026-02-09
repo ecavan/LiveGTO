@@ -1,7 +1,8 @@
 /**
- * Simulate mode — heads-up session with imperfect AI villain.
+ * Simulate mode — heads-up or multiway session with imperfect AI villains.
  */
-import { createDeck, drawCards, compareHands } from './evaluator.js';
+import { createDeck, drawCards, compareHands, evaluate } from './evaluator.js';
+import { Hand } from 'pokersolver';
 import { handToKey, cardToDisplay } from './cards.js';
 import { RFI_RANGES, FACING_OPEN, FACING_OPEN_KEYS } from './ranges.js';
 import { classifyHand } from './abstraction.js';
@@ -199,4 +200,132 @@ export function applyBetAmount(pot, action) {
   if (action in BET_SIZES) return Math.round(pot * BET_SIZES[action] * 10) / 10;
   if (action === 'raise') return Math.round(pot * 0.75 * 10) / 10;
   return 0;
+}
+
+// =================================================================
+// Multiway support (3-6 players)
+// =================================================================
+
+const POSITIONS_BY_COUNT = {
+  2: ['SB', 'BB'],
+  3: ['BTN', 'SB', 'BB'],
+  4: ['CO', 'BTN', 'SB', 'BB'],
+  5: ['HJ', 'CO', 'BTN', 'SB', 'BB'],
+  6: ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'],
+};
+
+// Map N players to 6-seat visual positions
+const SEAT_MAPS = {
+  2: [0, 3],
+  3: [0, 2, 4],
+  4: [0, 1, 3, 4],
+  5: [0, 1, 2, 3, 4],
+  6: [0, 1, 2, 3, 4, 5],
+};
+
+export { POSITIONS_BY_COUNT, SEAT_MAPS };
+
+export function generateMultiwayHand(numPlayers, stacks, handNumber, heroOffset) {
+  const deck = createDeck();
+  const positions = POSITIONS_BY_COUNT[numPlayers];
+  const players = [];
+
+  for (let i = 0; i < numPlayers; i++) {
+    const posIdx = (i + heroOffset) % numPlayers;
+    const hand = drawCards(deck, 2);
+    players.push({
+      idx: i,
+      position: positions[posIdx],
+      hand_strs: hand,
+      hand_key: handToKey(hand[0], hand[1]),
+      hand_cards: hand.map(cardToDisplay),
+      stack: stacks[i],
+      folded: false,
+      street_invested: 0,
+      total_invested: 0,
+      is_hero: i === 0,
+    });
+  }
+
+  const board = drawCards(deck, 5);
+  const boardCards = board.map(cardToDisplay);
+
+  // Post blinds
+  const sbPlayer = players.find(p => p.position === 'SB');
+  const bbPlayer = players.find(p => p.position === 'BB');
+  const sbAmt = 0.5, bbAmt = 1.0;
+  sbPlayer.stack -= sbAmt; sbPlayer.total_invested = sbAmt; sbPlayer.street_invested = sbAmt;
+  bbPlayer.stack -= bbAmt; bbPlayer.total_invested = bbAmt; bbPlayer.street_invested = bbAmt;
+
+  // Preflop action order: after BB clockwise
+  const bbIdx = players.findIndex(p => p.position === 'BB');
+  const preflopOrder = [];
+  for (let i = 1; i < numPlayers; i++) {
+    preflopOrder.push((bbIdx + i) % numPlayers);
+  }
+  preflopOrder.push(bbIdx); // BB acts last preflop
+
+  // Find dealer seat for visual
+  const btnPlayer = players.find(p => p.position === 'BTN');
+  const dealerPlayerIdx = btnPlayer ? btnPlayer.idx : (sbPlayer ? sbPlayer.idx : 0);
+
+  return {
+    multiway: true,
+    num_players: numPlayers,
+    players,
+    hero_idx: 0,
+    dealer_player_idx: dealerPlayerIdx,
+    pot: sbAmt + bbAmt,
+    board_strs: board,
+    board_cards: boardCards,
+    board_visible: 0,
+    street: 'preflop',
+    current_bet: bbAmt,
+    last_raiser_idx: -1,
+    action_queue: [...preflopOrder],
+    action_queue_pos: 0,
+    sim_phase: 'waiting', // will be set by UI
+    hand_over: false,
+    winner_idx: -1,
+    winner_idxs: [],
+    hand_number: handNumber,
+    hero_offset: heroOffset,
+    session_log: [],
+    current_hand_actions: [],
+    action_log: [],
+  };
+}
+
+export function getMultiwayPostflopOrder(players, dealerPlayerIdx) {
+  const n = players.length;
+  const order = [];
+  // Start from player after dealer, going clockwise
+  for (let i = 1; i <= n; i++) {
+    const idx = (dealerPlayerIdx + i) % n;
+    if (!players[idx].folded) order.push(idx);
+  }
+  return order;
+}
+
+export function resolveMultiwayShowdown(players, boardStrs) {
+  const active = players.filter(p => !p.folded);
+  if (active.length === 0) return { winner_idxs: [], pot_shares: {} };
+  if (active.length === 1) return { winner_idxs: [active[0].idx], pot_shares: { [active[0].idx]: 1.0 } };
+
+  const hands = active.map(p => evaluate(p.hand_strs, boardStrs));
+  const winners = Hand.winners(hands);
+  const winnerSet = new Set(winners);
+
+  const winnerIdxs = [];
+  for (let i = 0; i < active.length; i++) {
+    if (winnerSet.has(hands[i])) {
+      winnerIdxs.push(active[i].idx);
+    }
+  }
+
+  const potShares = {};
+  const share = 1.0 / winnerIdxs.length;
+  for (const idx of winnerIdxs) potShares[idx] = share;
+
+  return { winner_idxs: winnerIdxs, pot_shares: potShares };
 }

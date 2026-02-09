@@ -1,5 +1,5 @@
 /**
- * Board texture classification + GTO-approximate strategy tables (9 buckets).
+ * Board texture classification + strategy tables (13 buckets × 8 textures).
  * Strategy tables loaded from pre-computed JSON (data/strategies.json).
  */
 import { rankInt, suitChar } from './evaluator.js';
@@ -7,17 +7,25 @@ import strategiesData from '../../data/strategies.json';
 
 export const MONOTONE = 'monotone';
 export const PAIRED = 'paired';
-export const WET = 'wet';
-export const HIGH_DRY = 'high_dry';
+export const WET_CONNECTED = 'wet_connected';
+export const WET_TWOTONE = 'wet_twotone';
+export const HIGH_DRY_A = 'high_dry_A';
+export const HIGH_DRY_K = 'high_dry_K';
+export const MEDIUM_DRY = 'medium_dry';
 export const LOW_DRY = 'low_dry';
-export const TEXTURES = [MONOTONE, PAIRED, WET, HIGH_DRY, LOW_DRY];
+
+export const TEXTURES = [MONOTONE, PAIRED, WET_CONNECTED, WET_TWOTONE,
+  HIGH_DRY_A, HIGH_DRY_K, MEDIUM_DRY, LOW_DRY];
 
 export const TEXTURE_LABELS = {
   [MONOTONE]: 'Monotone (3+ same suit)',
   [PAIRED]: 'Paired board',
-  [WET]: 'Wet (connected + two-tone)',
-  [HIGH_DRY]: 'High & dry (broadway, rainbow)',
-  [LOW_DRY]: 'Low & dry (rainbow, unconnected)',
+  [WET_CONNECTED]: 'Wet connected (straight-draw heavy)',
+  [WET_TWOTONE]: 'Wet two-tone (flush-draw heavy)',
+  [HIGH_DRY_A]: 'Ace-high dry',
+  [HIGH_DRY_K]: 'K/Q-high dry',
+  [MEDIUM_DRY]: 'Medium dry (J-8 high)',
+  [LOW_DRY]: 'Low dry (7-high or less)',
 };
 
 export const ACTION_LABELS = {
@@ -31,7 +39,7 @@ function countBy(arr) {
   return counts;
 }
 
-/** Classify board (array of card strings) into one of 5 texture categories */
+/** Classify board (array of card strings) into one of 8 texture categories */
 export function classifyTexture(board) {
   const ranks = board.map(c => rankInt(c));
   const suits = board.map(c => suitChar(c));
@@ -50,103 +58,82 @@ export function classifyTexture(board) {
   }
   const isConnected = maxGap <= 2;
 
-  if (isTwoTone && isConnected) return WET;
+  if (isConnected) return WET_CONNECTED;
+  if (isTwoTone) return WET_TWOTONE;
 
-  const highCount = ranks.filter(r => r >= 8).length; // T+
-  if (highCount >= 2) return HIGH_DRY;
+  // Rainbow, not connected
+  const highest = Math.max(...ranks);
+  if (highest === 12) return HIGH_DRY_A;
+  if (highest >= 10) return HIGH_DRY_K;
+  if (highest >= 7) return MEDIUM_DRY;
   return LOW_DRY;
 }
 
-// Strategy tables: key is 'position|texture|bucket' or 'texture|bucket'
-const OOP_STRATEGY = {
-  'OOP|high_dry|premium': {check:0.40,bet_m:0.20,bet_l:0.40}, 'OOP|low_dry|premium': {check:0.35,bet_m:0.25,bet_l:0.40},
-  'OOP|wet|premium': {check:0.10,bet_m:0.25,bet_l:0.65}, 'OOP|monotone|premium': {check:0.15,bet_m:0.20,bet_l:0.65},
-  'OOP|paired|premium': {check:0.35,bet_m:0.25,bet_l:0.40},
-  'OOP|high_dry|nut': {check:0.25,bet_m:0.30,bet_l:0.45}, 'OOP|low_dry|nut': {check:0.20,bet_m:0.35,bet_l:0.45},
-  'OOP|wet|nut': {check:0.10,bet_m:0.30,bet_l:0.60}, 'OOP|monotone|nut': {check:0.15,bet_m:0.30,bet_l:0.55},
-  'OOP|paired|nut': {check:0.20,bet_m:0.35,bet_l:0.45},
-  'OOP|high_dry|strong': {check:0.20,bet_m:0.55,bet_l:0.25}, 'OOP|low_dry|strong': {check:0.15,bet_m:0.60,bet_l:0.25},
-  'OOP|wet|strong': {check:0.20,bet_m:0.50,bet_l:0.30}, 'OOP|monotone|strong': {check:0.35,bet_s:0.30,bet_m:0.35},
-  'OOP|paired|strong': {check:0.25,bet_m:0.50,bet_l:0.25},
-  'OOP|high_dry|good': {check:0.35,bet_s:0.25,bet_m:0.40}, 'OOP|low_dry|good': {check:0.30,bet_s:0.30,bet_m:0.40},
-  'OOP|wet|good': {check:0.45,bet_s:0.25,bet_m:0.30}, 'OOP|monotone|good': {check:0.55,bet_s:0.25,bet_m:0.20},
-  'OOP|paired|good': {check:0.35,bet_s:0.25,bet_m:0.40},
-  'OOP|high_dry|medium': {check:0.60,bet_s:0.25,bet_m:0.15}, 'OOP|low_dry|medium': {check:0.55,bet_s:0.30,bet_m:0.15},
-  'OOP|wet|medium': {check:0.70,bet_s:0.20,bet_m:0.10}, 'OOP|monotone|medium': {check:0.75,bet_s:0.15,bet_m:0.10},
-  'OOP|paired|medium': {check:0.60,bet_s:0.25,bet_m:0.15},
-  'OOP|high_dry|draw': {check:0.40,bet_s:0.35,bet_m:0.25}, 'OOP|low_dry|draw': {check:0.35,bet_s:0.35,bet_m:0.30},
-  'OOP|wet|draw': {check:0.30,bet_m:0.40,bet_l:0.30}, 'OOP|monotone|draw': {check:0.45,bet_s:0.25,bet_m:0.30},
-  'OOP|paired|draw': {check:0.35,bet_s:0.30,bet_m:0.35},
-  'OOP|high_dry|weak_made': {check:0.80,bet_s:0.20}, 'OOP|low_dry|weak_made': {check:0.75,bet_s:0.25},
-  'OOP|wet|weak_made': {check:0.90,bet_s:0.10}, 'OOP|monotone|weak_made': {check:0.90,bet_s:0.10},
-  'OOP|paired|weak_made': {check:0.80,bet_s:0.20},
-  'OOP|high_dry|weak_draw': {check:0.75,bet_s:0.25}, 'OOP|low_dry|weak_draw': {check:0.70,bet_s:0.30},
-  'OOP|wet|weak_draw': {check:0.80,bet_s:0.20}, 'OOP|monotone|weak_draw': {check:0.85,bet_s:0.15},
-  'OOP|paired|weak_draw': {check:0.75,bet_s:0.25},
-  'OOP|high_dry|air': {check:0.65,bet_s:0.10,bet_l:0.25}, 'OOP|low_dry|air': {check:0.60,bet_s:0.10,bet_l:0.30},
-  'OOP|wet|air': {check:0.75,bet_l:0.25}, 'OOP|monotone|air': {check:0.80,bet_l:0.20},
-  'OOP|paired|air': {check:0.70,bet_l:0.30},
+// Default strategy templates per bucket
+const _OOP_DEFAULTS = {
+  premium:  {check:0.25,bet_m:0.25,bet_l:0.50},
+  nut:      {check:0.20,bet_m:0.30,bet_l:0.50},
+  strong:   {check:0.20,bet_m:0.55,bet_l:0.25},
+  two_pair: {check:0.25,bet_m:0.50,bet_l:0.25},
+  top_pair: {check:0.35,bet_s:0.25,bet_m:0.40},
+  overpair: {check:0.40,bet_s:0.25,bet_m:0.35},
+  mid_pair: {check:0.60,bet_s:0.25,bet_m:0.15},
+  underpair:{check:0.70,bet_s:0.20,bet_m:0.10},
+  nut_draw: {check:0.25,bet_m:0.40,bet_l:0.35},
+  draw:     {check:0.40,bet_s:0.30,bet_m:0.30},
+  weak_made:{check:0.80,bet_s:0.20},
+  gutshot:  {check:0.75,bet_s:0.25},
+  air:      {check:0.65,bet_s:0.10,bet_l:0.25},
 };
 
-const IP_VS_CHECK = {
-  'IP|high_dry|premium': {check:0.30,bet_m:0.25,bet_l:0.45}, 'IP|low_dry|premium': {check:0.25,bet_m:0.25,bet_l:0.50},
-  'IP|wet|premium': {check:0.10,bet_m:0.20,bet_l:0.70}, 'IP|monotone|premium': {check:0.10,bet_m:0.25,bet_l:0.65},
-  'IP|paired|premium': {check:0.25,bet_m:0.30,bet_l:0.45},
-  'IP|high_dry|nut': {check:0.20,bet_m:0.35,bet_l:0.45}, 'IP|low_dry|nut': {check:0.15,bet_m:0.35,bet_l:0.50},
-  'IP|wet|nut': {check:0.10,bet_m:0.25,bet_l:0.65}, 'IP|monotone|nut': {check:0.10,bet_m:0.30,bet_l:0.60},
-  'IP|paired|nut': {check:0.15,bet_m:0.40,bet_l:0.45},
-  'IP|high_dry|strong': {check:0.15,bet_m:0.60,bet_l:0.25}, 'IP|low_dry|strong': {check:0.10,bet_m:0.65,bet_l:0.25},
-  'IP|wet|strong': {check:0.15,bet_m:0.50,bet_l:0.35}, 'IP|monotone|strong': {check:0.25,bet_s:0.30,bet_m:0.45},
-  'IP|paired|strong': {check:0.15,bet_m:0.55,bet_l:0.30},
-  'IP|high_dry|good': {check:0.25,bet_s:0.35,bet_m:0.40}, 'IP|low_dry|good': {check:0.20,bet_s:0.35,bet_m:0.45},
-  'IP|wet|good': {check:0.35,bet_s:0.30,bet_m:0.35}, 'IP|monotone|good': {check:0.40,bet_s:0.35,bet_m:0.25},
-  'IP|paired|good': {check:0.25,bet_s:0.30,bet_m:0.45},
-  'IP|high_dry|medium': {check:0.40,bet_s:0.40,bet_m:0.20}, 'IP|low_dry|medium': {check:0.35,bet_s:0.45,bet_m:0.20},
-  'IP|wet|medium': {check:0.55,bet_s:0.30,bet_m:0.15}, 'IP|monotone|medium': {check:0.60,bet_s:0.25,bet_m:0.15},
-  'IP|paired|medium': {check:0.40,bet_s:0.40,bet_m:0.20},
-  'IP|high_dry|draw': {check:0.25,bet_s:0.35,bet_m:0.40}, 'IP|low_dry|draw': {check:0.20,bet_s:0.35,bet_m:0.45},
-  'IP|wet|draw': {check:0.15,bet_m:0.40,bet_l:0.45}, 'IP|monotone|draw': {check:0.30,bet_s:0.30,bet_m:0.40},
-  'IP|paired|draw': {check:0.25,bet_s:0.35,bet_m:0.40},
-  'IP|high_dry|weak_made': {check:0.65,bet_s:0.35}, 'IP|low_dry|weak_made': {check:0.60,bet_s:0.40},
-  'IP|wet|weak_made': {check:0.80,bet_s:0.20}, 'IP|monotone|weak_made': {check:0.85,bet_s:0.15},
-  'IP|paired|weak_made': {check:0.65,bet_s:0.35},
-  'IP|high_dry|weak_draw': {check:0.55,bet_s:0.45}, 'IP|low_dry|weak_draw': {check:0.50,bet_s:0.50},
-  'IP|wet|weak_draw': {check:0.65,bet_s:0.35}, 'IP|monotone|weak_draw': {check:0.70,bet_s:0.30},
-  'IP|paired|weak_draw': {check:0.55,bet_s:0.45},
-  'IP|high_dry|air': {check:0.45,bet_s:0.15,bet_l:0.40}, 'IP|low_dry|air': {check:0.40,bet_s:0.15,bet_l:0.45},
-  'IP|wet|air': {check:0.55,bet_l:0.45}, 'IP|monotone|air': {check:0.60,bet_l:0.40},
-  'IP|paired|air': {check:0.50,bet_l:0.50},
+const _IP_DEFAULTS = {
+  premium:  {check:0.20,bet_m:0.25,bet_l:0.55},
+  nut:      {check:0.15,bet_m:0.35,bet_l:0.50},
+  strong:   {check:0.15,bet_m:0.60,bet_l:0.25},
+  two_pair: {check:0.20,bet_m:0.55,bet_l:0.25},
+  top_pair: {check:0.25,bet_s:0.30,bet_m:0.45},
+  overpair: {check:0.30,bet_s:0.35,bet_m:0.35},
+  mid_pair: {check:0.45,bet_s:0.35,bet_m:0.20},
+  underpair:{check:0.55,bet_s:0.30,bet_m:0.15},
+  nut_draw: {check:0.15,bet_m:0.45,bet_l:0.40},
+  draw:     {check:0.25,bet_s:0.35,bet_m:0.40},
+  weak_made:{check:0.65,bet_s:0.35},
+  gutshot:  {check:0.55,bet_s:0.45},
+  air:      {check:0.45,bet_s:0.15,bet_l:0.40},
 };
 
-const FACING_BET = {
-  'high_dry|premium': {call:0.35,raise:0.65}, 'low_dry|premium': {call:0.30,raise:0.70},
-  'wet|premium': {call:0.25,raise:0.75}, 'monotone|premium': {call:0.30,raise:0.70},
-  'paired|premium': {call:0.30,raise:0.70},
-  'high_dry|nut': {call:0.40,raise:0.60}, 'low_dry|nut': {call:0.35,raise:0.65},
-  'wet|nut': {call:0.35,raise:0.65}, 'monotone|nut': {call:0.45,raise:0.55},
-  'paired|nut': {call:0.40,raise:0.60},
-  'high_dry|strong': {call:0.80,raise:0.20}, 'low_dry|strong': {call:0.75,raise:0.25},
-  'wet|strong': {call:0.75,raise:0.25}, 'monotone|strong': {call:0.85,raise:0.15},
-  'paired|strong': {call:0.80,raise:0.20},
-  'high_dry|good': {call:0.80,fold:0.10,raise:0.10}, 'low_dry|good': {call:0.75,fold:0.10,raise:0.15},
-  'wet|good': {call:0.65,fold:0.25,raise:0.10}, 'monotone|good': {call:0.60,fold:0.30,raise:0.10},
-  'paired|good': {call:0.75,fold:0.15,raise:0.10},
-  'high_dry|medium': {call:0.65,fold:0.35}, 'low_dry|medium': {call:0.60,fold:0.40},
-  'wet|medium': {call:0.45,fold:0.55}, 'monotone|medium': {call:0.40,fold:0.60},
-  'paired|medium': {call:0.55,fold:0.45},
-  'high_dry|draw': {call:0.55,raise:0.20,fold:0.25}, 'low_dry|draw': {call:0.50,raise:0.25,fold:0.25},
-  'wet|draw': {call:0.45,raise:0.30,fold:0.25}, 'monotone|draw': {call:0.50,raise:0.20,fold:0.30},
-  'paired|draw': {call:0.50,raise:0.25,fold:0.25},
-  'high_dry|weak_made': {fold:0.55,call:0.45}, 'low_dry|weak_made': {fold:0.45,call:0.55},
-  'wet|weak_made': {fold:0.65,call:0.35}, 'monotone|weak_made': {fold:0.70,call:0.30},
-  'paired|weak_made': {fold:0.55,call:0.45},
-  'high_dry|weak_draw': {fold:0.55,call:0.45}, 'low_dry|weak_draw': {fold:0.55,call:0.45},
-  'wet|weak_draw': {fold:0.60,call:0.40}, 'monotone|weak_draw': {fold:0.65,call:0.35},
-  'paired|weak_draw': {fold:0.55,call:0.45},
-  'high_dry|air': {fold:0.70,raise:0.15,call:0.15}, 'low_dry|air': {fold:0.65,raise:0.20,call:0.15},
-  'wet|air': {fold:0.75,raise:0.15,call:0.10}, 'monotone|air': {fold:0.80,raise:0.10,call:0.10},
-  'paired|air': {fold:0.70,raise:0.15,call:0.15},
+const _FB_DEFAULTS = {
+  premium:  {call:0.30,raise:0.70},
+  nut:      {call:0.40,raise:0.60},
+  strong:   {call:0.80,raise:0.20},
+  two_pair: {call:0.75,raise:0.25},
+  top_pair: {call:0.75,fold:0.10,raise:0.15},
+  overpair: {call:0.70,fold:0.15,raise:0.15},
+  mid_pair: {call:0.55,fold:0.45},
+  underpair:{call:0.40,fold:0.60},
+  nut_draw: {call:0.45,raise:0.35,fold:0.20},
+  draw:     {call:0.50,raise:0.20,fold:0.30},
+  weak_made:{fold:0.55,call:0.45},
+  gutshot:  {fold:0.60,call:0.40},
+  air:      {fold:0.70,raise:0.15,call:0.15},
 };
+
+// Build strategy tables from defaults
+const OOP_STRATEGY = {};
+const IP_VS_CHECK = {};
+const FACING_BET = {};
+
+// Import BUCKETS inline to avoid circular dependency at module level
+const _BUCKETS = ['premium','nut','strong','two_pair','top_pair','overpair',
+  'mid_pair','underpair','nut_draw','draw','weak_made','gutshot','air'];
+
+for (const tex of TEXTURES) {
+  for (const bkt of _BUCKETS) {
+    OOP_STRATEGY[`OOP|${tex}|${bkt}`] = {...(_OOP_DEFAULTS[bkt] || {check: 1.0})};
+    IP_VS_CHECK[`IP|${tex}|${bkt}`] = {...(_IP_DEFAULTS[bkt] || {check: 1.0})};
+    FACING_BET[`${tex}|${bkt}`] = {...(_FB_DEFAULTS[bkt] || {fold: 0.5, call: 0.5})};
+  }
+}
 
 // Override from strategies.json if available
 function _loadStrategies() {

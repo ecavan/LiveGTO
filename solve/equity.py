@@ -211,7 +211,7 @@ def compute_equity_matrix(n_matchups_per_texture=30_000):
     print(f"  Done in {elapsed:.1f}s")
 
     # Print sample equity matrix
-    sample_tex = 'high_dry'
+    sample_tex = 'high_dry_A'
     print(f"\n  Sample equity (hero vs villain on {sample_tex}):")
     print(f"  {'':12s}", end="")
     for vb in BUCKETS:

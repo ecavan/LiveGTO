@@ -245,8 +245,10 @@ export function renderRangeVsRange(rvr, heroBucket) {
 
   const bucketColors = {
     premium: 'emerald', nut: 'emerald', strong: 'emerald',
-    good: 'yellow', medium: 'yellow', draw: 'blue',
-    weak_made: 'orange', weak_draw: 'orange', air: 'red',
+    two_pair: 'emerald', top_pair: 'yellow', overpair: 'yellow',
+    mid_pair: 'yellow', underpair: 'orange',
+    nut_draw: 'blue', draw: 'blue',
+    weak_made: 'orange', gutshot: 'orange', air: 'red',
   };
 
   let bucketRows = '';

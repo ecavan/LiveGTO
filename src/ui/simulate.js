@@ -6,10 +6,51 @@ import {
   generateSimHand, villainPreflopAct, villainPostflopAct,
   resolveShowdown, getHeroGtoAction, computeDeviation,
   computeSessionReview, applyBetAmount, OPEN_RAISE, THREE_BET,
+  generateMultiwayHand, getMultiwayPostflopOrder, resolveMultiwayShowdown,
+  POSITIONS_BY_COUNT, SEAT_MAPS,
 } from '../engine/simulate.js';
 import { renderPokerTable, renderActionButtons } from './components.js';
 
 let simState = null;
+
+function randomPlayerCount() {
+  return Math.floor(Math.random() * 5) + 2; // 2-6 players
+}
+
+// --- Action log ---
+
+function logAction(state, actor, description) {
+  if (!state.action_log) state.action_log = [];
+  state.action_log.push({ actor, description, street: state.street });
+}
+
+function logStreetTransition(state) {
+  if (!state.action_log) state.action_log = [];
+  const boardVis = state.board_cards.slice(0, state.board_visible);
+  const cardStrs = boardVis.map(c => `${c.rank}${c.suit_symbol}`).join(' ');
+  state.action_log.push({ actor: 'system', description: `${state.street}: ${cardStrs}`, street: state.street });
+}
+
+function formatBetAction(action, amount) {
+  if (action === 'bet_s') return `bets 33% pot (${amount.toFixed(1)} BB)`;
+  if (action === 'bet_m') return `bets 66% pot (${amount.toFixed(1)} BB)`;
+  if (action === 'bet_l') return `bets pot (${amount.toFixed(1)} BB)`;
+  return 'bets';
+}
+
+function renderActionLog(log) {
+  if (!log || log.length === 0) return '';
+  const entries = log.map(entry => {
+    if (entry.actor === 'system') {
+      return `<div class="text-center text-gray-600 text-xs py-0.5">--- ${entry.description} ---</div>`;
+    }
+    const color = entry.actor === 'Hero' ? 'text-emerald-400' : 'text-red-400';
+    return `<div><span class="text-gray-600">[${entry.street}]</span> <span class="${color}">${entry.actor}</span> ${entry.description}</div>`;
+  }).join('');
+  return `<div class="bg-gray-900/60 rounded-xl p-3 max-h-40 overflow-y-auto" id="action-log">
+    <div class="text-xs space-y-0.5">${entries}</div>
+  </div>`;
+}
 
 // --- State machine helpers ---
 
@@ -44,6 +85,8 @@ function advanceStreet(state) {
   if (state.street === 'preflop') { state.street = 'flop'; state.board_visible = 3; }
   else if (state.street === 'flop') { state.street = 'turn'; state.board_visible = 4; }
   else if (state.street === 'turn') { state.street = 'river'; state.board_visible = 5; }
+
+  logStreetTransition(state);
 
   state.street_bet = 0.0;
   state.hero_street_invested = 0.0;
@@ -98,12 +141,14 @@ function runVillainTurn(state) {
 
   // Apply villain action
   if (vAction === 'fold') {
+    logAction(state, 'Villain', 'folds');
     return endHand(state, 'hero', true);
   } else if (vAction === 'call') {
     const callAmount = Math.min(
       state.hero_street_invested - state.villain_street_invested,
       state.villain_stack
     );
+    logAction(state, 'Villain', `calls ${callAmount.toFixed(1)} BB`);
     state.villain_stack -= callAmount;
     state.villain_total_invested += callAmount;
     state.villain_street_invested += callAmount;
@@ -121,6 +166,7 @@ function runVillainTurn(state) {
       return processNewStreet(state);
     }
   } else if (vAction === 'check') {
+    logAction(state, 'Villain', 'checks');
     state.villain_last_action = 'check';
     state.street_to_act = 'hero';
     if (street !== 'preflop') state.sim_phase = 'postflop_decision';
@@ -140,6 +186,15 @@ function runVillainTurn(state) {
     state.pot += additional;
     state.street_bet = state.villain_street_invested;
     state.villain_last_action = vAction.includes('bet') ? vAction : 'raise';
+
+    if (street === 'preflop') {
+      logAction(state, 'Villain', `raises to ${state.villain_street_invested.toFixed(1)} BB`);
+    } else if (vAction.includes('bet')) {
+      logAction(state, 'Villain', formatBetAction(vAction, additional));
+    } else {
+      logAction(state, 'Villain', `raises to ${state.villain_street_invested.toFixed(1)} BB`);
+    }
+
     state.street_to_act = 'hero';
     state.sim_phase = street === 'preflop' ? 'preflop_decision' : 'postflop_decision';
     return state;
@@ -169,12 +224,14 @@ function processHeroAction(state, heroAction) {
   state.current_hand_actions.push({ street, action: heroAction, gto_action: gtoAction, deviation: dev });
 
   if (heroAction === 'fold') {
+    logAction(state, 'Hero', 'folds');
     return endHand(state, 'villain', true);
   } else if (heroAction === 'call') {
     const callAmount = Math.min(
       state.villain_street_invested - state.hero_street_invested,
       state.hero_stack
     );
+    logAction(state, 'Hero', `calls ${callAmount.toFixed(1)} BB`);
     state.hero_stack -= callAmount;
     state.hero_total_invested += callAmount;
     state.hero_street_invested += callAmount;
@@ -187,6 +244,7 @@ function processHeroAction(state, heroAction) {
     state = advanceStreet(state);
     return processNewStreet(state);
   } else if (heroAction === 'check') {
+    logAction(state, 'Hero', 'checks');
     state.villain_last_action = null;
     if (state.hero_is_sb && street !== 'preflop') {
       // Hero is IP, checked back
@@ -215,6 +273,15 @@ function processHeroAction(state, heroAction) {
     state.hero_street_invested += additional;
     state.pot += additional;
     state.street_bet = state.hero_street_invested;
+
+    if (street === 'preflop') {
+      logAction(state, 'Hero', `raises to ${state.hero_street_invested.toFixed(1)} BB`);
+    } else if (heroAction.includes('bet')) {
+      logAction(state, 'Hero', formatBetAction(heroAction, additional));
+    } else {
+      logAction(state, 'Hero', `raises to ${state.hero_street_invested.toFixed(1)} BB`);
+    }
+
     state.street_to_act = 'villain';
     return runVillainTurn(state);
   }
@@ -246,7 +313,12 @@ function updateHeader(state) {
   const handNum = document.getElementById('hand-num');
   const heroStack = document.getElementById('hero-stack');
   if (handNum) handNum.textContent = state.hand_number;
-  if (heroStack) heroStack.textContent = `${(state.hero_stack + state.hero_total_invested).toFixed(1)} bb`;
+  if (state.multiway) {
+    const hero = state.players[state.hero_idx];
+    if (heroStack) heroStack.textContent = `${(hero.stack + hero.total_invested).toFixed(1)} bb`;
+  } else {
+    if (heroStack) heroStack.textContent = `${(state.hero_stack + state.hero_total_invested).toFixed(1)} bb`;
+  }
 }
 
 function renderSimHand(container) {
@@ -327,8 +399,13 @@ function renderSimHand(container) {
     </div>`;
   }
 
+  // Build bets for chip display
+  const bets = {};
+  if (state.hero_street_invested > 0) bets[0] = state.hero_street_invested.toFixed(1);
+  if (state.villain_street_invested > 0) bets[3] = state.villain_street_invested.toFixed(1);
+
   zone.innerHTML = `<div class="space-y-5 flash-in">
-    ${renderPokerTable({ seats, board: visBoard, dealerSeat, pot: state.pot.toFixed(1) + ' BB', situation: streetLabel })}
+    ${renderPokerTable({ seats, board: visBoard, dealerSeat, pot: state.pot.toFixed(1) + ' BB', situation: streetLabel, bets })}
     ${streetIndicator}
     <div class="text-center text-sm">
       <span class="text-gray-500 font-mono">${state.hero_hand_key}</span>
@@ -338,9 +415,14 @@ function renderSimHand(container) {
       <span class="text-xs text-gray-500">Pot: ${state.pot.toFixed(1)} BB</span>
     </div>
     ${phaseContent}
+    ${renderActionLog(state.action_log)}
   </div>`;
 
   updateHeader(state);
+
+  // Auto-scroll action log to bottom
+  const logEl = zone.querySelector('#action-log');
+  if (logEl) logEl.scrollTop = logEl.scrollHeight;
 
   // Bind action buttons
   zone.querySelectorAll('.action-btn').forEach(btn => {
@@ -362,6 +444,7 @@ function renderSimHand(container) {
 
       simState = generateSimHand(heroStack, villainStack, handNumber, heroIsSb);
       simState.session_log = sessionLog;
+      simState.action_log = [];
 
       if (simState.street_to_act === 'villain') {
         simState = runVillainTurn(simState);
@@ -435,10 +518,417 @@ function renderSessionReview(container) {
   zone.querySelector('#play-again-btn')?.addEventListener('click', () => render(container));
 }
 
+// =================================================================
+// Multiway simulate mode (3-6 players)
+// =================================================================
+
+function mwLogAction(state, actorName, description) {
+  state.action_log.push({ actor: actorName, description, street: state.street });
+}
+
+function mwLogStreetTransition(state) {
+  const boardVis = state.board_cards.slice(0, state.board_visible);
+  const cardStrs = boardVis.map(c => `${c.rank}${c.suit_symbol}`).join(' ');
+  state.action_log.push({ actor: 'system', description: `${state.street}: ${cardStrs}`, street: state.street });
+}
+
+function mwAdvanceStreet(state) {
+  if (state.street === 'preflop') { state.street = 'flop'; state.board_visible = 3; }
+  else if (state.street === 'flop') { state.street = 'turn'; state.board_visible = 4; }
+  else if (state.street === 'turn') { state.street = 'river'; state.board_visible = 5; }
+
+  mwLogStreetTransition(state);
+  state.current_bet = 0;
+  state.last_raiser_idx = -1;
+  for (const p of state.players) { p.street_invested = 0; }
+  state.action_queue = getMultiwayPostflopOrder(state.players, state.dealer_player_idx);
+  state.action_queue_pos = 0;
+  return state;
+}
+
+function mwActivePlayers(state) {
+  return state.players.filter(p => !p.folded);
+}
+
+function mwEndHand(state, winnerIdxs, fold = false) {
+  state.hand_over = true;
+  state.winner_idxs = winnerIdxs;
+  state.winner_idx = winnerIdxs[0];
+
+  const hero = state.players[state.hero_idx];
+  const share = winnerIdxs.includes(state.hero_idx) ? state.pot / winnerIdxs.length : 0;
+  const winAmount = share - hero.total_invested;
+
+  // Distribute pot
+  if (winnerIdxs.length > 0) {
+    const perPlayer = state.pot / winnerIdxs.length;
+    for (const idx of winnerIdxs) {
+      state.players[idx].stack += perPlayer;
+    }
+  }
+
+  state.sim_phase = fold ? 'hand_over' : 'showdown';
+  state.session_log.push({
+    hand_num: state.hand_number,
+    hero_hand_key: hero.hand_key,
+    result_bb: Math.round(winAmount * 10) / 10,
+    actions: state.current_hand_actions,
+  });
+  return state;
+}
+
+function mwVillainAct(state, playerIdx) {
+  const player = state.players[playerIdx];
+  const street = state.street;
+  const facingBet = state.current_bet > player.street_invested;
+  const actorName = `V${playerIdx} (${player.position})`;
+
+  let action;
+  if (street === 'preflop') {
+    action = villainPreflopAct(player.hand_key, player.position, facingBet);
+  } else {
+    const boardVis = state.board_strs.slice(0, state.board_visible);
+    // Determine OOP/IP based on position
+    const ipPositions = new Set(['BTN', 'CO']);
+    const vPos = ipPositions.has(player.position) ? 'IP' : 'OOP';
+    action = villainPostflopAct(player.hand_strs, boardVis, vPos, facingBet);
+  }
+
+  return mwApplyAction(state, playerIdx, action, actorName);
+}
+
+function mwApplyAction(state, playerIdx, action, actorName) {
+  const player = state.players[playerIdx];
+
+  if (action === 'fold') {
+    player.folded = true;
+    mwLogAction(state, actorName, 'folds');
+
+    // Check if only one player remains
+    const active = mwActivePlayers(state);
+    if (active.length === 1) {
+      return mwEndHand(state, [active[0].idx], true);
+    }
+    return state;
+  }
+
+  if (action === 'call') {
+    const callAmount = Math.min(state.current_bet - player.street_invested, player.stack);
+    player.stack -= callAmount;
+    player.total_invested += callAmount;
+    player.street_invested += callAmount;
+    state.pot += callAmount;
+    mwLogAction(state, actorName, `calls ${callAmount.toFixed(1)} BB`);
+    return state;
+  }
+
+  if (action === 'check') {
+    mwLogAction(state, actorName, 'checks');
+    return state;
+  }
+
+  // Bet or raise
+  let betAmount;
+  if (state.street === 'preflop') {
+    betAmount = state.current_bet > 0 && state.last_raiser_idx >= 0 ? THREE_BET : OPEN_RAISE;
+  } else {
+    betAmount = applyBetAmount(state.pot, action);
+    if (state.current_bet > 0) betAmount = Math.max(betAmount, state.current_bet * 2.5);
+  }
+
+  const additional = Math.min(betAmount - player.street_invested, player.stack);
+  player.stack -= additional;
+  player.total_invested += additional;
+  player.street_invested += additional;
+  state.pot += additional;
+  state.current_bet = player.street_invested;
+  state.last_raiser_idx = playerIdx;
+
+  if (action.includes('bet')) {
+    mwLogAction(state, actorName, formatBetAction(action, additional));
+  } else {
+    mwLogAction(state, actorName, `raises to ${player.street_invested.toFixed(1)} BB`);
+  }
+
+  return state;
+}
+
+function mwRunUntilHero(state) {
+  // Process villain actions until it's hero's turn or hand ends
+  while (state.action_queue_pos < state.action_queue.length && !state.hand_over) {
+    const currentIdx = state.action_queue[state.action_queue_pos];
+    const player = state.players[currentIdx];
+
+    if (player.folded) {
+      state.action_queue_pos++;
+      continue;
+    }
+
+    if (player.is_hero) {
+      // Hero's turn - stop and wait for input
+      const facingBet = state.current_bet > player.street_invested;
+      state.sim_phase = state.street === 'preflop' ? 'preflop_decision' : 'postflop_decision';
+      return state;
+    }
+
+    // Villain acts
+    state = mwVillainAct(state, currentIdx);
+    if (state.hand_over) return state;
+
+    // If this villain raised, everyone else needs to act again
+    if (state.last_raiser_idx === currentIdx) {
+      // Rebuild the remaining queue: everyone who hasn't folded and hasn't matched the bet
+      const newQueue = [];
+      const n = state.num_players;
+      for (let i = 1; i < n; i++) {
+        const idx = (currentIdx + i) % n;
+        if (!state.players[idx].folded && idx !== currentIdx) {
+          newQueue.push(idx);
+        }
+      }
+      state.action_queue = newQueue;
+      state.action_queue_pos = 0;
+      continue;
+    }
+
+    state.action_queue_pos++;
+  }
+
+  if (state.hand_over) return state;
+
+  // Everyone has acted for this round — advance street or showdown
+  return mwFinishRound(state);
+}
+
+function mwFinishRound(state) {
+  const active = mwActivePlayers(state);
+  if (active.length === 1) {
+    return mwEndHand(state, [active[0].idx], true);
+  }
+
+  if (state.street === 'river') {
+    const { winner_idxs } = resolveMultiwayShowdown(state.players, state.board_strs);
+    return mwEndHand(state, winner_idxs);
+  }
+
+  // Advance to next street
+  state = mwAdvanceStreet(state);
+  return mwRunUntilHero(state);
+}
+
+function mwProcessHeroAction(state, heroAction) {
+  const hero = state.players[state.hero_idx];
+  const actorName = `Hero (${hero.position})`;
+  const facingBet = state.current_bet > hero.street_invested;
+
+  // Track GTO deviation
+  const boardVis = state.board_visible > 0 ? state.board_strs.slice(0, state.board_visible) : null;
+  const gtoAction = getHeroGtoAction(
+    hero.hand_key, hero.position, state.street,
+    hero.hand_strs, boardVis, facingBet,
+  );
+  const dev = computeDeviation(heroAction, gtoAction);
+  state.current_hand_actions.push({ street: state.street, action: heroAction, gto_action: gtoAction, deviation: dev });
+
+  const wasRaiser = state.last_raiser_idx;
+  state = mwApplyAction(state, state.hero_idx, heroAction, actorName);
+  if (state.hand_over) return state;
+
+  // If hero raised, rebuild action queue for remaining players
+  if (state.last_raiser_idx === state.hero_idx && state.last_raiser_idx !== wasRaiser) {
+    const newQueue = [];
+    const n = state.num_players;
+    for (let i = 1; i < n; i++) {
+      const idx = (state.hero_idx + i) % n;
+      if (!state.players[idx].folded) newQueue.push(idx);
+    }
+    state.action_queue = newQueue;
+    state.action_queue_pos = 0;
+  } else {
+    state.action_queue_pos++;
+  }
+
+  // Continue running villains
+  return mwRunUntilHero(state);
+}
+
+function mwGetAvailableActions(state) {
+  const hero = state.players[state.hero_idx];
+  const facingBet = state.current_bet > hero.street_invested;
+
+  if (state.street === 'preflop') {
+    if (facingBet) return ['raise', 'call', 'fold'];
+    return ['raise', 'fold'];
+  }
+  if (facingBet) return ['fold', 'call', 'raise'];
+  return ['check', 'bet_s', 'bet_m', 'bet_l'];
+}
+
+function buildMultiwaySeats(state) {
+  const seatMap = SEAT_MAPS[state.num_players];
+  const showdown = state.sim_phase === 'showdown';
+  const seats = [];
+
+  for (let s = 0; s < 6; s++) {
+    const playerI = seatMap.indexOf(s);
+    if (playerI === -1) {
+      seats.push({ position: '', is_hero: false, is_active: false, cards: null });
+      continue;
+    }
+    const p = state.players[playerI];
+    seats.push({
+      position: p.position,
+      is_hero: p.is_hero,
+      is_active: !p.folded && (!state.hand_over || showdown),
+      cards: p.is_hero || showdown ? p.hand_cards : null,
+      show_cards: showdown && !p.folded,
+      stack: p.stack.toFixed(1),
+    });
+  }
+  return seats;
+}
+
+function renderMultiwayHand(container) {
+  const state = simState;
+  const zone = container.querySelector('#sim-zone');
+  const visBoard = state.board_visible > 0 ? state.board_cards.slice(0, state.board_visible) : [];
+  const seats = buildMultiwaySeats(state);
+  const seatMap = SEAT_MAPS[state.num_players];
+  const dealerSeat = seatMap[state.players.findIndex(p => p.idx === state.dealer_player_idx)];
+  const streetLabel = state.street === 'preflop' ? 'Preflop' : state.street.charAt(0).toUpperCase() + state.street.slice(1);
+  const hero = state.players[state.hero_idx];
+
+  let streetIndicator = '';
+  if (state.street !== 'preflop') {
+    let streetColor;
+    if (state.street === 'flop') streetColor = 'bg-emerald-900/40 text-emerald-400';
+    else if (state.street === 'turn') streetColor = 'bg-blue-900/40 text-blue-400';
+    else streetColor = 'bg-purple-900/40 text-purple-400';
+    streetIndicator = `<div class="text-center"><span class="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${streetColor}">${state.street}</span></div>`;
+  }
+
+  // Build bets
+  const bets = {};
+  for (let i = 0; i < state.num_players; i++) {
+    if (state.players[i].street_invested > 0) {
+      bets[seatMap[i]] = state.players[i].street_invested.toFixed(1);
+    }
+  }
+
+  let phaseContent = '';
+  if (state.sim_phase === 'preflop_decision' || state.sim_phase === 'postflop_decision') {
+    const actions = mwGetAvailableActions(state);
+    const labels = getActionLabels(actions, state);
+    phaseContent = renderActionButtons(actions, labels);
+  } else if (state.sim_phase === 'showdown') {
+    const pot = state.pot.toFixed(1);
+    const heroWon = state.winner_idxs.includes(state.hero_idx);
+    const splitWin = state.winner_idxs.length > 1;
+    let resultHtml;
+    if (heroWon && !splitWin) {
+      resultHtml = `<span class="text-emerald-400 text-2xl font-bold">&#10003;</span>
+        <span class="text-emerald-400 font-semibold">You win ${pot} BB!</span>`;
+    } else if (heroWon && splitWin) {
+      const share = (state.pot / state.winner_idxs.length).toFixed(1);
+      resultHtml = `<span class="text-gray-400 text-2xl font-bold">=</span>
+        <span class="text-gray-400 font-semibold">Split pot — you get ${share} BB</span>`;
+    } else {
+      const winnerPos = state.players[state.winner_idxs[0]]?.position || '?';
+      resultHtml = `<span class="text-red-400 text-2xl font-bold">&#10007;</span>
+        <span class="text-red-400 font-semibold">${winnerPos} wins ${pot} BB</span>`;
+    }
+    const villainHandsHtml = state.players.filter(p => !p.is_hero && !p.folded)
+      .map(p => `<span class="text-gray-400">${p.position}: ${p.hand_key}</span>`).join(' | ');
+    phaseContent = `<div class="text-center space-y-2">
+      <div class="flex items-center justify-center gap-2">${resultHtml}</div>
+      <p class="text-xs text-gray-500">${villainHandsHtml}</p>
+    </div>
+    <div class="flex justify-center gap-3 pt-2">
+      <button id="next-hand-btn" class="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition-all text-sm">Next Hand &rarr;</button>
+      <button id="end-session-btn" class="px-6 py-3 bg-gray-900 hover:bg-gray-800 rounded-lg text-gray-400 transition-all text-sm border border-gray-800">End Session</button>
+    </div>`;
+  } else if (state.sim_phase === 'hand_over') {
+    const heroWon = state.winner_idxs.includes(state.hero_idx);
+    let resultHtml;
+    if (heroWon) {
+      resultHtml = `<span class="text-emerald-400 text-xl font-bold">&#10003;</span>
+        <span class="text-emerald-400 font-semibold text-sm">Everyone folds. You win ${state.pot.toFixed(1)} BB</span>`;
+    } else if (hero.folded) {
+      resultHtml = `<span class="text-red-400 text-xl font-bold">&#10007;</span>
+        <span class="text-red-400 font-semibold text-sm">You fold</span>`;
+    } else {
+      const winnerPos = state.players[state.winner_idxs[0]]?.position || '?';
+      resultHtml = `<span class="text-red-400 text-xl font-bold">&#10007;</span>
+        <span class="text-red-400 font-semibold text-sm">${winnerPos} wins — others fold</span>`;
+    }
+    phaseContent = `<div class="text-center space-y-2">
+      <div class="flex items-center justify-center gap-2">${resultHtml}</div>
+    </div>
+    <div class="flex justify-center gap-3 pt-2">
+      <button id="next-hand-btn" class="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg font-semibold transition-all text-sm">Next Hand &rarr;</button>
+      <button id="end-session-btn" class="px-6 py-3 bg-gray-900 hover:bg-gray-800 rounded-lg text-gray-400 transition-all text-sm border border-gray-800">End Session</button>
+    </div>`;
+  }
+
+  zone.innerHTML = `<div class="space-y-5 flash-in">
+    ${renderPokerTable({ seats, board: visBoard, dealerSeat, pot: state.pot.toFixed(1) + ' BB', situation: `${state.num_players}-max ${streetLabel}`, bets })}
+    ${streetIndicator}
+    <div class="text-center text-sm">
+      <span class="text-gray-500 font-mono">${hero.hand_key}</span>
+      <span class="mx-2 text-gray-700">|</span>
+      <span class="text-gray-400">${hero.position}</span>
+      <span class="mx-2 text-gray-700">|</span>
+      <span class="text-xs text-gray-500">Pot: ${state.pot.toFixed(1)} BB</span>
+    </div>
+    ${phaseContent}
+    ${renderActionLog(state.action_log)}
+  </div>`;
+
+  updateHeader(state);
+  const logEl = zone.querySelector('#action-log');
+  if (logEl) logEl.scrollTop = logEl.scrollHeight;
+
+  // Bind action buttons
+  zone.querySelectorAll('.action-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      simState = mwProcessHeroAction(simState, btn.dataset.action);
+      renderMultiwayHand(container);
+    });
+  });
+
+  // Next hand / end session
+  const nextBtn = zone.querySelector('#next-hand-btn');
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      const handNumber = simState.hand_number + 1;
+      const sessionLog = simState.session_log;
+      const numPlayers = randomPlayerCount();
+      const stacks = Array(numPlayers).fill(100.0);
+      const heroOffset = Math.floor(Math.random() * numPlayers);
+
+      simState = generateMultiwayHand(numPlayers, stacks, handNumber, heroOffset);
+      simState.session_log = sessionLog;
+      simState = mwRunUntilHero(simState);
+      renderMultiwayHand(container);
+    });
+  }
+
+  const endBtn = zone.querySelector('#end-session-btn');
+  if (endBtn) {
+    endBtn.addEventListener('click', () => renderSessionReview(container));
+  }
+}
+
+function startMultiwaySession(container, numPlayers) {
+  const stacks = Array(numPlayers).fill(100.0);
+  simState = generateMultiwayHand(numPlayers, stacks, 1, 0);
+  simState = mwRunUntilHero(simState);
+  renderMultiwayHand(container);
+}
+
 // --- Entry point ---
 
 export function render(container) {
-  // Set up simulate header
   const streakDisplay = document.getElementById('streak-display');
   if (streakDisplay) {
     streakDisplay.innerHTML = `<span class="text-gray-400 font-mono text-sm">
@@ -450,11 +940,5 @@ export function render(container) {
   }
 
   container.innerHTML = '<div id="sim-zone" class="flash-in"></div>';
-
-  simState = generateSimHand(100.0, 100.0, 1, true);
-  if (simState.street_to_act === 'villain') {
-    simState = runVillainTurn(simState);
-  }
-
-  renderSimHand(container);
+  startMultiwaySession(container, randomPlayerCount());
 }

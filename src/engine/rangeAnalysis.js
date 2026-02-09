@@ -7,8 +7,8 @@ const _BUCKET_PROBS = strategiesData.bucket_probs || {};
 const _EQUITY_MATRIX = strategiesData.equity_matrix || {};
 
 const _POSITION_SKEW = {
-  OOP: { premium: 1.1, nut: 1.05, strong: 1.0, good: 1.0, medium: 1.0, draw: 1.0, weak_made: 0.95, weak_draw: 0.95, air: 0.9 },
-  IP:  { premium: 0.9, nut: 0.95, strong: 1.0, good: 1.05, medium: 1.05, draw: 1.05, weak_made: 1.0, weak_draw: 1.0, air: 1.1 },
+  OOP: { premium: 1.1, nut: 1.05, strong: 1.0, two_pair: 1.0, top_pair: 1.0, overpair: 1.0, mid_pair: 1.0, underpair: 0.95, nut_draw: 1.0, draw: 1.0, weak_made: 0.95, gutshot: 0.95, air: 0.9 },
+  IP:  { premium: 0.9, nut: 0.95, strong: 1.0, two_pair: 1.05, top_pair: 1.05, overpair: 1.0, mid_pair: 1.05, underpair: 1.0, nut_draw: 1.05, draw: 1.05, weak_made: 1.0, gutshot: 1.0, air: 1.1 },
 };
 
 function _applySkew(baseDist, position) {

@@ -32,8 +32,10 @@ function renderFilters() {
     ? 'bg-gray-700 text-white ring-1 ring-gray-500'
     : 'bg-gray-800/60 text-gray-500 hover:text-gray-300';
   const textures = [
-    ['monotone', 'Monotone'], ['paired', 'Paired'], ['wet', 'Wet'],
-    ['high_dry', 'High Dry'], ['low_dry', 'Low Dry'],
+    ['monotone', 'Monotone'], ['paired', 'Paired'],
+    ['wet_connected', 'Wet Connected'], ['wet_twotone', 'Wet Two-tone'],
+    ['high_dry_A', 'A-high Dry'], ['high_dry_K', 'K/Q-high Dry'],
+    ['medium_dry', 'Medium Dry'], ['low_dry', 'Low Dry'],
   ];
   let texChips = `<button data-filter-tex="" class="filter-tex px-2.5 py-1 text-xs rounded-full transition-all ${anyTexClass}">Any Board</button>`;
   for (const [key, label] of textures) {

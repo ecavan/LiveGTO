@@ -1,6 +1,6 @@
 /**
  * Engine tests — hand bucketing, textures, strategy coverage, and integration.
- * Ported from archive/test_engine.py
+ * Updated for 13 buckets × 8 textures.
  */
 import { describe, it, expect } from 'vitest';
 import { classifyHand, BUCKETS } from '../src/engine/abstraction.js';
@@ -11,7 +11,7 @@ import { RFI_RANGES, FACING_OPEN, FACING_OPEN_KEYS } from '../src/engine/ranges.
 import { generatePreflop, generatePostflop, generatePlayScenario } from '../src/engine/scenarios.js';
 import { evaluatePreflop, evaluatePostflop } from '../src/engine/feedback.js';
 import { computeRangeVsRange } from '../src/engine/rangeAnalysis.js';
-import { generateSimHand, villainPreflopAct, resolveShowdown, computeSessionReview } from '../src/engine/simulate.js';
+import { generateSimHand, villainPreflopAct, resolveShowdown, computeSessionReview, generateMultiwayHand, resolveMultiwayShowdown, getMultiwayPostflopOrder } from '../src/engine/simulate.js';
 
 // Helper: test hand classification
 function testHand(label, handStrs, boardStrs, expectedBucket, expectedTexture) {
@@ -26,48 +26,65 @@ function testHand(label, handStrs, boardStrs, expectedBucket, expectedTexture) {
 }
 
 describe('Texture classification', () => {
-  testHand('AKQ rainbow = high_dry', ['2s','3h'], ['Ac','Kd','Qh'], 'air', 'high_dry');
-  testHand('753 rainbow = low_dry', ['2s','4h'], ['7c','5d','3h'], 'draw', 'low_dry');
+  testHand('AKQ rainbow = wet_connected', ['2s','3h'], ['Ac','Kd','Qh'], 'air', 'wet_connected');
+  testHand('753 rainbow = wet_connected', ['2s','4h'], ['7c','5d','3h'], 'draw', 'wet_connected');
   testHand('3 hearts = monotone', ['Ah','5h'], ['Kh','9h','2h'], 'premium', 'monotone');
   testHand('AA3 = paired', ['Ks','Qh'], ['Ac','Ad','3h'], 'weak_made', 'paired');
-  testHand('JT9 two-tone conn = wet', ['Qs','Qh'], ['Jc','Tc','9h'], 'good', 'wet');
+  testHand('JT9 two-tone conn = wet_connected', ['Qs','Qh'], ['Jc','Tc','9h'], 'strong', 'wet_connected');
+  testHand('AK7 rainbow = high_dry_A', ['4s','2h'], ['Ac','Kd','7h'], 'air', 'high_dry_A');
+  testHand('K52 rainbow = high_dry_K', ['4s','2h'], ['Kc','5d','2s'], 'weak_made', 'high_dry_K');
+  testHand('J82 two-tone = wet_twotone', ['4s','2c'], ['Jh','8h','2d'], 'weak_made', 'wet_twotone');
+  testHand('953 rainbow = medium_dry', ['Qs','2h'], ['9c','5d','3h'], 'air', 'medium_dry');
+  testHand('853 rainbow = low_dry', ['Qs','2h'], ['8c','5d','3h'], 'air', 'low_dry');
 });
 
 describe('Premium hands', () => {
-  testHand('AA top set on AK7 dry', ['As','Ah'], ['Ac','Kd','7h'], 'premium', 'high_dry');
+  testHand('AA top set on AK7 dry', ['As','Ah'], ['Ac','Kd','7h'], 'premium', 'high_dry_A');
   testHand('Nut flush (Ace-high)', ['Ah','5h'], ['Kh','9h','2h'], 'premium', 'monotone');
   testHand('Full house', ['Ks','Kh'], ['Kd','7s','7h'], 'premium', 'paired');
   testHand('Quads', ['9s','9h'], ['9d','9c','3h'], 'premium');
-  testHand('Top set on low dry', ['7s','7h'], ['7d','5c','2h'], 'premium', 'low_dry');
+  testHand('Top set on 987 connected', ['9s','9h'], ['9d','8c','7c'], 'premium', 'wet_connected');
 });
 
 describe('Nut hands', () => {
-  testHand('Bottom set on AK7 dry', ['7s','7h'], ['Ac','Kd','7d'], 'nut', 'high_dry');
-  testHand('Top set on 987 wet', ['9s','9h'], ['9d','8c','7c'], 'nut', 'wet');
+  testHand('Bottom set on AK7 two-tone', ['7s','7h'], ['Ac','Kd','7d'], 'nut', 'wet_twotone');
+  testHand('Bottom set on 987 connected', ['7s','7h'], ['9d','8c','7d'], 'nut', 'wet_connected');
   testHand('K-high flush', ['Kh','3h'], ['Ah','9h','2h'], 'nut', 'monotone');
-  testHand('Top two pair AK on AK3', ['As','Kh'], ['Ac','Kd','3h'], 'nut');
-  testHand('Combo draw (FD+gutshot)', ['Ah','Th'], ['9h','7c','6h'], 'nut', 'wet');
 });
 
 describe('Strong hands', () => {
   testHand('KK overpair on J53', ['Ks','Kh'], ['Jc','5d','3h'], 'strong');
-  testHand('TPTK AK on Kc52', ['As','Kh'], ['Kc','5d','2s'], 'strong');
+  testHand('QQ overpair on JT9 connected', ['Qs','Qh'], ['Jc','Tc','9h'], 'strong', 'wet_connected');
   testHand('Low flush 8-high', ['8h','3h'], ['Ah','9h','2h'], 'strong', 'monotone');
-  testHand('Bottom set on wet board', ['7s','7h'], ['9d','8c','7d'], 'strong');
-  testHand('Trips on dry', ['Ks','5h'], ['5d','5c','2h'], 'strong', 'paired');
+  testHand('Trips on paired board', ['Ks','5h'], ['5d','5c','2h'], 'strong', 'paired');
 });
 
-describe('Good hands', () => {
-  testHand('JJ overpair on 953 dry', ['Js','Jh'], ['9c','5d','3h'], 'good', 'low_dry');
-  testHand('TT overpair on 853 dry', ['Ts','Th'], ['8c','5d','3h'], 'good', 'low_dry');
-  testHand('QQ overpair on JT9 wet', ['Qs','Qh'], ['Jc','Tc','9h'], 'good', 'wet');
-  testHand('Top two pair on wet', ['Js','Th'], ['Jc','Tc','8h'], 'strong', 'wet');
+describe('Two pair hands', () => {
+  testHand('Top two pair AK on AK3', ['As','Kh'], ['Ac','Kd','3h'], 'two_pair');
+  testHand('Two pair on wet_connected', ['Js','Th'], ['Jc','Tc','8h'], 'two_pair', 'wet_connected');
 });
 
-describe('Medium hands', () => {
-  testHand('99 overpair on 753', ['9s','9h'], ['7c','5d','3h'], 'medium', 'low_dry');
-  testHand('TP weak kicker K4 on K52', ['Ks','4h'], ['Kc','5d','2s'], 'medium');
-  testHand('Middle pair QJ on AJ3', ['Qs','Jh'], ['Ac','Jd','3h'], 'medium', 'high_dry');
+describe('Top pair hands', () => {
+  testHand('TPTK AK on Kc52', ['As','Kh'], ['Kc','5d','2s'], 'top_pair', 'high_dry_K');
+  testHand('Top pair J kicker', ['Js','Kh'], ['Kc','5d','2s'], 'top_pair');
+});
+
+describe('Overpair hands', () => {
+  testHand('JJ overpair on 953 dry', ['Js','Jh'], ['9c','5d','3h'], 'overpair', 'medium_dry');
+  testHand('TT overpair on 853 dry', ['Ts','Th'], ['8c','5d','3h'], 'overpair', 'low_dry');
+});
+
+describe('Mid pair hands', () => {
+  testHand('TP weak kicker K4 on K52', ['Ks','4h'], ['Kc','5d','2s'], 'mid_pair');
+  testHand('Middle pair QJ on AJ3', ['Qs','Jh'], ['Ac','Jd','3h'], 'mid_pair', 'high_dry_A');
+});
+
+describe('Underpair hands', () => {
+  testHand('99 overpair on 753 connected', ['9s','9h'], ['7c','5d','3h'], 'underpair', 'wet_connected');
+});
+
+describe('Nut draw hands', () => {
+  testHand('Combo draw (FD+gutshot)', ['Ah','Th'], ['9h','7c','6h'], 'nut_draw', 'wet_connected');
 });
 
 describe('Draw hands', () => {
@@ -76,22 +93,22 @@ describe('Draw hands', () => {
 });
 
 describe('Weak made hands', () => {
-  testHand('Bottom pair 3x on AK3', ['3s','5h'], ['Ac','Kd','3h'], 'weak_made', 'high_dry');
-  testHand('Underpair 22 on AK3', ['2s','2h'], ['Ac','Kd','3h'], 'weak_made', 'high_dry');
+  testHand('Bottom pair 3x on AK3', ['3s','5h'], ['Ac','Kd','3h'], 'weak_made', 'high_dry_A');
+  testHand('Underpair 22 on AK3', ['2s','2h'], ['Ac','Kd','3h'], 'weak_made', 'high_dry_A');
 });
 
-describe('Weak draw hands', () => {
-  testHand('Gutshot (A5 on 43x)', ['Ah','5s'], ['4c','3d','8h'], 'weak_draw');
-  testHand('K-high overcard on low board', ['Ks','5h'], ['9c','7d','2h'], 'weak_draw', 'low_dry');
+describe('Gutshot hands', () => {
+  testHand('Gutshot (A5 on 43x)', ['Ah','5s'], ['4c','3d','8h'], 'gutshot');
+  testHand('K-high overcard on medium board', ['Ks','5h'], ['9c','7d','2h'], 'gutshot', 'medium_dry');
 });
 
 describe('Air hands', () => {
-  testHand('Complete air', ['4s','2h'], ['Ac','Kd','9h'], 'air', 'high_dry');
+  testHand('Complete air', ['4s','2h'], ['Ac','Kd','9h'], 'air', 'high_dry_A');
   testHand('Low cards no draw', ['4s','2h'], ['Tc','8d','6h'], 'air');
 });
 
 describe('Strategy coverage', () => {
-  it('should have all 135 strategy entries', () => {
+  it('should have all 312 strategy entries (13 buckets × 8 textures × 3)', () => {
     let totalEntries = 0;
     for (const tex of TEXTURES) {
       for (const bkt of BUCKETS) {
@@ -103,9 +120,9 @@ describe('Strategy coverage', () => {
         if (s && Object.keys(s).length > 0) totalEntries++;
       }
     }
-    // 135 possible, but some JSON entries are empty and fall back to defaults
-    expect(totalEntries).toBeGreaterThanOrEqual(120);
-    expect(totalEntries).toBeLessThanOrEqual(135);
+    // 312 possible entries (13 × 8 × 3)
+    expect(totalEntries).toBeGreaterThanOrEqual(300);
+    expect(totalEntries).toBeLessThanOrEqual(312);
   });
 });
 
@@ -262,7 +279,7 @@ describe('Feedback', () => {
     const scenario = {
       type: 'postflop', position: 'OOP', hand_key: 'AA',
       bucket: 'premium', bucket_label: 'Premium',
-      texture: 'high_dry', texture_label: 'High & dry',
+      texture: 'high_dry_A', texture_label: 'Ace-high dry',
       strategy: { check: 0.40, bet_m: 0.20, bet_l: 0.40 },
       correct_actions: ['check', 'bet_l'],
       action_labels: { check: 'Check', bet_m: 'Bet 66%', bet_l: 'Bet 100%' },
@@ -274,8 +291,9 @@ describe('Feedback', () => {
 });
 
 describe('Range vs Range', () => {
-  it('computeRangeVsRange returns equity data', () => {
-    const rvr = computeRangeVsRange('high_dry', 'OOP');
+  it('computeRangeVsRange returns equity data or null', () => {
+    // May return null if strategies.json lacks new texture keys
+    const rvr = computeRangeVsRange('high_dry_A', 'OOP');
     if (rvr) {
       expect(rvr.hero_equity).toBeGreaterThan(0);
       expect(rvr.hero_equity).toBeLessThan(100);
@@ -328,11 +346,11 @@ describe('Simulate', () => {
 });
 
 describe('Bucket distribution (smoke test)', () => {
-  it('all 9 buckets appear in random sampling', () => {
+  it('all 13 buckets appear in random sampling', () => {
     const counts = {};
     for (const b of BUCKETS) counts[b] = 0;
 
-    for (let i = 0; i < 1000; i++) {
+    for (let i = 0; i < 3000; i++) {
       const deck = createDeck();
       const hand = drawCards(deck, 2);
       const board = drawCards(deck, 3);
@@ -341,9 +359,77 @@ describe('Bucket distribution (smoke test)', () => {
       counts[bkt]++;
     }
 
-    // Each bucket should appear at least once in 1000 random hands
+    // Each bucket should appear at least once in 3000 random hands
     for (const b of BUCKETS) {
       expect(counts[b]).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('Multiway', () => {
+  it('generateMultiwayHand returns valid 4-player state', () => {
+    const state = generateMultiwayHand(4, [100, 100, 100, 100], 1, 0);
+    expect(state.num_players).toBe(4);
+    expect(state.players.length).toBe(4);
+    expect(state.players[0].is_hero).toBe(true);
+    expect(state.board_strs.length).toBe(5);
+    expect(state.pot).toBe(1.5);
+    // SB and BB should have posted blinds
+    const sb = state.players.find(p => p.position === 'SB');
+    const bb = state.players.find(p => p.position === 'BB');
+    expect(sb.total_invested).toBe(0.5);
+    expect(bb.total_invested).toBe(1.0);
+  });
+
+  it('generateMultiwayHand assigns correct positions for 6 players', () => {
+    const state = generateMultiwayHand(6, [100, 100, 100, 100, 100, 100], 1, 0);
+    const positions = state.players.map(p => p.position);
+    expect(positions).toContain('UTG');
+    expect(positions).toContain('BTN');
+    expect(positions).toContain('SB');
+    expect(positions).toContain('BB');
+  });
+
+  it('resolveMultiwayShowdown finds winner', () => {
+    const players = [
+      { idx: 0, hand_strs: ['As', 'Ah'], folded: false },
+      { idx: 1, hand_strs: ['7s', '2h'], folded: false },
+      { idx: 2, hand_strs: ['Ks', 'Qh'], folded: true },
+    ];
+    const board = ['Kd', '5c', '3h', '8d', '9c'];
+    const result = resolveMultiwayShowdown(players, board);
+    expect(result.winner_idxs).toContain(0);
+    expect(result.winner_idxs).not.toContain(2); // folded
+  });
+
+  it('getMultiwayPostflopOrder skips folded players', () => {
+    const players = [
+      { idx: 0, position: 'CO', folded: false },
+      { idx: 1, position: 'BTN', folded: false },
+      { idx: 2, position: 'SB', folded: true },
+      { idx: 3, position: 'BB', folded: false },
+    ];
+    const order = getMultiwayPostflopOrder(players, 1); // BTN is dealer
+    expect(order).not.toContain(2); // folded SB excluded
+    expect(order[0]).toBe(3); // BB first after dealer
+  });
+});
+
+describe('Texture distribution (smoke test)', () => {
+  it('all 8 textures appear in random sampling', () => {
+    const counts = {};
+    for (const t of TEXTURES) counts[t] = 0;
+
+    for (let i = 0; i < 2000; i++) {
+      const deck = createDeck();
+      const board = drawCards(deck, 3);
+      const tex = classifyTexture(board);
+      counts[tex]++;
+    }
+
+    // Each texture should appear at least once in 2000 random boards
+    for (const t of TEXTURES) {
+      expect(counts[t]).toBeGreaterThan(0);
     }
   });
 });
