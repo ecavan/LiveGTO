@@ -1,0 +1,37 @@
+{
+ "anchor": 2000,
+ "slope": 900,
+ "w0": 25,
+ "elo": {
+  "pro": 2000,
+  "whale": 860,
+  "maniac": 920,
+  "station": 1380,
+  "nit": 1560,
+  "reg": 1690,
+  "shark": 1660
+ },
+ "results": {
+  "pro": {
+   "whale": 442.1,
+   "maniac": 375.9,
+   "station": 98.7,
+   "nit": 52.5,
+   "reg": 30.5
+  },
+  "shark": {
+   "nit": 11,
+   "station": 20.3
+  },
+  "ci": {
+   "whale": 92.9,
+   "maniac": 113.4,
+   "station": 61.4,
+   "nit": 46.7,
+   "reg": 97.5,
+   "shark_nit": 47.1,
+   "shark_station": 63
+  },
+  "hands": 6000
+ }
+}

@@ -1,61 +1,47 @@
 /**
- * Puzzles — chess.com-style: a real spot, your real cards, one correct action.
- * Graded by EV against the solver (GTO) or against a specific villain type (node-locked).
+ * Puzzles: a real solved spot, your real cards, one right answer, rated like chess puzzles.
+ * Graded by EV against the villain's node-locked strategy (or GTO for the baseline).
  */
-import { renderPokerTable, renderCard } from './components.js';
-import { cardToDisplay } from '../engine/cards.js';
 import {
   PROFILES, candidates, families, pickPuzzle, key, grade, updateRating, explain,
   cellLabel, cellOf, loadStats, saveStats,
 } from '../engine/puzzles.js';
+import { getIndex, getRecord } from '../engine/library.js';
 import { pct } from '../engine/potmath.js';
 import { flopTexture, textureLabel, boardTags, randomSuitMap, remapCard, isCard } from '../engine/texture.js';
+import { pokerTable, icon, esc, verdict, disc, rangeGrid, fmtBB, lossKind } from './kit.js';
 
 let index = null;
-const files = new Map();
 let stats = loadStats();
 let filters = { street: '', profile: '', decision: '', family: '', suits: '', connect: '', paired: '', height: '' };
 let current = null; // { cand, record, puzzle, view, answered, gridTab }
-
-async function getIndex() {
-  if (!index) {
-    const res = await fetch('/library/index.json');
-    if (!res.ok) throw new Error('Puzzle library not found');
-    index = await res.json();
-  }
-  return index;
-}
-
-async function getRecord(cand) {
-  if (!files.has(cand.file)) {
-    const res = await fetch(`/library/${cand.file}`);
-    files.set(cand.file, await res.json());
-  }
-  return files.get(cand.file).records.find(r => r.id === cand.id);
-}
+let keyHandler = null;
 
 export async function render(container) {
-  container.innerHTML = `<p class="text-center text-gray-500 pt-12">Loading puzzles…</p>`;
+  container.innerHTML = `<div class="page text-ink-400">Loading puzzles…</div>`;
   try {
-    await getIndex();
+    index = await getIndex();
   } catch (e) {
-    container.innerHTML = `<p class="text-center text-red-400 pt-12">${e.message}. Build it with <code>ps library</code> (see solver/README).</p>`;
-    return;
+    container.innerHTML = `<div class="page text-rose-300">${esc(e.message)}. Build it with <code>npm run library</code>.</div>`;
+    return undefined;
   }
-  await next(container);
+  if (!current || current.answered) await next();
+  draw(container);
+  keyHandler = (e) => {
+    if (!container.isConnected) return;
+    if (/^[1-9]$/.test(e.key)) container.querySelector(`[data-act="${Number(e.key) - 1}"]`)?.click();
+    if (e.key === 'Enter' || e.key === ' ') { const b = container.querySelector('#pz-next'); if (b) { e.preventDefault(); b.click(); } }
+  };
+  window.addEventListener('keydown', keyHandler);
+  return () => window.removeEventListener('keydown', keyHandler);
 }
 
-async function next(container) {
+async function next() {
   const cands = candidates(index, filters);
   const cand = pickPuzzle(cands, stats.rating, new Set(stats.seen));
-  if (!cand) {
-    current = null;
-    draw(container);
-    return;
-  }
+  if (!cand) { current = null; return; }
   const record = await getRecord(cand);
   const puzzle = record.puzzles[cand.i];
-  // Relabel suits at random: the same solved spot, shown as any member of its board family.
   const m = randomSuitMap();
   const view = {
     board: record.board.map(c => remapCard(c, m)),
@@ -63,166 +49,92 @@ async function next(container) {
     prior: record.history.prior.map(x => (isCard(x) ? remapCard(x, m) : x)),
   };
   current = { cand, record, puzzle, view, answered: null, gridTab: 'villain' };
-  draw(container);
 }
 
-// ------------------------------------------------------------------ rendering
+// ------------------------------------------------------------------ pieces
 
-function filterBar() {
+function filterPanel() {
   const opt = (v, label, sel) => `<option value="${v}" ${sel === v ? 'selected' : ''}>${label}</option>`;
-  return `
-  <div class="flex flex-wrap gap-2 justify-center text-xs">
-    <select data-f="profile" class="bg-gray-900 border border-gray-700 rounded px-2 py-1">
-      ${opt('', 'All villain types', filters.profile)}
+  const active = Object.values(filters).filter(Boolean).length;
+  return disc(`Filters${active ? ` <span class="pill ml-2">${active} on</span>` : ''}`, `<div class="grid sm:grid-cols-2 gap-2">
+    <select data-f="profile">${opt('', 'All villain types', filters.profile)}
       ${Object.entries(PROFILES).filter(([k]) => k !== 'gto').map(([k, v]) => opt(k, `vs ${v}`, filters.profile)).join('')}
-      ${opt('gto', 'vs GTO (baseline)', filters.profile)}
-      ${opt('all', 'Everything', filters.profile)}
-    </select>
-    <select data-f="family" class="bg-gray-900 border border-gray-700 rounded px-2 py-1">
-      ${opt('', 'All pots', filters.family)}
-      ${families(index).map(f => opt(f.id, f.name, filters.family)).join('')}
-    </select>
-  </div>
-  <div class="flex flex-wrap gap-2 justify-center text-xs">
-    <span class="text-gray-500 self-center">Flop:</span>
-    <select data-f="suits" class="bg-gray-900 border border-gray-700 rounded px-2 py-1">
-      ${opt('', 'any suits', filters.suits)}${opt('rainbow', 'rainbow', filters.suits)}${opt('two-tone', 'two-tone', filters.suits)}${opt('monotone', 'monotone', filters.suits)}
-    </select>
-    <select data-f="connect" class="bg-gray-900 border border-gray-700 rounded px-2 py-1">
-      ${opt('', 'any connectedness', filters.connect)}${opt('connected', 'connected', filters.connect)}${opt('semi', 'semi-connected', filters.connect)}${opt('dry', 'dry', filters.connect)}
-    </select>
-    <select data-f="paired" class="bg-gray-900 border border-gray-700 rounded px-2 py-1">
-      ${opt('', 'paired or not', filters.paired)}${opt('unpaired', 'unpaired', filters.paired)}${opt('paired', 'paired', filters.paired)}
-    </select>
-    <select data-f="height" class="bg-gray-900 border border-gray-700 rounded px-2 py-1">
-      ${opt('', 'any high card', filters.height)}${opt('ace', 'A-high', filters.height)}${opt('big', 'K/Q-high', filters.height)}${opt('mid', 'J–8-high', filters.height)}${opt('low', '7-high or lower', filters.height)}
-    </select>
-    <select data-f="street" class="bg-gray-900 border border-gray-700 rounded px-2 py-1">
-      ${opt('', 'Turn + river', filters.street)}${opt('turn', 'Turn', filters.street)}${opt('river', 'River', filters.street)}
-    </select>
-    <select data-f="decision" class="bg-gray-900 border border-gray-700 rounded px-2 py-1">
-      ${opt('', 'All spots', filters.decision)}
-      ${opt('facing', 'Facing a bet', filters.decision)}
-      ${opt('betting', 'Bet or check', filters.decision)}
-    </select>
+      ${opt('gto', 'vs GTO (baseline)', filters.profile)}${opt('all', 'Everything', filters.profile)}</select>
+    <select data-f="family">${opt('', 'All pot types', filters.family)}${families(index).map(f => opt(f.id, f.name, filters.family)).join('')}</select>
+    <select data-f="street">${opt('', 'Turn + river', filters.street)}${opt('turn', 'Turn', filters.street)}${opt('river', 'River', filters.street)}</select>
+    <select data-f="decision">${opt('', 'All spots', filters.decision)}${opt('facing', 'Facing a bet', filters.decision)}${opt('betting', 'Bet or check', filters.decision)}</select>
+    <select data-f="suits">${opt('', 'Flop: any suits', filters.suits)}${opt('rainbow', 'Rainbow', filters.suits)}${opt('two-tone', 'Two-tone', filters.suits)}${opt('monotone', 'Monotone', filters.suits)}</select>
+    <select data-f="connect">${opt('', 'Any connectedness', filters.connect)}${opt('connected', 'Connected', filters.connect)}${opt('semi', 'Semi-connected', filters.connect)}${opt('dry', 'Dry', filters.connect)}</select>
+    <select data-f="paired">${opt('', 'Paired or not', filters.paired)}${opt('unpaired', 'Unpaired', filters.paired)}${opt('paired', 'Paired', filters.paired)}</select>
+    <select data-f="height">${opt('', 'Any high card', filters.height)}${opt('ace', 'A-high', filters.height)}${opt('big', 'K/Q-high', filters.height)}${opt('mid', 'J–8-high', filters.height)}${opt('low', '7-high or lower', filters.height)}</select>
+  </div>`);
+}
+
+function tableHtml(r, view) {
+  const potBefore = r.pot - r.to_call;
+  return pokerTable({
+    top: { name: r.villain.name, sub: r.villain.pos, stack: fmtBB(r.stack - r.to_call), cards: 'back', dealer: r.villain.pos === 'BTN' },
+    bottom: { name: 'You', sub: r.hero.pos, stack: fmtBB(r.stack), cards: [view.cards.slice(0, 2), view.cards.slice(2, 4)], dealer: r.hero.pos === 'BTN' },
+    board: view.board,
+    pot: potBefore,
+    bets: { top: r.to_call > 0 ? r.to_call : 0 },
+    note: esc(r.decision_desc),
+  });
+}
+
+function lineHtml(r, view) {
+  const street = r.street === 'turn' ? 'Turn' : 'River';
+  return `<div class="text-sm space-y-1">
+    <div class="flex gap-2"><span class="text-ink-400 w-16 shrink-0">Preflop</span><span class="text-ink-200">${esc(r.history.preflop)}</span></div>
+    <div class="flex gap-2"><span class="text-ink-400 w-16 shrink-0">Before</span><span class="text-ink-200">${esc(view.prior.join(', '))}</span></div>
+    <div class="flex gap-2"><span class="text-ink-400 w-16 shrink-0">${street}</span><span class="text-ink-200">${esc(r.history.street.join(', ') || '—')}</span></div>
+    <div class="flex gap-2 flex-wrap text-xs text-ink-400 pt-1"><span>Flop: ${textureLabel(flopTexture(view.board))}</span>${boardTags(view.board).map(t => `<span class="tag">${t}</span>`).join('')}</div>
   </div>`;
-}
-
-function header() {
-  const acc = stats.played ? Math.round((100 * stats.solved) / stats.played) : 0;
-  return `
-  <div class="flex items-center justify-between">
-    <div>
-      <div class="text-xs text-gray-500 uppercase tracking-wide">Puzzle rating</div>
-      <div class="text-2xl font-bold text-emerald-400 font-mono" id="pz-rating">${stats.rating}</div>
-    </div>
-    <div class="text-right text-xs text-gray-500">
-      ${stats.played} played · ${acc}% solved
-      ${current ? `<div class="text-gray-400 mt-0.5">puzzle ${current.puzzle.rating}</div>` : ''}
-    </div>
-  </div>`;
-}
-
-function historyLines(r, view) {
-  const street = { turn: 'Turn', river: 'River' }[r.street];
-  const prior = view.prior.join(', ');
-  const cur = r.history.street.length ? r.history.street.join(', ') : '—';
-  return `
-  <div class="text-xs text-gray-400 space-y-0.5 font-mono">
-    <div><span class="text-gray-600">Preflop</span> ${r.history.preflop}</div>
-    <div><span class="text-gray-600">Before</span> ${prior}</div>
-    <div><span class="text-gray-600">${street}</span> ${cur}</div>
-  </div>`;
-}
-
-function villainBadge(r) {
-  const color = r.villain.profile === 'gto' ? 'border-sky-700/50 bg-sky-900/20 text-sky-300'
-    : 'border-amber-700/50 bg-amber-900/20 text-amber-300';
-  return `
-  <div class="rounded-lg border ${color} px-3 py-2">
-    <div class="text-sm font-semibold">Villain (${r.villain.pos}): ${r.villain.name}</div>
-    <div class="text-xs text-gray-400 mt-0.5">${r.villain.desc}</div>
-  </div>`;
-}
-
-/** Heads-up table: hero at the bottom (seat 1), villain at the top (seat 4), nobody else. */
-function table(r, view) {
-  const heroCards = [view.cards.slice(0, 2), view.cards.slice(2, 4)].map(cardToDisplay);
-  const seats = Array.from({ length: 6 }, () => ({ hidden: true }));
-  seats[0] = { position: r.hero.pos, is_hero: true, is_active: true, cards: heroCards, stack: r.stack.toFixed(1) };
-  seats[3] = { position: r.villain.pos, is_active: true, cards: null, stack: (r.stack - r.to_call).toFixed(1) };
-  const dealerSeat = r.hero.pos === 'BTN' ? 0 : r.villain.pos === 'BTN' ? 3 : -1;
-  const bets = r.to_call > 0 ? { 3: `${r.to_call}bb` } : null;
-  const potShown = (r.pot - r.to_call).toFixed(1);
-  return renderPokerTable({
-    seats, dealerSeat, bets,
-    board: view.board.map(cardToDisplay),
-    pot: null,
-    situation: null,
-  }) + `<div class="text-center text-sm font-mono text-amber-300/90 -mt-1">`
-    + `${r.street === 'turn' ? 'Turn' : 'River'} · pot ${potShown}bb · ${r.decision_desc}`
-    + (r.to_call > 0 ? ` · ${r.to_call}bb to call` : '') + `</div>`
-    + textureLine(view.board);
-}
-
-function textureLine(board) {
-  const tags = boardTags(board).map(t => `<span class="inline-block whitespace-nowrap px-1.5 py-0.5 rounded bg-gray-800 text-gray-300">${t}</span>`).join(' ');
-  return `<div class="text-center text-[0.7rem] text-gray-400 mt-1 space-x-1">
-    <span>Flop: ${textureLabel(flopTexture(board))}</span>${tags ? ` · ${tags}` : ''}</div>`;
 }
 
 function actionButtons(r) {
-  return `
-  <div class="grid grid-cols-2 gap-2">
-    ${r.actions_short.map((a, i) => `
-      <button data-act="${i}" class="py-3 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-700 font-semibold text-sm">
-        ${a}${r.actions[i] !== a ? `<div class="text-[0.65rem] text-gray-400 font-normal">${r.actions[i]}</div>` : ''}
-      </button>`).join('')}
-  </div>`;
+  return `<div class="grid gap-2" style="grid-template-columns: repeat(${Math.min(r.actions_short.length, 4)}, minmax(0,1fr))">
+    ${r.actions_short.map((a, i) => {
+      const cls = /fold/.test(a) ? 'act-fold' : /check|call/.test(a) ? 'act-pass' : /all-in/.test(a) ? 'act-shove' : 'act-aggr';
+      const detail = r.actions[i] !== a ? r.actions[i].replace(/^(bet|raise to|call|all-in)\s*/i, '') : '';
+      return `<button data-act="${i}" class="act ${cls}">${esc(a)}${detail ? `<small>${esc(detail)}</small>` : ''}<span class="absolute top-1.5 right-2 text-[10px] text-ink-400 hidden lg:block">${i + 1}</span></button>`;
+    }).join('')}</div>`;
 }
 
 function feedback(r, p, g, choice) {
   const a = r.actions_short;
-  const banner = {
-    best: ['bg-emerald-900/40 border-emerald-600/50 text-emerald-300', `Best move: ${a[p.answer]}`],
-    fine: ['bg-sky-900/40 border-sky-600/50 text-sky-300', `Also fine: ${a[choice]} (best: ${a[p.answer]})`],
-    mistake: ['bg-red-900/40 border-red-700/50 text-red-300',
-      `Mistake: ${a[choice]} costs ${g.loss_bb.toFixed(2)}bb (${pct(g.loss_pct, 1)} of the pot). Best: ${a[p.answer]}`],
-  }[g.verdict];
-
-  const maxLoss = Math.max(0.01, ...p.ev.map(x => -x));
-  const bars = a.map((lab, i) => {
-    const loss = -p.ev[i];
-    const w = Math.max(2, 100 * (1 - loss / maxLoss));
-    const tag = i === p.answer ? 'best' : p.fine.includes(i) ? 'fine' : '';
-    const col = i === p.answer ? 'bg-emerald-500' : p.fine.includes(i) ? 'bg-sky-500' : 'bg-gray-600';
-    return `
-    <div class="flex items-center gap-2 text-xs">
-      <div class="w-16 text-right ${i === choice ? 'text-white font-semibold' : 'text-gray-400'}">${lab}</div>
-      <div class="flex-1 bg-gray-800 rounded h-3"><div class="${col} h-3 rounded" style="width:${w}%"></div></div>
-      <div class="w-20 font-mono ${loss < 0.005 ? 'text-emerald-400' : 'text-gray-400'}">${loss < 0.005 ? tag || 'best' : `−${loss.toFixed(2)}bb`}</div>
-    </div>`;
-  }).join('');
-
-  const points = explain(r, p).map(pt => `
-    <div class="text-sm"><span class="text-gray-300 font-semibold">${pt.title}.</span>
-      <span class="text-gray-400">${pt.body}</span></div>`).join('');
-
-  return `
-  <div class="flash-in space-y-4">
-    <div class="rounded-lg border px-3 py-2 text-sm font-semibold ${banner[0]}">${banner[1]}</div>
-    <div class="space-y-1.5">${bars}</div>
-    <div class="space-y-2">${points}</div>
-    ${rangePanel(r, p)}
-    <button id="pz-next" class="w-full py-3 rounded-lg bg-emerald-700 hover:bg-emerald-600 font-semibold">Next puzzle</button>
+  const kind = g.verdict === 'best' ? 'best' : g.verdict === 'fine' ? 'fine' : lossKind(g.loss_bb, r.pot);
+  const head = g.verdict === 'best' ? verdict('best', `Best move: ${esc(a[p.answer])}`)
+    : g.verdict === 'fine' ? verdict('fine', `Good: ${esc(a[choice])}`, `Best was ${esc(a[p.answer])}.`)
+      : verdict(kind, `${kind === 'blunder' ? 'Blunder' : 'Mistake'}: ${esc(a[choice])} costs ${fmtBB(g.loss_bb)}`, `${pct(g.loss_pct, 1)} of the pot. Best: <b>${esc(a[p.answer])}</b>.`);
+  const opts = a.map((label, i) => ({ label, ev: p.ev[i] }));
+  const points = explain(r, p).map(pt => `<p><b class="text-white">${pt.title}.</b> ${pt.body}</p>`).join('');
+  return `<div class="space-y-3 fade-up">
+    ${head}
+    ${evBarsFromLoss(opts, p, choice)}
+    ${disc('Why', `<div class="space-y-2">${points}</div>`, g.verdict !== 'best')}
+    ${disc('Ranges', rangePanel(r, p))}
+    <button id="pz-next" class="btn btn-primary btn-lg btn-block">Next puzzle ${icon('next', 'w-5 h-5')}</button>
   </div>`;
+}
+
+function evBarsFromLoss(opts, p, choice) {
+  const maxLoss = Math.max(0.01, ...p.ev.map(x => -x));
+  return `<div class="space-y-2">${opts.map((o, i) => {
+    const loss = -p.ev[i];
+    const w = Math.max(3, 100 * (1 - loss / maxLoss));
+    const col = i === p.answer ? 'bg-emerald-400' : p.fine.includes(i) ? 'bg-sky-400' : 'bg-ink-400';
+    return `<div class="evrow"><div class="truncate ${i === choice ? 'text-white font-semibold' : 'text-ink-300'}">${i === choice ? '▸ ' : ''}${esc(o.label)}</div>
+      <div class="evbar"><i class="${col}" style="width:${w}%"></i></div>
+      <div class="text-right num text-xs ${loss < 0.005 ? 'text-emerald-300 font-semibold' : 'text-ink-300'}">${loss < 0.005 ? 'best' : `−${loss.toFixed(2)}`}</div></div>`;
+  }).join('')}</div>`;
 }
 
 function rangePanel(r, p) {
   const tabs = [
-    ['villain', r.villain.profile === 'gto' ? 'His range' : `His range (${r.villain.name})`],
-    ...(r.villain.profile === 'gto' ? [] : [['villain_gto', 'His range (solver)']]),
-    ['hero', 'Your range'],
+    ['villain', r.villain.profile === 'gto' ? 'His range' : `His (${r.villain.name})`],
+    ...(r.villain.profile === 'gto' ? [] : [['villain_gto', 'His (solver)']]),
+    ['hero', 'Yours'],
   ];
   const t = current.gridTab;
   const data = t === 'hero' ? r.grid.hero : t === 'villain_gto' ? r.grid.villain_gto
@@ -230,61 +142,78 @@ function rangePanel(r, p) {
   const heroCell = cellOf(p.cards);
   const cells = data.freq.map((f, i) => {
     const eq = data.eq[i];
-    // colour by equity (red → amber → green), opacity by how much of the hand is in range
     const hue = Math.round(120 * eq);
-    const bg = f > 0 ? `hsla(${hue}, 70%, 40%, ${0.3 + 0.7 * f})` : 'rgba(31,41,55,0.35)';
-    const hero = t === 'hero' && i === heroCell ? 'range-cell-hero' : '';
-    const title = f > 0 ? `${cellLabel(i)}: ${pct(f)} of combos, equity ${pct(eq)}` : cellLabel(i);
-    return `<div class="range-cell ${hero}" style="background:${bg}" title="${title}">${cellLabel(i)}</div>`;
-  }).join('');
-  return `
-  <div class="space-y-2">
-    <div class="flex gap-1 text-xs">
-      ${tabs.map(([k, lab]) => `<button data-grid="${k}" class="px-2 py-1 rounded ${k === t ? 'bg-gray-700 text-white' : 'bg-gray-900 text-gray-400'}">${lab}</button>`).join('')}
-    </div>
-    <div class="grid mx-auto w-fit" style="grid-template-columns: repeat(13, auto); gap: 1px;">${cells}</div>
-    <div class="text-[0.65rem] text-gray-500 text-center">Colour = equity vs the other range (red → green). Brightness = how much of that hand is in the range here.</div>
+    return {
+      label: cellLabel(i), me: t === 'hero' && i === heroCell,
+      bg: f > 0 ? `hsla(${hue}, 70%, 38%, ${0.25 + 0.75 * f})` : '#121821',
+      title: f > 0 ? `${cellLabel(i)}: ${pct(f)} in range, equity ${pct(eq)}` : cellLabel(i),
+    };
+  });
+  return `<div class="space-y-2">
+    <div class="seg">${tabs.map(([k, lab]) => `<button data-grid="${k}" class="${k === t ? 'on' : ''}">${lab}</button>`).join('')}</div>
+    ${rangeGrid(cells)}
+    <div class="text-xs text-ink-400">Colour = equity against the other range (red → green). Brightness = how much of that hand is in the range here.</div>
   </div>`;
 }
 
+// ------------------------------------------------------------------ page
+
 function draw(container) {
+  const acc = stats.played ? Math.round((100 * stats.solved) / stats.played) : 0;
+  const header = `<div class="flex items-end justify-between gap-4 flex-wrap">
+    <div><div class="h-sec">Puzzles</div><h1 class="h-title">Find the best play</h1></div>
+    <div class="flex gap-5 text-right">
+      <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Rating</div><div class="text-2xl font-semibold num text-emerald-300">${stats.rating}</div></div>
+      <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Solved</div><div class="text-2xl font-semibold num">${acc}%</div></div>
+      ${current ? `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Puzzle</div><div class="text-2xl font-semibold num text-ink-200">${current.puzzle.rating}</div></div>` : ''}
+    </div></div>`;
   if (!current) {
-    container.innerHTML = `<div class="space-y-4">${header()}${filterBar()}
-      <p class="text-center text-gray-500 pt-8">No puzzles match these filters.</p></div>`;
+    container.innerHTML = `<div class="page space-y-4">${header}${filterPanel()}<p class="text-ink-400 pt-6">No puzzles match these filters.</p></div>`;
     wire(container);
     return;
   }
   const { record: r, puzzle: p, answered } = current;
-  container.innerHTML = `
-  <div class="space-y-4">
-    ${header()}
-    ${filterBar()}
-    ${villainBadge(r)}
-    ${table(r, current.view)}
-    ${historyLines(r, current.view)}
-    <div class="text-sm text-center text-gray-300">You have <span class="font-semibold">${p.hand}</span>. What's your play?</div>
-    <div id="pz-body">${answered ? feedback(r, p, answered.g, answered.choice) : actionButtons(r)}</div>
+  const villainCard = `<div class="panel panel-pad space-y-1.5">
+    <div class="flex items-center gap-2"><span class="w-8 h-8 rounded-lg ${r.villain.profile === 'gto' ? 'bg-sky-500/15 text-sky-300' : 'bg-amber-500/15 text-amber-300'} flex items-center justify-center">${icon('bot', 'w-5 h-5')}</span>
+      <div><div class="font-semibold text-white">vs ${esc(r.villain.name)} <span class="text-ink-400 font-normal">· ${r.villain.pos}</span></div>
+      <div class="text-xs text-ink-400">${esc(r.family_name)}</div></div></div>
+    ${disc('How he plays', `<p>${esc(r.villain.desc)}</p>${(r.villain.notes || []).length ? `<ul class="list-disc pl-5 space-y-0.5 text-ink-300">${r.villain.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}`)}
+  </div>`;
+  container.innerHTML = `<div class="page space-y-4">
+    ${header}
+    <div class="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-5 lg:grid-flow-dense items-start">
+      <div class="space-y-4 min-w-0">
+        ${tableHtml(r, current.view)}
+        <div class="text-center text-ink-200">You have <b class="text-white">${esc(p.hand)}</b>. What's your play?</div>
+        ${answered ? '' : actionButtons(r)}
+      </div>
+      <div class="space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+        ${answered ? `<div class="panel panel-pad">${feedback(r, p, answered.g, answered.choice)}</div>` : ''}
+        ${villainCard}
+      </div>
+      <div class="space-y-4 min-w-0">
+        <div class="panel panel-pad">${lineHtml(r, current.view)}</div>
+        ${filterPanel()}
+      </div>
+    </div>
   </div>`;
   wire(container);
 }
 
 function wire(container) {
-  container.querySelectorAll('select[data-f]').forEach(sel => {
-    sel.addEventListener('change', () => {
-      filters[sel.dataset.f] = sel.value;
-      next(container);
-    });
-  });
-  container.querySelectorAll('button[data-act]').forEach(btn => {
-    btn.addEventListener('click', () => answer(container, Number(btn.dataset.act)));
-  });
-  container.querySelectorAll('button[data-grid]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      current.gridTab = btn.dataset.grid;
-      draw(container);
-    });
-  });
-  container.querySelector('#pz-next')?.addEventListener('click', () => next(container));
+  container.querySelectorAll('select[data-f]').forEach(sel => sel.addEventListener('change', async () => {
+    filters[sel.dataset.f] = sel.value;
+    await next();
+    draw(container);
+  }));
+  container.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', () => answer(container, Number(btn.dataset.act))));
+  container.querySelectorAll('[data-grid]').forEach(btn => btn.addEventListener('click', () => {
+    current.gridTab = btn.dataset.grid;
+    const open = [...container.querySelectorAll('details')].map(d => d.open);
+    draw(container);
+    container.querySelectorAll('details').forEach((d, i) => { if (open[i]) d.open = true; });
+  }));
+  container.querySelector('#pz-next')?.addEventListener('click', async () => { await next(); draw(container); window.scrollTo(0, 0); });
 }
 
 function answer(container, choice) {
@@ -299,5 +228,6 @@ function answer(container, choice) {
   stats.history = [...stats.history, { id: key(cand), v: g.verdict, loss: +g.loss_bb.toFixed(2), d: stats.rating - before }].slice(-500);
   saveStats(stats);
   current.answered = { g, choice };
+  window.dispatchEvent(new Event('livegto:ratings'));
   draw(container);
 }

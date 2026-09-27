@@ -1,53 +1,52 @@
 /**
- * Home page — mode selection.
+ * Home: the three modes, with where you are in each.
  */
-import { navigate } from '../router.js';
+import { loadStats } from '../engine/puzzles.js';
+import { loadRaw, KEYS } from '../store.js';
+import { playRatingNow } from './ratings.js';
+import { icon } from './kit.js';
+import { AGENTS, eloOf } from '../engine/hu/agents.js';
 
 export function render(container) {
-  container.innerHTML = `
-  <div class="text-center space-y-10 pt-8">
+  const pz = loadStats();
+  const play = playRatingNow();
+  const last = loadRaw(KEYS.play, { sessions: [] }).sessions.at(-1);
+  const learn = loadRaw(KEYS.learn, { done: {} });
+  const doneSteps = Object.keys(learn.done || {}).length;
+
+  const card = (href, ic, tone, title, lead, stat, statLabel, foot) => `
+    <a href="${href}" class="panel panel-pad group flex flex-col gap-4 hover:border-ink-500 transition min-h-[210px]">
+      <div class="flex items-center justify-between">
+        <span class="w-11 h-11 rounded-2xl ${tone} flex items-center justify-center">${icon(ic, 'w-6 h-6')}</span>
+        <span class="text-ink-400 group-hover:text-white transition">${icon('next', 'w-5 h-5')}</span>
+      </div>
+      <div><div class="text-xl font-semibold text-white">${title}</div><p class="text-sm text-ink-300 mt-1 leading-snug">${lead}</p></div>
+      <div class="mt-auto flex items-end justify-between">
+        <div><div class="text-[11px] uppercase tracking-[0.1em] text-ink-400 font-semibold">${statLabel}</div><div class="text-2xl font-semibold num text-white">${stat}</div></div>
+        <div class="text-xs text-ink-400 text-right">${foot}</div>
+      </div>
+    </a>`;
+
+  container.innerHTML = `<div class="page space-y-6 fade-up">
     <div>
-      <h1 class="text-4xl font-bold text-emerald-400 tracking-tight">LiveGTO</h1>
-      <p class="text-gray-500 mt-2 text-lg">Train your poker instincts</p>
+      <h1 class="h-title">Get better at live poker.</h1>
+      <p class="muted mt-1">Learn the maths, drill real spots, then play bots that punish your leaks.</p>
     </div>
-
-    <div class="grid gap-4 max-w-sm mx-auto">
-      <a href="#puzzles"
-         class="block p-6 bg-emerald-900/40 rounded-xl border border-emerald-500/50
-                hover:border-emerald-400/80 hover:bg-emerald-900/60 transition-all">
-        <h2 class="text-lg font-semibold text-emerald-300">Puzzles</h2>
-        <p class="text-sm text-gray-400 mt-1">Real cards, one right answer &mdash; vs GTO or vs a Station, Nit, Maniac or Whale. Rated like chess puzzles.</p>
-      </a>
-
-      <a href="#playbook"
-         class="block p-5 bg-amber-900/25 rounded-xl border border-amber-700/40
-                hover:border-amber-500/60 hover:bg-amber-900/40 transition-all">
-        <h2 class="text-base font-semibold text-amber-300">Playbook</h2>
-        <p class="text-sm text-gray-400 mt-1">The rules behind the puzzles: how to play each hand class vs each villain type, by board texture.</p>
-      </a>
-
-      <a href="#play"
-         class="block p-6 bg-emerald-900/30 rounded-xl border border-emerald-700/40
-                hover:border-emerald-500/60 hover:bg-emerald-900/50 transition-all">
-        <h2 class="text-lg font-semibold text-emerald-300">Play</h2>
-        <p class="text-sm text-gray-400 mt-1">Full hands against a bot (Reg, Station, Nit, Maniac or Whale), with a coach after every decision: what each option was worth against his actual range.</p>
-      </a>
-
-      <a href="#simulate"
-         class="block p-6 bg-amber-900/30 rounded-xl border border-amber-700/40
-                hover:border-amber-500/60 hover:bg-amber-900/50 transition-all">
-        <h2 class="text-lg font-semibold text-amber-300">Simulate</h2>
-        <p class="text-sm text-gray-400 mt-1">A session against one bot with no interruptions, then a review: bb/100, your biggest mistakes, and the rating you played at.</p>
-      </a>
-
-      <a href="#preflop"
-         class="block p-5 bg-gray-900/80 rounded-xl border border-gray-800
-                hover:border-emerald-500/60 hover:bg-gray-900 transition-all">
-        <h2 class="text-base font-semibold text-gray-100">Preflop charts</h2>
-        <p class="text-xs text-gray-500 mt-1">Live 9-handed ranges from The Course: open, 3-bet, call or fold.</p>
-      </a>
+    <div class="grid md:grid-cols-3 gap-4">
+      ${card('#learn', 'learn', 'bg-sky-500/15 text-sky-300', 'Learn',
+        'The Boot Camp course, quick-fire table maths, range drills and preflop charts.',
+        doneSteps, 'Steps done', 'Pot odds · MDF · outs · combos')}
+      ${card('#puzzles', 'puzzle', 'bg-emerald-500/15 text-emerald-300', 'Puzzles',
+        'Solver-backed spots with one right answer against a Station, Nit, Maniac or Whale.',
+        pz.played ? pz.rating : '—', 'Puzzle rating', `${pz.played} solved attempts`)}
+      ${card('#play', 'play', 'bg-amber-500/15 text-amber-300', 'Play',
+        'Heads-up against rated bots, from Whale to Pro. The coach grades every decision.',
+        play ?? '—', 'Play rating', last ? `Last: vs ${AGENTS[last.bot]?.name ?? last.bot} (${eloOf(last.bot)})` : 'No sessions yet')}
     </div>
-
-    <p class="text-xs text-gray-600 pt-4">No tracking. No accounts. Just reps.</p>
+    <div class="grid sm:grid-cols-3 gap-3">
+      <a href="#learn/drill/potodds" class="panel px-4 py-3 flex items-center gap-3 hover:border-ink-500">${icon('bolt', 'w-5 h-5 text-sky-300')}<span class="text-sm font-semibold">Quick drill: pot odds</span></a>
+      <a href="#learn/range" class="panel px-4 py-3 flex items-center gap-3 hover:border-ink-500">${icon('grid', 'w-5 h-5 text-sky-300')}<span class="text-sm font-semibold">Range drill: who continues?</span></a>
+      <a href="#learn/preflop" class="panel px-4 py-3 flex items-center gap-3 hover:border-ink-500">${icon('target', 'w-5 h-5 text-sky-300')}<span class="text-sm font-semibold">Preflop trainer</span></a>
+    </div>
   </div>`;
 }

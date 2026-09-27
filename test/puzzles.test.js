@@ -5,7 +5,8 @@ import {
 import {
   candidates, pickPuzzle, grade, expectedScore, updateRating, explain, cellOf, cellLabel,
 } from '../src/engine/puzzles.js';
-import { handToKey } from '../src/engine/cards.js';
+import { handType, ids } from '../src/engine/hu/hand.js';
+const handToKey = (a, b) => handType(ids([a, b]));
 
 const close = (x, y, d = 1e-3) => expect(Math.abs(x - y)).toBeLessThan(d);
 

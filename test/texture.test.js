@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { flopTexture, textureLabel, boardTags, randomSuitMap, remapCard } from '../src/engine/texture.js';
-import { handToKey } from '../src/engine/cards.js';
+import { handType, ids } from '../src/engine/hu/hand.js';
+const handToKey = (a, b) => handType(ids([a, b]));
 
 const t = (s) => flopTexture(s.match(/../g));
 

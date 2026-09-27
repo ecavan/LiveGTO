@@ -260,3 +260,15 @@ function settle(s, winner) {
   s.toAct = -1;
   return s;
 }
+
+/** Reconstruct the state before each logged action. */
+export function replay(s) {
+  let st = newHand({ stacks: s.start, holes: s.holes, board: s.runout });
+  const steps = [];
+  for (const e of s.log) {
+    steps.push({ before: st, entry: e });
+    st = act(st, e.type === 'fold' || e.type === 'check' || e.type === 'call' ? { type: e.type } : { type: e.type === 'allin' ? 'allin' : 'raise', to: e.to });
+  }
+  return steps;
+}
+

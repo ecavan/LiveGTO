@@ -197,6 +197,44 @@
    }
   ]
  },
+ "tag": {
+  "name": "TAG",
+  "description": "Tight-aggressive and honest: bets and raises his strong hands hard, gives up his weak ones.\nUsed by the thinking bots as one of the player types they read you as; not a puzzle villain.",
+  "rules": [
+   {
+    "note": "bets and raises his strong hands",
+    "hands": [
+     "monster",
+     "strong"
+    ],
+    "scale": {
+     "aggressive": 2.5
+    }
+   },
+   {
+    "note": "rarely bluffs",
+    "facing": "none",
+    "hands": [
+     "weak",
+     "air"
+    ],
+    "scale": {
+     "aggressive": 0.4
+    }
+   },
+   {
+    "note": "folds his weak hands to bets",
+    "facing": "bet",
+    "hands": [
+     "weak",
+     "air"
+    ],
+    "scale": {
+     "fold": 1.3
+    }
+   }
+  ]
+ },
  "whale": {
   "name": "Whale",
   "description": "The recreational player who is there to gamble. Calls almost anything, raises every draw,\nand sizes his bets by hand strength (big = strong, small = not).",

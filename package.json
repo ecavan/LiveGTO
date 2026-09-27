@@ -12,11 +12,11 @@
     "library": "cd solver && cargo run --release -p ps-cli -- library library/families.toml --out ../public/library && cd .. && node scripts/build-playbook.mjs",
     "playbook": "node scripts/build-playbook.mjs"
   },
-  "dependencies": {
-    "pokersolver": "^2.1.4"
-  },
   "devDependencies": {
+    "autoprefixer": "^10.6.1",
+    "postcss": "^8.5.28",
     "smol-toml": "^1.9.0",
+    "tailwindcss": "^3.4.19",
     "vite": "^6.0.0",
     "vite-plugin-pwa": "^0.21.0",
     "vitest": "^2.0.0"

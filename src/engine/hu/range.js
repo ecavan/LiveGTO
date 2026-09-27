@@ -7,55 +7,23 @@
  * Then equity of your hand against that range, and one-street-ahead EVs for the coach.
  */
 import { ALL_COMBOS, classify, handType, evaluate, CLASSES } from './hand.js';
-import { newHand, act, menu, board, pot } from './game.js';
-import { likelihood } from './bots.js';
-
-/** Reconstruct the state before each logged action. */
-export function replay(s) {
-  let st = newHand({ stacks: s.start, holes: s.holes, board: s.runout });
-  const steps = [];
-  for (const e of s.log) {
-    steps.push({ before: st, entry: e });
-    st = act(st, e.type === 'fold' || e.type === 'check' || e.type === 'call' ? { type: e.type } : { type: e.type === 'allin' ? 'allin' : 'raise', to: e.to });
-  }
-  return steps;
-}
-
-/** Abstract key of a logged action at node `before` (matches bots.js keys). */
-function keyOf(before, e) {
-  if (before.street === 0) return e.type === 'raise' || e.type === 'allin' ? 'raise' : e.type === 'fold' ? 'fold' : 'call';
-  if (e.type === 'fold' || e.type === 'check' || e.type === 'call' || e.type === 'allin') return e.type;
-  if (e.type === 'raise') return 'raise';
-  const bets = menu(before).filter(m => m.type === 'bet');
-  const i = bets.findIndex(m => Math.abs(m.to - e.to) < 0.011);
-  return i === 0 ? 'small' : i === 1 ? 'big' : 'allin';
-}
+import { board, pot, replay } from './game.js';
+import { actionProb } from './agents.js';
+import { N, comboIndex, equityVsRange } from './equity.js';
 
 /**
  * Villain's range as weights over ALL_COMBOS (0 for combos blocked by `known` cards).
- * `s` is the current state; `villain` his seat; `botId` his type.
+ * `s` is the current state; `villain` his seat; `agent` the bot (agents.js) or a profile id.
  */
-export function villainRange(s, villain, botId) {
+export function villainRange(s, villain, agent) {
   const known = new Set([...s.holes[1 - villain], ...board(s)]);
   const w = new Float64Array(ALL_COMBOS.length);
-  const types = ALL_COMBOS.map(handType);
   ALL_COMBOS.forEach(([a, b], i) => { w[i] = known.has(a) || known.has(b) ? 0 : 1; });
+  const ag = typeof agent === 'string' ? { id: agent, kind: 'profile' } : agent;
   for (const { before, entry } of replay(s)) {
     if (entry.seat !== villain) continue;
-    const key = keyOf(before, entry);
-    const bd = board(before);
-    const clsCache = new Map();
-    for (let i = 0; i < w.length; i++) {
-      if (w[i] === 0) continue;
-      const combo = ALL_COMBOS[i];
-      if (bd.includes(combo[0]) || bd.includes(combo[1])) { w[i] = 0; continue; }
-      let cls = null;
-      if (before.street > 0) {
-        cls = clsCache.get(i) ?? classify(combo, bd);
-        clsCache.set(i, cls);
-      }
-      w[i] *= likelihood(botId, before, villain, key, cls, types[i]);
-    }
+    const p = actionProb(ag, before, entry);
+    for (let i = 0; i < w.length; i++) if (w[i] > 0) w[i] *= p[i];
   }
   return w;
 }
@@ -75,45 +43,22 @@ export function rangeByClass(w, bd) {
 
 /**
  * Hero equity against each combo of the range (Float64Array, NaN where weight 0), and overall.
- * River: exact. Flop/turn: `samples` shared random runouts.
+ * Exact on the turn and river; flop uses a fixed, seeded set of runouts (equity.js).
  */
-export function equities(hero, w, bd, rand = Math.random, samples = 120) {
-  const eq = new Float64Array(w.length).fill(NaN);
-  const dead = new Set([...hero, ...bd]);
-  const need = 5 - bd.length;
-  const runouts = [];
-  if (need === 0) runouts.push([]);
-  else {
-    const deck = [];
-    for (let c = 0; c < 52; c++) if (!dead.has(c)) deck.push(c);
-    for (let k = 0; k < samples; k++) {
-      const r = [];
-      while (r.length < need) {
-        const c = deck[Math.floor(rand() * deck.length)];
-        if (!r.includes(c)) r.push(c);
-      }
-      runouts.push(r);
-    }
-  }
-  const heroVals = runouts.map(r => evaluate([...hero, ...bd, ...r]));
+export function equities(hero, w, bd) {
+  const h = comboIndex(hero[0], hero[1]);
+  const ind = new Float64Array(N);
+  ind[h] = 1;
+  const vs = equityVsRange(ind, bd); // each villain combo's equity against our hand
+  const eq = new Float64Array(N).fill(NaN);
   let num = 0, den = 0;
-  for (let i = 0; i < w.length; i++) {
-    if (w[i] <= 0) continue;
-    const [a, b] = ALL_COMBOS[i];
-    let win = 0, n = 0;
-    for (let k = 0; k < runouts.length; k++) {
-      const r = runouts[k];
-      if (r.includes(a) || r.includes(b)) continue;
-      const v = evaluate([a, b, ...bd, ...r]);
-      win += heroVals[k] > v ? 1 : heroVals[k] === v ? 0.5 : 0;
-      n++;
-    }
-    if (n === 0) continue;
-    eq[i] = win / n;
+  for (let i = 0; i < N; i++) {
+    if (!(w[i] > 0) || Number.isNaN(vs[i])) continue;
+    eq[i] = 1 - vs[i];
     num += w[i] * eq[i];
     den += w[i];
   }
   return { perCombo: eq, overall: den ? num / den : 0 };
 }
 
-export { pot };
+export { pot, replay };

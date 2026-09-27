@@ -106,7 +106,7 @@ describe('coach', () => {
     expect(+m[1]).toBeLessThan(all);
   });
   it('all-in bets are logged as all-in', () => {
-    let s = newHand({ holes: [c('AhAd'), c('KhKd')] });
+    let s = newHand({ holes: [c('AhAd'), c('KhKd')], rand: rng(3) });
     s = act(s, { type: 'call' });
     s = act(s, { type: 'check' });
     s = act(s, { type: 'allin' }); // BB shoves the flop

@@ -17,6 +17,7 @@ export const BOT_TYPES = {
   nit: { name: 'Nit', profile: 'nit' },
   maniac: { name: 'Maniac', profile: 'maniac' },
   whale: { name: 'Whale', profile: 'whale' },
+  tag: { name: 'TAG', profile: 'tag', modelOnly: true },
 };
 for (const [k, b] of Object.entries(BOT_TYPES)) {
   if (!b.desc) b.desc = PROFILES[b.profile].description.replace(/\s+/g, ' ').trim();
@@ -40,9 +41,10 @@ const PRE = {
   station: { raise: [0.06, 0.02, 0.015, 0.015, 0.015], cont: [0.5, 0.72, 0.45, 0.12, 0.08], open: 3.5, noise: 0 },
   maniac: { raise: [0.75, 0.3, 0.15, 0.1, 0.06], cont: [0.75, 0.7, 0.5, 0.2, 0.12], open: 3.5, noise: 0.05 },
   whale: { raise: [0.1, 0.05, 0.03, 0.025, 0.02], cont: [0.6, 0.78, 0.6, 0.25, 0.15], open: 3.5, noise: 0.08 },
+  tag: { raise: [0.4, 0.12, 0.05, 0.03, 0.02], cont: [0.4, 0.45, 0.2, 0.06, 0.04], open: 2.5, noise: 0 },
 };
 
-function preflopLevel(s, seat) {
+export function preflopLevel(s, seat) {
   const raises = s.log.filter(e => e.street === 0 && (e.type === 'raise' || e.type === 'allin')).length;
   return seat === BTN ? (raises === 0 ? 0 : 2 * Math.ceil(raises / 2)) : 1 + 2 * Math.floor(raises / 2);
 }
@@ -50,10 +52,14 @@ function preflopLevel(s, seat) {
 /** P(raise), P(continue passively), P(fold) for a hand at this preflop node. */
 export function preflopProbs(botId, s, seat, key) {
   const P = PRE[botId];
-  const lvl = Math.min(4, preflopLevel(s, seat));
+  let lvl = Math.min(4, preflopLevel(s, seat));
+  // size matters: a big bet is answered like a 4-bet (even a station doesn't call 100bb with 72%)
+  const owe = s.streetBet[1 - seat] - s.streetBet[seat];
+  if (owe >= 25) lvl = Math.max(lvl, seat === BTN ? 4 : 3);
   const p = PCT[key];
-  let raise = p <= P.raise[lvl] ? 1 : 0;
-  let cont = !raise && p <= P.cont[lvl] ? 1 : 0;
+  const shrink = owe >= 10 && owe < 25 && lvl <= 2 ? 0.6 : 1; // a 10bb+ open or 3-bet: tighter
+  let raise = p <= P.raise[lvl] * shrink ? 1 : 0;
+  let cont = !raise && p <= P.cont[lvl] * shrink ? 1 : 0;
   if (P.noise) {
     // recreational randomness: a slice of any hand limps/calls or raises
     raise = raise + (1 - raise) * P.noise * 0.4;
@@ -63,7 +69,11 @@ export function preflopProbs(botId, s, seat, key) {
 }
 
 function preflopDist(botId, s, seat) {
-  const key = handType(s.holes[seat]);
+  return preflopDistKey(botId, s, seat, handType(s.holes[seat]));
+}
+
+/** Preflop action distribution for hand type `key` ("AKs") at node `s`, as menu options with keys. */
+export function preflopDistKey(botId, s, seat, key) {
   const { raise, cont, fold } = preflopProbs(botId, s, seat, key);
   const m = menu(s);
   const L = legal(s);
@@ -199,7 +209,7 @@ export function postflopMix(profileId, s, seat, cls, hType) {
 }
 
 /** Map an abstract mix onto the concrete menu (missing sizes fall through to the nearest one). */
-function toMenu(mix, s) {
+export function toMenu(mix, s) {
   const m = menu(s);
   const L = legal(s);
   const find = (t) => m.filter(x => x.type === t);

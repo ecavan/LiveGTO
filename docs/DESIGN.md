@@ -9,14 +9,15 @@ live $1/$2–$2/$5 NLHE. The goal is to beat $2/$5 with confidence and one day p
 
 | Chess habit | LiveGTO |
 |---|---|
-| Engine | `postflop-solver` (Rust, Discounted CFR, node locking), in `solver/` |
-| Puzzles (rated) | A real spot, your real cards, one correct action, vs GTO or vs a villain type. **Built.** |
-| Bots rated 250 → 2200 | Bot = GTO strategy bent by a **profile** at **intensity** λ. Next. |
-| Game review ("you played like an 1100") | EV lost per decision, vs GTO and vs the best exploit of that bot. Next. |
-| Theory | The Boot Camp course (5 modules, 239 questions) → in-app lessons. Later. |
+| Engine | `postflop-solver` (Rust, Discounted CFR, node locking) in `solver/` for puzzles; a JS range-vs-range engine for play |
+| Lessons | **Learn**: the Boot Camp course, table-maths drills, range drills, preflop trainer (§10) |
+| Puzzles (rated) | A real solved spot, your real cards, one correct action, vs a villain type or GTO (§7) |
+| Bots with Elo | **Play**: seven bots from Whale to Pro on one Elo ladder; the thinking bots adapt to you (§9) |
+| Game review ("you played like an 1100") | EV lost per decision against the bot's real range, luck shown separately (§5, §9) |
 
-It's phone-first and offline: a PWA on Vercel, with the solver's output shipped as a static
-library of JSON. Solving happens offline with `solver/`, on your Mac or anywhere with Rust.
+Three modes: Learn, Puzzles, Play. It's an iPad-first PWA on Vercel and works offline: the app,
+course and bots ship with the page, and the solved puzzle library (~36 MB of JSON) downloads once
+from Settings.
 
 ## 2. Principle: one action, never frequencies
 
@@ -94,28 +95,49 @@ choices were indifferent. You only collect by changing your play.
 
 ## 5. Ratings
 
-Poker isn't win/lose and it isn't transitive (two fish leak in different ways), so everything is
-anchored to one yardstick: the GTO bot. Let L be a player's loss rate against the GTO bot, in
-bb/100:
+Three ratings, all on a chess-like scale:
 
-```
-R = 2200 − 400 · log₂(1 + L / L₀)
-```
+- **Puzzle rating**: Elo against the puzzle's rating (§7).
+- **Bot Elo** (the ladder, `scripts/ladder.mjs` → `src/engine/hu/ladder.json`). Poker isn't
+  transitive (a Whale and a Reg roughly break even against each other, yet the Pro beats one far
+  harder than the other), so every bot is measured against one yardstick, the strongest bot:
 
-Every 400 points roughly doubles how fast you bleed. With L₀ = 5 bb/100:
+  ```
+  Elo(X) = 2000 − 900 · log₁₀(1 + W / 25)      W = the Pro's win rate against X, bb/100
+  ```
 
-| L (bb/100 lost to GTO) | 0 | 2 | 5 | 15 | 35 | 75 | 155 |
+  Beaten by 25bb/100 → ~1730; by 100 → ~1370; by 400 → ~890. Matches are *duplicate*: each deal is
+  played twice with the seats swapped, which cancels most card luck.
+- **Your Play rating**. Results over a few hundred hands are mostly noise, so the rating uses the
+  EV you give up: every decision is graded by the coach against the bot's actual range and
+  strategy, and L = EV lost per 100 hands.
+
+  ```
+  R = a − b · log₂(1 + L / L₀)
+  ```
+
+  a, b and L₀ are fitted by `scripts/calibrate.mjs`: each profile bot plays the Pro with the coach
+  grading its decisions exactly as it grades yours, and the fit maps each bot's L to its ladder
+  Elo. R(0) is pinned at 2100 (play the coach can't fault is above the Pro, who is exploitable).
+  Current fit: R = 2100 − 1020·log₂(1 + L/855), RMSE 175 Elo over the five profile bots
+  (`src/engine/hu/calibration.json`). Roughly: losing 100bb/100 of EV ≈ 1940, 300 ≈ 1660,
+  650 ≈ 1270, 1150 ≈ 850. Your Play rating is the hands-weighted average of your recent sessions
+  (up to 1,000 hands). It is an estimate: treat ±150 as noise.
+
+Current ladder (duplicate matches, 6,000 hands per pair; Elo ± ~150 for the noisier pairs):
+
+| Bot | Whale | Maniac | Station | Nit | Shark | Reg | Pro |
 |---|---|---|---|---|---|---|---|
-| R | 2200 | ~2000 | 1800 | 1400 | 1000 | 600 | 200 |
+| Pro wins (bb/100) | 442 | 376 | 99 | 53 | — | 31 | 0 |
+| Elo | 860 | 920 | 1380 | 1560 | 1660 | 1690 | 2000 |
 
-So a 1000 bot bleeds about 17× faster than a 2000 bot.
+The Shark is rated through the profile bots it beats (thinking bot vs thinking bot is too noisy).
+The Reg is strong because, like every bot now, it adjusts to its opponent (§8).
 
-- **Bots**: R(profile, λ) is measured by simulating hands against the GTO bot, not assumed. The
-  ladder picks λ per profile to hit target ratings (Station 600, Station 1000, Nit 1400, …).
-- **Your review rating**: the same formula, using your EV loss per decision (×100 hands) against
-  the GTO reference. A second number shows loss against the *exploit* reference, because beating
-  a 600 whale means playing unlike GTO, and the review should reward that.
-- L₀ is set once from calibration so the bands feel right. It's a display scale, not physics.
+Preflop is graded against the chart (The Course). An off-chart choice costs what the EV model
+says the chart play was worth over it (one street ahead, equity realisation 0.95 in position,
+0.8 out of position), at least 15% of the pot. Shoving, and calling a shove, are graded by exact
+EV against his range.
 
 ## 6. Is the solver right? Textbook games with exact answers
 
@@ -210,34 +232,98 @@ Actions are grouped as fold / check / call / bet small (< ½ pot) / bet big / ra
 classes it shows where the exploit's usual action differs from the solver's are the adjustments
 to remember.
 
-## 8. Roadmap
+## 8. Play: engine, bots, coach
 
-1. **Puzzles** (done): library, rating, EV grading, range vs range, real cards. Five pot types,
-   board-texture filters, suit relabelling. Puzzles default to exploitative villains; GTO is an
-   opt-in baseline filter.
-1b. **Playbook** (done): texture × villain × spot rules.
-2. **Play and Simulate** (done). Heads-up BTN vs BB, 100bb, SB folded (0.5 dead).
-   - Engine `src/engine/hu/game.js`: BB option, min-raise = last full raise, a short all-in does
-     not reopen, uncalled bets returned. All-ins are logged as all-ins.
-   - Bots `src/engine/hu/bots.js`: a Reg baseline plus the solver profiles (same rule semantics as
-     the Rust side, exported by `scripts/export-profiles.mjs`) acting on hand classes. Preflop by
-     percentile. `scripts/bot-league.mjs` plays them against each other; the Reg beats all four.
-   - Range reading `range.js`: exact Bayesian posterior over the bot's own policy.
-   - Coach `coach.js`: EV of each option against that range, one street ahead (exact on the
-     river, a bot raise treated as a call). Preflop: the Reg chart ("check", never "fold", when
-     checking is free) plus the steal maths, with the bot's fold share taken over the range he
-     has shown so far (a limper's range, not all hands) and card removal.
-   - Play grades every decision; Simulate plays 25–200 hands and reviews them: EV given up,
-     a rating `2200 − 400·log2(1 + L/5)` from bb/100 lost, the biggest mistakes, past sessions.
-3. **Preflop** (done): `ranges.js` holds The Course live charts: raise-or-fold, 3-bet vs strong
-   and loose opens, blind defense.
-4. **Flop puzzles**, **multiway pots** (most live limped pots are multiway; the solver is heads-up
-   only), and profiles that also act on earlier streets.
-5. **Lessons**: import the Boot Camp `COURSE`, applying the corrections in `docs/THEORY.md`.
-6. **RL track** (for the science): self-play agent on the heads-up engine, measured on the same
+Heads-up, button vs big blind, 100bb, blinds 0.5/1 with the small blind's 0.5 dead (the SB has
+folded). Hands alternate seats.
+
+**Engine** (`src/engine/hu/game.js`): BB option; min-raise = last full raise; a short all-in does not
+reopen the betting; uncalled bets are returned. Menu: fold, check, call, bet 33% / 75%, raise 3×,
+all-in; preflop opens of 2.5 / 3.5bb.
+
+**Range-vs-range equity** (`equity.js`). For a board, a fixed set of runouts (every river on the
+turn; every turn with a seeded sample of rivers on the flop; seeded boards preflop), and every
+combo evaluated once per runout. The equity of *all 1,326 combos* against a weighted range is then
+one sorted sweep per runout, with card removal done by per-card running totals:
+
+    eq(i) = Σ_r Σ_{j ∩ i = ∅} w_j ([v_i > v_j] + ½[v_i = v_j])  /  Σ_r Σ_{j ∩ i = ∅} w_j
+
+About 1ms per range on the turn, 5ms on the flop; exact on the turn and river (tested against
+brute force).
+
+**Bots** (`agents.js`), all behind one interface, `policyAll(agent, node)`: the strategy for every
+combo at once.
+
+- *Profile bots*, Whale, Station, Nit, Maniac, Reg: a style by hand class, bent by the same TOML
+  profiles the solver uses (identical rule semantics, `bots.js`). Preflop by hand percentile.
+- *Thinking bots*, Shark and Pro (`thinker.js`):
+  1. A belief π over player types (reg, TAG, station, nit, maniac, whale, and "random").
+  2. A joint posterior over (type, hand) from your actions this hand:
+     w_t(h) ∝ π_t · Π P_t(action | h). Your range is Σ_t w_t(h).
+  3. The EV of each option for every combo it could hold, one street ahead, with your responses
+     predicted by the type mixture: call ρ·eq·(P+C) − C; bet x: F·P + (1−F)(ρ·eq_c·(P+x+y) − x);
+     passive lines include your bets/raises after them and its best reply. ρ is equity
+     realisation (1 on the river and when all-in).
+  4. A quantal response, p(a) ∝ exp(EV_a / (τ·pot)): τ = 0.03 (Pro) is nearly pure.
+  Deep all-ins are pruned (no 100bb preflop shoves, postflop shoves only up to ~2.5× the pot):
+  without that the bots find shoves that only "work" against a model that folds too much.
+  Facing an overbet or shove (≥ 1.5× the pot) a thinking bot always continues with at least the
+  top MDF share of its own range (by equity), so any-two-cards shoves can't print just because
+  its read says you're honest. Profile bots answer big preflop bets by size (a 25bb+ bet is
+  treated like a 4-bet: even a station doesn't call 100bb with 72% of hands).
+- *Every bot learns you*, like a chess bot of its rating. After each hand it updates π with a
+  tempered likelihood, π_t ← π_t · L_t^rate (normalised), where the rate runs from 0.15 (Whale)
+  to 0.5 (Pro), and 'random' is capped at 40% of the read. A profile bot then plays
+  (1 − α)·its style + α·the thinking bot's exploit of its read, with α = α_max · min(1, hands/ramp):
+
+  | Bot | rate | α_max | ramp (hands) |
+  |---|---|---|---|
+  | Whale | 0.15 | 0.20 | 300 |
+  | Station | 0.20 | 0.25 | 250 |
+  | Maniac | 0.20 | 0.30 | 200 |
+  | Nit | 0.25 | 0.35 | 150 |
+  | Reg | 0.35 | 0.50 | 100 |
+  | Shark, Pro | 0.3, 0.5 | 1 (they are the exploit) | — |
+
+  Reads persist between sessions (per bot, on the device).
+
+**Measured** (duplicate matches): against the Pro, shoving every river loses about 22bb per hand and
+calling down every street about 9bb per hand; the Pro reads a whale as a whale (93%), a maniac as a
+maniac (79–97%) and a station as a station (86%) on its own. See §5 for the ladder.
+
+**Reading his range** (`range.js`): w(h) ∝ Π P(his action | h, node), from the bot's own policy,
+so the range the coach uses is the true posterior, not a guess.
+
+**Coach** (`coach.js`): EV of each of your options against that range and strategy, one street
+ahead (exact on the river; a re-raise is treated as a call). Each option also carries its fold
+equity, your equity when called, and the price, which the "Why" panel turns into one-line reasons.
+
+**Sessions** (`session.js`): coach after every decision (pauses on mistakes), after each hand, or
+only in the review. Per hand: result, EV lost, and all-in luck (result minus equity-when-all-in ×
+pot − what you put in), so a lucky shove shows up as luck, not skill. A decision loses ≥ 25% of the
+pot or ≥ 10bb: a blunder.
+
+## 9. Learn
+
+- **Course**: the Boot Camp's `COURSE` (5 modules, 415 steps), imported by
+  `scripts/build-course.mjs` into `public/course.json` with the corrections in
+  `src/content/errata.js` (AKQ bet size, Hawrilenko's aces vs a known bluffer, the semi-bluff
+  shortcut, iso sizing in limp-heavy games, MDF as a benchmark). Concepts come in three depths:
+  Feel, Formula, Proof.
+- **Table maths** (`src/engine/drills.js`): endless generated questions with exact answers. The
+  wrong options are the classic wrong formulas (α for pot odds, B/P for MDF), so a miss tells you
+  which mistake you made. Outs and combos questions use real cards.
+- **Range drill**: a solved spot, your whole range by hand class, one action per class, graded
+  against the exploit and compared with the solver.
+- **Preflop trainer and charts**, **formula sheet**, **exploit playbook**.
+
+## 10. Roadmap
+
+1. Flop puzzles; profiles that also act on earlier streets.
+2. Multiway pots (most live limped pots are multiway; the solver is heads-up only).
+3. Stronger thinking bots: two-street lookahead, and solver strategies as their baseline.
+4. "Your range" view in Play: the best action for every hand you could hold here.
+5. RL track (for the science): a self-play agent on the heads-up engine, measured on the same
    ladder.
 
-The old strategy layer (`data/strategies.json`, `src/engine/abstraction.js`, `postflop.js`) is
-kept only until the Play/Simulate rebuild. The audit found stale solver data, a CFR that
-mis-weights regrets, and grading by frequency. The Python solver and its write-up are in
-`archive/python-solver/`.
+The Flask version and the Python CFR+ solver are in `archive/`.

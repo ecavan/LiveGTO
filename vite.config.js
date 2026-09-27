@@ -9,7 +9,7 @@ export default defineConfig({
       manifest: {
         name: 'LiveGTO',
         short_name: 'LiveGTO',
-        description: 'Poker GTO trainer for live low-stakes',
+        description: 'Learn, drill and play live no-limit hold\'em',
         start_url: '/',
         display: 'standalone',
         background_color: '#0a0a0f',
@@ -22,19 +22,15 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,json,svg,png}'],
-        // The puzzle library (~30 MB of JSON) isn't precached at install; each file is cached the
-        // first time it's used, so puzzles you've seen work offline.
+        // The puzzle library (~36 MB of JSON) isn't precached at install: each file is cached the
+        // first time it's used, and Settings → "Download puzzle library" fetches them all.
         globIgnores: ['library/**'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/library/'),
             handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'puzzle-library', expiration: { maxEntries: 100 } },
-          },
-          {
-            urlPattern: /^https:\/\/cdn\.tailwindcss\.com/,
-            handler: 'CacheFirst',
-            options: { cacheName: 'tailwind-cdn' },
+            options: { cacheName: 'puzzle-library' },
           },
         ],
       },
