@@ -68,7 +68,7 @@ function splitLabel(label) {
 }
 
 /** "Preflop: You raise to 2.5, BB call · Flop K♥9♠4♦: BB check…" */
-export function historyHtml(s, hero) {
+export function historyHtml(s, hero, names = null) {
   const lines = [];
   let street = -1;
   for (const e of s.log) {
@@ -77,7 +77,7 @@ export function historyHtml(s, hero) {
       const cs = street === 0 ? [] : street === 1 ? s.runout.slice(0, 3) : [s.runout[street + 1]];
       lines.push({ head: STREET[street], cards: cs, acts: [] });
     }
-    const who = e.seat === hero ? 'You' : 'Bot';
+    const who = names ? names[e.seat] : e.seat === hero ? 'You' : 'Bot';
     let a = e.type;
     if (e.type === 'call') a = `call ${e.amount}`;
     if (e.type === 'raise') a = `raise to ${e.to}`;
@@ -146,7 +146,7 @@ export function weightGrid(w, heroHole = null) {
 }
 
 /** The coach card after a decision. `weights` = his range (for the grid), if available. */
-export function coachCard(d, { weights = null, botName = 'He', live = false } = {}) {
+export function coachCard(d, { weights = null, botName = 'He', live = false, evNote = null } = {}) {
   const chosen = d.options[d.chosen];
   const best = d.options[d.best];
   let head;
@@ -161,7 +161,7 @@ export function coachCard(d, { weights = null, botName = 'He', live = false } = 
   const why = whyLines(d).map(l => `<p>${l}</p>`).join('');
   return `<div class="space-y-3">${head}
     ${evBars(d.options, { best: d.best, fine: d.fine, chosen: d.chosen })}
-    <div class="text-xs text-ink-400">EV in bb vs ${esc(botName)}'s actual range and strategy. ${d.street === 3 ? 'Exact on the river.' : 'One street ahead, equity treated as realised.'}</div>
+    <div class="text-xs text-ink-400">${evNote ?? `EV in bb vs ${esc(botName)}'s actual range and strategy. ${d.street === 3 ? 'Exact on the river.' : 'One street ahead, equity treated as realised.'}`}</div>
     ${disc('Why', `<div class="space-y-1.5">${why}</div>`)}
     ${d.range ? disc(`His range · you have ${pct(d.equity)} against it`, rangeBars(d.range) + (weights ? `<div class="pt-2">${weightGrid(weights, d.hole)}</div>` : '')) : ''}
     ${live ? `<details class="disc" data-rangeview><summary>Your whole range: the play for every hand</summary><div class="body"><div class="text-ink-400 text-sm">Working it out…</div></div></details>` : ''}
@@ -218,12 +218,12 @@ export function handRecap(sess, h, { showDecisions = true } = {}) {
   </div>`;
 }
 
-function decisionRow(d, i) {
+export function decisionRow(d, i, opts = {}) {
   const tone = { best: 'text-emerald-300', fine: 'text-sky-300', mistake: 'text-rose-300', blunder: 'text-red-300' }[d.verdict];
   const title = `${STREET[d.street]}${d.board.length ? ' ' + handText(d.board.map(cardStr)) : ''} · ${esc(d.options[d.chosen].label)}`;
   const right = d.verdict === 'best' ? 'Best' : d.verdict === 'fine' ? 'Good' : `${d.preflop ? 'off chart · ' : ''}−${d.loss.toFixed(2)}bb`;
   return disc(`<span class="flex-1 flex items-center gap-2 min-w-0"><span class="truncate">${title}</span><span class="ml-auto ${tone} text-xs font-semibold pr-2">${right}</span></span>`,
-    coachCard(d), false, '');
+    coachCard(d, opts), false, '');
 }
 
 // ------------------------------------------------------------------ review
@@ -317,4 +317,10 @@ export function rangeViewHtml(v, heroHole) {
     <div class="text-xs text-ink-200 leading-6">${legend}</div>
     ${rangeGrid(cells)}
   </div>`;
+}
+
+/** Heads-up · Live table · Watch */
+export function playTabs(active) {
+  return `<div class="seg">${[['', 'Heads-up'], ['table', 'Live table'], ['watch', 'Watch']].map(([v, l]) =>
+    `<a href="#play${v ? '/' + v : ''}" class="px-3 py-1.5 rounded-lg text-sm font-medium ${v === active ? 'bg-ink-700 text-white shadow-card' : 'text-ink-300 hover:text-ink-100'}">${l}</a>`).join('')}</div>`;
 }

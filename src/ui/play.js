@@ -11,7 +11,7 @@ import { AGENTS, AGENT_IDS, eloOf, levelOf } from '../engine/hu/agents.js';
 import { settings, saveSettings, loadRaw, save, KEYS } from '../store.js';
 import { seg, wireSeg, icon, disc, fmtBB, esc } from './kit.js';
 import {
-  liveTable, actionBar, historyHtml, coachCard, sessionPanel, handRecap, reviewHtml, rangeViewHtml,
+  liveTable, actionBar, historyHtml, coachCard, sessionPanel, handRecap, reviewHtml, rangeViewHtml, playTabs,
 } from './play/views.js';
 import { villainRange } from '../engine/hu/range.js';
 import { rangeView } from '../engine/hu/coach.js';
@@ -23,7 +23,9 @@ let keyHandler = null;
 
 const BOT_DELAY = 650;
 
-export function render(container, params = []) {
+export async function render(container, params = []) {
+  if (params[0] === 'watch') return (await import('./play/watch.js')).render(container, params.slice(1));
+  if (params[0] === 'table') return (await import('./play/table.js')).render(container, params.slice(1));
   if (params[0] === 'new') { sess = null; }
   const cleanup = () => {
     clearTimeout(timer);
@@ -79,8 +81,8 @@ function setup(container) {
     <div class="flex items-end justify-between gap-4 flex-wrap">
       <div><div class="h-sec">Play</div><h1 class="h-title">Choose your opponent</h1>
         <p class="muted mt-1 text-sm">Heads-up, 100bb, button vs big blind. Every decision is graded against the bot's real range.</p></div>
-      <div class="stat min-w-[150px]"><div class="k">Your Play rating</div><div class="v text-amber-200">${mine ? mine.rating : '—'}</div>
-        <div class="s">${mine ? `${mine.hands} rated hands` : 'play a session to get rated'}</div></div>
+      <div class="flex items-end gap-3 flex-wrap">${playTabs('')}<div class="stat min-w-[150px]"><div class="k">Your Play rating</div><div class="v text-amber-200">${mine ? mine.rating : '—'}</div>
+        <div class="s">${mine ? `${mine.hands} rated hands` : 'play a session to get rated'}</div></div></div>
     </div>
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
       ${bots.map(id => {

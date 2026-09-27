@@ -100,7 +100,7 @@ export function preflopDistKey(botId, s, seat, key) {
 const STREETS = ['preflop', 'flop', 'turn', 'river'];
 
 /** Baseline "Reg" frequencies by hand class. Not facing a bet: check / small / big / allin. */
-const BASE_OPEN = {
+export const BASE_OPEN = {
   monster: { check: 0.25, small: 0.25, big: 0.45, allin: 0.05 },
   strong: { check: 0.35, small: 0.35, big: 0.28, allin: 0.02 },
   medium: { check: 0.65, small: 0.3, big: 0.05, allin: 0 },
@@ -109,7 +109,7 @@ const BASE_OPEN = {
   air: { check: 0.72, small: 0.13, big: 0.15, allin: 0 },
 };
 /** Facing a bet, by size faced: fold / call / raise / allin. */
-const BASE_FACING = {
+export const BASE_FACING = {
   // defends roughly the minimum-defence frequency: ~75% vs a third-pot bet, ~57% vs 75% pot
   small: {
     monster: { fold: 0, call: 0.6, raise: 0.3, allin: 0.1 },
@@ -137,7 +137,7 @@ const BASE_FACING = {
   },
 };
 
-const sizeBucket = (f) => (f < 0.5 ? 'small' : f <= 1.05 ? 'large' : 'overbet');
+export const sizeBucket = (f) => (f < 0.5 ? 'small' : f <= 1.05 ? 'large' : 'overbet');
 
 function keysOf(k, facing) {
   if (!facing) {

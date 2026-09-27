@@ -189,3 +189,27 @@
 .lesson td, .lesson th { border: 1px solid #2a3442; padding: 4px 8px; }
 
 .erratum { margin-top: 10px; padding: 8px 12px; border-radius: 10px; background: rgba(245, 158, 11, .08); border: 1px solid rgba(245, 158, 11, .35); color: #fde68a; font-size: 14px; }
+
+/* ------------------------------------------------------------------ 6-max table */
+.rtable, .tbl { -webkit-user-select: none; user-select: none; outline: none; }
+.rtable { position: relative; width: 100%; aspect-ratio: 16 / 10.5; max-width: 820px; margin: 0 auto; }
+.rtable .tbl-rail { inset: 12% 6% 14% 6%; }
+.rtable .tbl-felt { inset: calc(12% + 12px) calc(6% + 12px) calc(14% + 12px) calc(6% + 12px); }
+.ring-seat { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 5; }
+.ring-seat.hero { transform: translate(-50%, -62%); }
+.ring-seat .pc-slot { --w: 40px; }
+.ring-seat.acting .pod-plate { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,.25), 0 4px 14px rgba(0,0,0,.4); }
+.ring-seat.folded { opacity: .4; }
+.ring-bet { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 5px; z-index: 4; }
+.ring-bet b { font-size: 11px; font-weight: 800; color: #fde68a; background: rgba(0,0,0,.45); padding: 1px 7px; border-radius: 999px; }
+.ring-tag { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: rgba(12,16,22,.9); border: 1px solid #2a3442; color: #dde3ea; white-space: nowrap; }
+.ring-tag.t-aggr { color: #6ee7b7; border-color: rgba(16,185,129,.5); }
+.ring-tag.t-fold { color: #8793a4; }
+.ring-tag.t-win { color: #fde68a; border-color: rgba(245,158,11,.6); }
+.rtable .tbl-board .pc-slot { --w: 46px; }
+@media (max-width: 640px) {
+  .rtable { aspect-ratio: 3 / 3.3; }
+  .rtable .pc.sm { --w: 22px; } .rtable .pc-back.sm { --w: 22px; }
+  .rtable .tbl-board .pc.md, .rtable .tbl-board .pc-slot { --w: 32px; }
+  .ring-seat .pod-plate { min-width: 70px !important; padding: 3px 7px !important; }
+}

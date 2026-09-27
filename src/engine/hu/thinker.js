@@ -132,6 +132,7 @@ export function thinkerPolicyAll(cfg, model, s, replayFn, selfPolicy = null) {
   const eqAll = eqVs(W, 'all');
 
   const ev = opts.map(() => new Float64Array(N));
+  const info = opts.map(() => ({})); // per option: fold share, equity-when-called array (for commentary)
   opts.forEach((o, k) => {
     const E = ev[k];
     if (o.type === 'fold') return; // 0
@@ -177,6 +178,7 @@ export function thinkerPolicyAll(cfg, model, s, replayFn, selfPolicy = null) {
     const F = 1 - cont;
     const r2 = s.street === 3 || s2.stacks[me] <= 1e-9 ? 1 : rho;
     const eqc = cont > 1e-6 ? eqVs(Wc, 'c' + k) : null;
+    info[k] = { fold: F, eqc };
     for (let i = 0; i < N; i++) E[i] = F * P0 + (cont > 1e-6 ? cont * (r2 * nz(eqc[i]) * (P0 + x + y) - x) : 0);
   });
 
@@ -220,7 +222,7 @@ export function thinkerPolicyAll(cfg, model, s, replayFn, selfPolicy = null) {
       }
     }
   }
-  return { opts, P, ev };
+  return { opts, P, ev, eq: eqAll, info };
 }
 
 const nz = (x) => (Number.isNaN(x) ? 0 : x);

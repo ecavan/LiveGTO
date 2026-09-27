@@ -153,3 +153,51 @@ export function lossKind(loss, potSize) {
   const rel = loss / Math.max(1, potSize);
   return rel >= 0.25 || loss >= 10 ? 'blunder' : 'mistake';
 }
+
+// ------------------------------------------------------------------ 6-max table
+
+/** Seat anchors (% of the table box), clockwise from the hero at the bottom. */
+const RING_POS = {
+  2: [[50, 92], [50, 8]],
+  3: [[50, 92], [12, 30], [88, 30]],
+  4: [[50, 92], [8, 50], [50, 8], [92, 50]],
+  5: [[50, 92], [8, 66], [24, 12], [76, 12], [92, 66]],
+  6: [[50, 92], [7, 68], [16, 16], [50, 9], [84, 16], [93, 68]],
+};
+
+/**
+ * Table for up to six. seats[i]: { name, sub, stack, cards: [..]|'back'|null, folded, dealer, bet,
+ * tag (small label, e.g. "Raise 9"), acting, hero }. Seat 0 is drawn at the bottom.
+ */
+export function ringTable({ seats, board = [], pot = null, note = '' }) {
+  const n = seats.length;
+  const anchors = RING_POS[n];
+  const center = [50, 46];
+  const html = seats.map((p, i) => {
+    const [x, y] = anchors[i];
+    const hero = i === 0;
+    const cs = p.cards === 'back' ? `${back('sm')}${back('sm')}`
+      : Array.isArray(p.cards) ? p.cards.map(c => card(c, hero ? 'lg' : 'sm', 'deal')).join('') : '';
+    const plate = `<div class="pod-plate ${hero ? '' : '!min-w-[92px] !px-2.5 !py-1.5'}">
+      <div class="flex items-center gap-1.5 w-full"><span class="pod-name ${hero ? '' : '!text-[12px]'}">${esc(p.name)}</span>${p.dealer ? '<span class="dealer ml-auto !w-[18px] !h-[18px] !text-[10px]">D</span>' : ''}</div>
+      ${p.sub ? `<div class="pod-sub">${p.sub}</div>` : ''}
+      <div class="pod-stack ${hero ? '' : '!text-[12px]'}">${p.stack}</div></div>`;
+    const tag = p.tag ? `<div class="ring-tag ${p.tagTone || ''}">${esc(p.tag)}</div>` : '';
+    const body = hero ? `<div class="flex items-center gap-2"><div class="pod-cards">${cs}</div>${plate}</div>${tag}`
+      : `${tag}<div class="pod-cards justify-center">${cs}</div>${plate}`;
+    const bx = x + (center[0] - x) * 0.42, by = y + (center[1] - y) * 0.42;
+    const bet = p.bet > 0 ? `<div class="ring-bet" style="left:${bx}%;top:${by}%"><span class="chipstack"></span><b>${fmtBB(p.bet)}</b></div>` : '';
+    return `<div class="ring-seat ${p.acting ? 'acting' : ''} ${p.folded ? 'folded' : ''} ${hero ? 'hero' : ''}" style="left:${x}%;top:${y}%">${body}</div>${bet}`;
+  }).join('');
+  const slots = [];
+  for (let k = 0; k < 5; k++) slots.push(board[k] != null ? card(board[k], 'md', 'deal') : slot(''));
+  return `<div class="rtable">
+    <div class="tbl-rail"></div><div class="tbl-felt"></div>
+    <div class="tbl-center" style="top:46%">
+      ${pot ? `<div class="tbl-pot">Pot ${fmtBB(pot)}</div>` : ''}
+      <div class="tbl-board">${slots.join('')}</div>
+      ${note ? `<div class="tbl-note">${note}</div>` : ''}
+    </div>
+    ${html}
+  </div>`;
+}

@@ -11,10 +11,15 @@ Three modes:
   continues?" on solved spots), the live preflop charts with a trainer, and cheat sheets.
 - **Puzzles**: a solved spot with your real hole cards and one right answer, graded by EV against a
   specific villain type (Station, Nit, Maniac, Whale) or GTO. Rated like chess puzzles.
-- **Play**: heads-up against seven rated bots, from Whale to Pro. The thinking bots read your
-  range, learn your habits between hands and sessions, and punish bluffing that works "only in
-  the short run". The coach grades every decision by EV against the bot's real range; the session
-  review separates the EV you gave up from all-in luck and gives you a Play rating.
+- **Play**:
+  - *Heads-up* against seven rated bots, from Whale to Pro. Every bot learns your habits (the
+    weak ones slowly) and remembers you. The coach grades every decision by EV against the bot's
+    real range; the review separates the EV you gave up from all-in luck and gives you a Play
+    rating.
+  - *Live table*: 4–6 players drawn from a live $1/$2 pool, each a mix of styles, read from their
+    stats. The coach grades you against everyone still in the hand.
+  - *Watch*: two bots, cards face up, every decision explained (how the Pro takes apart a
+    Station).
 
 Every answer is **one action**. There are no "call 55%" answers.
 
@@ -34,6 +39,7 @@ On the iPad: open the site in Safari → Share → Add to Home Screen. Then Sett
 ## Where things are
 
 ```
+src/engine/ring/ live table: game.js (2–6 players, side pots), players.js, coach.js, session.js
 src/engine/hu/   heads-up engine: game.js (rules), equity.js (range-vs-range equity), policy.js
                  (strategies as arrays), bots.js (profile bots), thinker.js (thinking bots),
                  agents.js (all bots + Elo), range.js (reading his range), coach.js, session.js

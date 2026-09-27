@@ -303,6 +303,32 @@ only in the review. Per hand: result, EV lost, and all-in luck (result minus equ
 pot − what you put in), so a lucky shove shows up as luck, not skill. A decision loses ≥ 25% of the
 pot or ≥ 10bb: a blunder.
 
+## 8b. Watch and the live table
+
+**Watch** (`src/engine/hu/watch.js`): two bots play heads-up with every card face up. Each decision
+is explained from the bot's own numbers. A thinking bot shows its read of the other player, its
+equity against the range it puts him on and against his actual cards, the fold equity it expects,
+and the EV of each option. A profile bot shows its style, how often it takes each option with this
+hand, and how far it has adjusted.
+
+**Live table** (`src/engine/ring/`): you and 3–5 players, 100bb each, button moving every hand.
+- *Engine* (`game.js`): 2–6 players, blinds 0.5/1, BB option, min-raise = last full raise, short
+  all-ins don't reopen, side pots built from what each player put in (uncalled chips come back to
+  their owner). Tested with thousands of random hands for chip conservation, plus side-pot and
+  reopening cases.
+- *Players* (`players.js`): each seat is a mix of styles drawn from a live $1/$2 pool (stations
+  28%, nits 20%, regs 20%, whales 14%, sharks 12%, maniacs 6%; half of them blended with a second
+  style), with a name. Preflop by hand percentile, situation (first in, limpers, facing an open, a
+  3-bet, a 4-bet or a shove, sized by the bet) and position; postflop by hand class with the same
+  profile rules as the heads-up bots, bluffing less and folding weak hands more multiway. The
+  table learns you from your VPIP / PFR and your river showdowns: it steals more from a tight
+  player and calls down a player who has shown bluffs, each at its own rate.
+- *Reading them*: VPIP / PFR per player like a HUD, or reveal their styles.
+- *Coach* (`coach.js`): every opponent still in has a range read from his own strategy; equity
+  against all of them (exact heads-up, Monte Carlo multiway); EV one street ahead, with each
+  opponent's fold share taken in turn. Preflop is graded against The Course charts by position
+  (first in, isolating limpers, facing an open), with these EVs sizing the mistake.
+
 ## 9. Learn
 
 - **Course**: the Boot Camp's `COURSE` (5 modules, 415 steps), imported by
