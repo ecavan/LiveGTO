@@ -5,13 +5,13 @@
 import { register, start } from './router.js';
 import { render as renderHome } from './ui/home.js';
 import { render as renderPreflop } from './ui/preflop.js';
-import { render as renderPostflop } from './ui/postflop.js';
 import { getStreak } from './state.js';
 
 // Routes
 register('home', renderHome);
 register('preflop', renderPreflop);
-register('postflop', renderPostflop);
+// The old bucket-model postflop drill is replaced by solver-backed Puzzles.
+register('postflop', () => { window.location.hash = 'puzzles'; });
 
 // Lazy-load puzzles, play and simulate (bigger modules)
 register('playbook', async (container) => {

@@ -1,0 +1,267 @@
+{
+ "gto": {
+  "name": "GTO",
+  "description": "Plays the equilibrium strategy. The 2200 anchor of the ladder.",
+  "rules": []
+ },
+ "maniac": {
+  "name": "Maniac",
+  "description": "Loose-aggressive to a fault. Bets and raises far too often, especially with air and draws,\nand folds too little. Call him down lighter; let him bluff.",
+  "rules": [
+   {
+    "note": "bets whenever checked to",
+    "facing": "none",
+    "scale": {
+     "aggressive": 2.5
+    }
+   },
+   {
+    "note": "bluffs big with nothing",
+    "facing": "none",
+    "hands": [
+     "weak",
+     "draw",
+     "air"
+    ],
+    "scale": {
+     "bet_large": 2,
+     "allin": 2
+    }
+   },
+   {
+    "note": "raises too much",
+    "facing": "bet",
+    "scale": {
+     "raise": 2.5,
+     "fold": 0.6
+    }
+   }
+  ]
+ },
+ "nit": {
+  "name": "Nit",
+  "description": "Tight-passive. Folds too much to pressure, only raises the nuts, and his big bets and raises\nare almost never bluffs. Respect his aggression, attack his checks.",
+  "rules": [
+   {
+    "note": "folds too much when he isn't strong",
+    "facing": "bet",
+    "hands": [
+     "medium",
+     "weak",
+     "draw",
+     "air"
+    ],
+    "scale": {
+     "fold": 2.5
+    }
+   },
+   {
+    "note": "only raises the nuts",
+    "facing": "bet",
+    "hands": [
+     "strong",
+     "medium",
+     "weak",
+     "draw",
+     "air"
+    ],
+    "scale": {
+     "raise": 0.15
+    }
+   },
+   {
+    "note": "never bluffs",
+    "facing": "none",
+    "hands": [
+     "weak",
+     "draw",
+     "air"
+    ],
+    "scale": {
+     "aggressive": 0.1
+    }
+   },
+   {
+    "note": "checks his medium hands",
+    "facing": "none",
+    "hands": [
+     "medium"
+    ],
+    "scale": {
+     "aggressive": 0.4
+    }
+   }
+  ]
+ },
+ "station": {
+  "name": "Station",
+  "description": "Loose-passive calling station. Calls far too much, rarely raises, almost never bluffs, and\nchecks a lot of hands he should bet. When he does bet, he has it.\nThe most common profitable opponent at $1/$2.",
+  "rules": [
+   {
+    "note": "never folds a pair to a normal bet",
+    "facing_size": [
+     "small",
+     "large"
+    ],
+    "hands": [
+     "strong",
+     "medium",
+     "weak"
+    ],
+    "scale": {
+     "fold": 0.25
+    }
+   },
+   {
+    "note": "calls off top pair against an overbet or shove",
+    "facing_size": [
+     "overbet"
+    ],
+    "hands": [
+     "strong"
+    ],
+    "scale": {
+     "fold": 0.5
+    }
+   },
+   {
+    "note": "but usually lets go of weaker pairs when the bet is huge",
+    "facing_size": [
+     "overbet"
+    ],
+    "hands": [
+     "medium",
+     "weak"
+    ],
+    "scale": {
+     "fold": 0.85
+    }
+   },
+   {
+    "note": "floats too much with nothing, but does give up eventually",
+    "facing": "bet",
+    "hands": [
+     "draw",
+     "air"
+    ],
+    "scale": {
+     "fold": 0.8
+    }
+   },
+   {
+    "note": "calls instead of raising, except with the nuts",
+    "facing": "bet",
+    "hands": [
+     "strong",
+     "medium",
+     "weak",
+     "draw",
+     "air"
+    ],
+    "scale": {
+     "raise": 0.3
+    }
+   },
+   {
+    "note": "doesn't bluff",
+    "facing": "none",
+    "hands": [
+     "weak",
+     "draw",
+     "air"
+    ],
+    "scale": {
+     "aggressive": 0.15
+    }
+   },
+   {
+    "note": "checks his medium hands",
+    "facing": "none",
+    "hands": [
+     "medium"
+    ],
+    "scale": {
+     "aggressive": 0.5
+    }
+   },
+   {
+    "note": "bets smaller than he should with value",
+    "facing": "none",
+    "hands": [
+     "monster",
+     "strong"
+    ],
+    "scale": {
+     "bet_small": 1.5
+    }
+   }
+  ]
+ },
+ "whale": {
+  "name": "Whale",
+  "description": "The recreational player who is there to gamble. Calls almost anything, raises every draw,\nand sizes his bets by hand strength (big = strong, small = not).",
+  "rules": [
+   {
+    "note": "almost never folds",
+    "facing": "bet",
+    "scale": {
+     "fold": 0.15
+    }
+   },
+   {
+    "note": "raises his draws every time",
+    "facing": "bet",
+    "streets": [
+     "flop",
+     "turn"
+    ],
+    "hands": [
+     "draw"
+    ],
+    "set": {
+     "raise": 0.7,
+     "call": 0.3
+    }
+   },
+   {
+    "note": "otherwise just calls",
+    "facing": "bet",
+    "hands": [
+     "strong",
+     "medium",
+     "weak",
+     "air"
+    ],
+    "scale": {
+     "raise": 0.3
+    }
+   },
+   {
+    "note": "size tell: big bet = big hand",
+    "facing": "none",
+    "hands": [
+     "monster",
+     "strong"
+    ],
+    "scale": {
+     "bet_large": 3,
+     "bet_small": 0.5
+    }
+   },
+   {
+    "note": "size tell: small bet = weak or drawing",
+    "facing": "none",
+    "hands": [
+     "medium",
+     "weak",
+     "draw",
+     "air"
+    ],
+    "scale": {
+     "bet_large": 0.2,
+     "bet_small": 1.5
+    }
+   }
+  ]
+ }
+}

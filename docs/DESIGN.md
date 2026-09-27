@@ -216,11 +216,21 @@ to remember.
    board-texture filters, suit relabelling. Puzzles default to exploitative villains; GTO is an
    opt-in baseline filter.
 1b. **Playbook** (done): texture × villain × spot rules.
-2. **Rebuild Play and Simulate on the solver.** Port the Boot Camp's heads-up engine, which the
-   audit found correct (BB option, all-ins, min-raises). Bots play library strategies, bent by
-   profiles, and are rated by bb/100 against the GTO bot. Session review shows EV lost per decision.
-3. **Preflop**: replace `ranges.js` with The Course live charts: raise-or-fold, 3-bet vs strong
-   and loose opens, blind defense, isolating limpers. Add a steal calculator.
+2. **Play and Simulate** (done). Heads-up BTN vs BB, 100bb, SB folded (0.5 dead).
+   - Engine `src/engine/hu/game.js`: BB option, min-raise = last full raise, a short all-in does
+     not reopen, uncalled bets returned. All-ins are logged as all-ins.
+   - Bots `src/engine/hu/bots.js`: a Reg baseline plus the solver profiles (same rule semantics as
+     the Rust side, exported by `scripts/export-profiles.mjs`) acting on hand classes. Preflop by
+     percentile. `scripts/bot-league.mjs` plays them against each other; the Reg beats all four.
+   - Range reading `range.js`: exact Bayesian posterior over the bot's own policy.
+   - Coach `coach.js`: EV of each option against that range, one street ahead (exact on the
+     river, a bot raise treated as a call). Preflop: the Reg chart ("check", never "fold", when
+     checking is free) plus the steal maths, with the bot's fold share taken over the range he
+     has shown so far (a limper's range, not all hands) and card removal.
+   - Play grades every decision; Simulate plays 25–200 hands and reviews them: EV given up,
+     a rating `2200 − 400·log2(1 + L/5)` from bb/100 lost, the biggest mistakes, past sessions.
+3. **Preflop** (done): `ranges.js` holds The Course live charts: raise-or-fold, 3-bet vs strong
+   and loose opens, blind defense.
 4. **Flop puzzles**, **multiway pots** (most live limped pots are multiway; the solver is heads-up
    only), and profiles that also act on earlier streets.
 5. **Lessons**: import the Boot Camp `COURSE`, applying the corrections in `docs/THEORY.md`.

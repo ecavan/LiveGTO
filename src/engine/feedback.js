@@ -7,50 +7,35 @@ import { getCorrectActions } from './postflop.js';
 import { computeRangeVsRange } from './rangeAnalysis.js';
 
 export function evaluatePreflop(userAction, scenario) {
+  // Charts: The Course (live 9-handed). One right answer per hand; no "acceptable" leniency.
   const correct = scenario.correct_action;
   const handKey = scenario.hand_key;
   const position = scenario.position;
-  let isCorrect = userAction === correct;
-  let isAcceptable = false;
-
-  if (scenario.type === 'preflop_facing') {
-    const raiseRange = scenario.raise_range || [];
-    const callRange = scenario.call_range || [];
-    const inRaise = raiseRange.includes(handKey);
-    const inCall = callRange.includes(handKey);
-    const inRange = inRaise || inCall;
-    if (!isCorrect && (userAction === 'raise' || userAction === 'call') && inRange) {
-      isAcceptable = true;
-    }
-  }
-
+  const isCorrect = userAction === correct;
+  const pctRange = scenario.range_pct != null ? ` (${scenario.range_pct}% of hands)` : '';
   let explanation;
   if (scenario.type === 'preflop_rfi') {
     explanation = isCorrect
-      ? `Correct! ${handKey} is a ${correct} from ${position}.`
-      : `${handKey} should be a ${correct} from ${position}. The ${position} RFI range has ${scenario.range_size} combos.`;
+      ? `Correct: ${handKey} is a ${correct} first in from ${position}${pctRange}.`
+      : `${handKey} is a ${correct} first in from ${position}. Raise or fold, never limp; the ${position} range is${pctRange || ' shown below'}.`;
   } else {
     const opener = scenario.opener || '';
-    if (isCorrect) {
-      explanation = `Correct! ${handKey} is a ${correct} from ${position} vs ${opener} open.`;
-    } else if (isAcceptable) {
-      explanation = `Acceptable. ${handKey} is primarily a ${correct} from ${position} vs ${opener} open, but ${userAction} is a reasonable alternative since it's in range.`;
-    } else {
-      explanation = `${handKey} should be a ${correct} from ${position} vs ${opener} open.`;
-    }
+    const sbNote = position === 'SB' ? ' From the small blind it is 3-bet or fold: you are out of position and the BB is still behind you.' : '';
+    explanation = isCorrect
+      ? `Correct: ${handKey} is a ${correct} from ${position} vs a ${opener} open.${sbNote}`
+      : `${handKey} is a ${correct} from ${position} vs a ${opener} open.${sbNote}`;
   }
-
   return {
-    is_correct: isCorrect || isAcceptable,
+    is_correct: isCorrect,
     is_primary: isCorrect,
-    is_acceptable: isAcceptable,
+    is_acceptable: false,
     user_action: userAction,
     correct_action: correct,
     explanation,
-    hand_key: handKey,
-    range: scenario.range || [],
+    range: scenario.range,
     raise_range: scenario.raise_range,
     call_range: scenario.call_range,
+    hand_key: handKey,
   };
 }
 

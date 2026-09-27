@@ -3,7 +3,7 @@
  */
 import { createDeck, drawCards, rankInt } from './evaluator.js';
 import { cardToDisplay, handToKey } from './cards.js';
-import { POSITIONS, RFI_RANGES, FACING_OPEN, FACING_OPEN_KEYS } from './ranges.js';
+import { POSITIONS, RFI_RANGES, FACING_OPEN, FACING_OPEN_KEYS, comboShare } from './ranges.js';
 import { classifyHand, BUCKET_LABELS, BUCKETS } from './abstraction.js';
 import { classifyTexture, getStrategy, getCorrectActions, ACTION_LABELS, TEXTURE_LABELS } from './postflop.js';
 
@@ -51,6 +51,7 @@ export function generatePreflopRfi(position = null) {
     range: [...RFI_RANGES[position]].sort(),
     raise_range: null, call_range: null,
     range_size: RFI_RANGES[position].size,
+    range_pct: Math.round(100 * comboShare(RFI_RANGES[position])),
     actions: ['raise', 'fold'],
     action_labels: { raise: 'Raise', fold: 'Fold' },
     seats, dealer_seat: dealerSeat, board: [],
@@ -88,6 +89,7 @@ export function generatePreflopFacing(position = null) {
     call_range: [...ranges.call].sort(),
     range: [...new Set([...ranges.raise, ...ranges.call])].sort(),
     range_size: ranges.raise.size + ranges.call.size,
+    range_pct: Math.round(100 * (comboShare(ranges.raise) + comboShare(ranges.call))),
     actions: ['raise', 'call', 'fold'],
     action_labels: { raise: '3-Bet', call: 'Call', fold: 'Fold' },
     seats, dealer_seat: dealerSeat, board: [],
