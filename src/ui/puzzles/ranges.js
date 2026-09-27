@@ -111,7 +111,7 @@ function draw(container) {
       <div class="grid grid-cols-3 gap-2"><button id="rb-clear" class="btn">Clear</button><button id="rb-submit" class="btn btn-primary col-span-2">Check my range</button></div>
     </div>`;
 
-  container.innerHTML = `<div class="page space-y-4 fade-up">
+  container.innerHTML = `<div class="page space-y-4">
     <div class="flex items-end justify-between gap-4 flex-wrap">
       <div><div class="h-sec">Puzzles</div><h1 class="h-title">Range builder</h1>
         <p class="muted mt-1 text-sm">Build the whole range, not one hand. Graded against the live chart from The Course.</p></div>

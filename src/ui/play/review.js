@@ -29,6 +29,7 @@ let keyHandler = null;
 export function render(container, params = []) {
   if (keyHandler) window.removeEventListener('keydown', keyHandler);
   keyHandler = null;
+  if (params[0] === 'log') return import('./logger.js').then(m => m.render(container, params.slice(1)));
   if (params[0] === 's') sessionView(container, Number(params[1]));
   else if (params[0] === 'h') replayer(container, params[1], params[2]);
   else home(container);
@@ -36,6 +37,7 @@ export function render(container, params = []) {
 }
 
 export function sessionTitle(x) {
+  if (x.level === 'live') return 'Your live hands';
   if (x.kind === 'hu') return `vs ${AGENTS[x.opp]?.name ?? x.opp} <span class="text-ink-400 font-medium">${eloOf(x.opp) ?? ''}</span>`;
   return `Live table · ${LEVELS[x.level]?.name ?? ''} · ${x.n}-handed`;
 }
@@ -57,7 +59,7 @@ function home(container) {
     <div class="mx-auto w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-300 flex items-center justify-center">${icon('review', 'w-6 h-6')}</div>
     <div class="text-lg font-semibold text-white">No hands yet</div>
     <p class="text-sm text-ink-300 max-w-md mx-auto">Every hand you play heads-up or at the live table lands here. Replay it move by move, guess your move before the coach shows the grade, and see which leaks cost you the most.</p>
-    <div class="flex gap-2 justify-center"><a class="btn btn-primary" href="#play">Play heads-up</a><a class="btn" href="#play/table">Live table</a></div></div>`;
+    <div class="flex gap-2 justify-center flex-wrap"><a class="btn btn-primary" href="#play">Play heads-up</a><a class="btn" href="#play/table">Live table</a><a class="btn" href="#play/review/log">${icon('pen', 'w-4 h-4')} Log a hand from the casino</a></div></div>`;
 
   const leaks = rep.leaks.length ? rep.leaks.slice(0, 8).map(l => disc(`<span class="flex-1 min-w-0">
       <span class="flex items-center gap-2"><span class="font-semibold text-white truncate">${esc(l.name)}</span>
@@ -75,14 +77,14 @@ function home(container) {
     <div class="flex items-end justify-between gap-4 flex-wrap">
       <div><div class="h-sec">Play</div><h1 class="h-title">Review</h1>
         <p class="muted mt-1 text-sm max-w-2xl">Game review, like chess: replay your hands, find the better move, and see where your EV goes.</p></div>
-      ${playTabs('review')}
+      <div class="flex items-center gap-2 flex-wrap"><a href="#play/review/log" class="btn btn-primary">${icon('pen', 'w-4 h-4')} Log a live hand</a>${playTabs('review')}</div>
     </div>
     ${!hands.length ? empty : `
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       ${stat('Accuracy', `<span class="${accTone(acc)}">${acc ?? '—'}</span>`, `last ${hands.length} hands`)}
       ${stat('EV lost', `−${rep.per100.toFixed(1)}`, 'bb per 100 hands', 'text-rose-200')}
       ${stat('Decisions', rep.spots, `${sessions.length} session${sessions.length === 1 ? '' : 's'}`)}
-      ${stat('Result', `<span class="${tone(hands.reduce((a, h) => a + h.net, 0))}">${fmtBB(hands.reduce((a, h) => a + h.net, 0), { sign: true })}</span>`, 'all stored hands')}
+      ${stat('Result', `<span class="${tone(hands.reduce((a, h) => a + (h.net ?? 0), 0))}">${fmtBB(hands.reduce((a, h) => a + (h.net ?? 0), 0), { sign: true })}</span>`, 'all stored hands')}
     </div>
     <div class="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5 items-start">
       <div class="space-y-2">
@@ -93,7 +95,7 @@ function home(container) {
         <div class="h-sec">Sessions</div>
         <div class="panel divide-y divide-ink-800">${sessions.map(x => {
           const a = accuracyOf(x.hands);
-          const net = x.hands.reduce((q, h) => q + h.net, 0);
+          const net = x.hands.reduce((q, h) => q + (h.net ?? 0), 0);
           const c = gradeCounts(x.hands);
           return `<a href="#play/review/s/${x.sid}" class="flex items-center gap-3 px-4 py-3 hover:bg-ink-850/60">
             <div class="min-w-0 flex-1"><div class="text-sm font-semibold text-white truncate">${sessionTitle(x)}</div>
@@ -121,7 +123,7 @@ function sessionView(container, sid) {
   if (!x) { container.innerHTML = `<div class="page text-ink-300">That session is no longer stored. <a class="underline" href="#play/review">Back to Review</a></div>`; return; }
   const acc = accuracyOf(x.hands);
   const c = gradeCounts(x.hands);
-  const net = x.hands.reduce((a, h) => a + h.net, 0);
+  const net = x.hands.reduce((a, h) => a + (h.net ?? 0), 0);
   const lost = x.hands.reduce((a, h) => a + h.evLost, 0);
   const luck = x.hands.reduce((a, h) => a + (h.luck || 0), 0);
   const key = x.hands.flatMap(h => h.decisions.filter(d => ['inaccuracy', 'mistake', 'blunder'].includes(grade(d))).map(d => ({ h, d })))
@@ -160,7 +162,7 @@ function sessionView(container, sid) {
           <span class="text-xs text-ink-400 w-12">#${h.no}</span><span class="text-xs text-ink-300 w-9">${posName(h, h.hero)}</span>
           <span class="text-sm">${handText(byRank(h.holes[h.hero]).map(cardStr))}</span>
           <span class="flex gap-1">${h.decisions.map(d => glyph(d, 'text-[10px]')).join('')}</span>
-          <span class="ml-auto text-sm num ${tone(h.net)}">${fmtBB(h.net, { sign: true })}</span></a>`).join('')}</div>
+          <span class="ml-auto text-sm num ${tone(h.net ?? 0)}">${h.net == null ? '—' : fmtBB(h.net, { sign: true })}</span></a>`).join('')}</div>
       </div>
     </div>
   </div>`;
@@ -226,16 +228,18 @@ function tableAt(h, k) {
   const tags = {};
   for (const e of log) if (e.street === curStreet) tags[e.seat] = { lab: tagLabel(e), tone: e.type === 'fold' ? 't-fold' : ['bet', 'raise', 'allin'].includes(e.type) ? 't-aggr' : '' };
   const showdown = s.done && s.result?.showdown;
+  const hidden = new Set(h.hidden || []);
+  const unknownResult = showdown && h.net == null;
   const order = Array.from({ length: v.n }, (_, j) => (h.hero + j) % v.n);
   const seats = order.map(i => {
     const hero = i === h.hero;
-    const winner = s.done && s.result.net[i] > 0;
+    const winner = s.done && !unknownResult && s.result.net[i] > 0;
     const style = h.styles?.[i];
     return {
       name: h.names[i],
       sub: `${posName(h, i)}${style ? ` · ${esc(style)}` : ''}`,
       stack: fmtBB(v.stacks[i]),
-      cards: hero ? byRank(h.holes[i]) : v.folded[i] ? null : (showdown || rv.showCards) ? byRank(h.holes[i]) : 'back',
+      cards: hero ? byRank(h.holes[i]) : v.folded[i] ? null : hidden.has(i) ? 'back' : (showdown || rv.showCards) ? byRank(h.holes[i]) : 'back',
       folded: v.folded[i],
       dealer: i === v.btn,
       bet: s.done ? 0 : v.streetBet[i],
@@ -314,12 +318,13 @@ function resultPanel(h) {
   let line;
   if (h.showdown) {
     const shown = s.holes.map((x, i) => i).filter(i => !(h.kind === 'hu' ? s.folded === i : s.folded[i]));
-    line = shown.map(i => `${esc(h.names[i])}: ${handText(byRank(h.holes[i]).map(cardStr))} ${CAT[category(evaluate([...h.holes[i], ...h.runout]))]}`).join(' · ');
+    const hid = new Set(h.hidden || []);
+    line = shown.map(i => (hid.has(i) ? `${esc(h.names[i])}: not shown` : `${esc(h.names[i])}: ${handText(byRank(h.holes[i]).map(cardStr))} ${CAT[category(evaluate([...h.holes[i], ...h.runout]))]}`)).join(' · ');
   } else line = (h.kind === 'hu' ? s.folded === h.hero : s.folded[h.hero]) ? 'You folded.' : 'Everyone else folded.';
   const acc = accuracyOf([h]);
   return `<div class="space-y-3">
     <div class="verdict ${won ? 'v-best' : lost ? 'v-mistake' : 'v-fine'}">
-      <div class="text-lg font-semibold ${won ? 'text-emerald-300' : lost ? 'text-rose-300' : 'text-sky-300'}">${won ? `You won ${fmtBB(h.net)}` : lost ? `You lost ${fmtBB(-h.net)}` : 'No chips changed hands for you'}</div>
+      <div class="text-lg font-semibold ${won ? 'text-emerald-300' : lost ? 'text-rose-300' : 'text-sky-300'}">${h.net == null ? 'Showdown (result not entered)' : won ? `You won ${fmtBB(h.net)}` : lost ? `You lost ${fmtBB(-h.net)}` : 'No chips changed hands for you'}</div>
       <div class="text-sm text-ink-200 mt-1">${line}</div>
       <div class="text-sm mt-1">${h.decisions.length ? `Accuracy <b class="${accTone(acc)}">${acc}</b> · ${h.evLost > 0.005 ? `<span class="text-rose-300">${fmtBB(h.evLost)} of EV lost</span>` : '<span class="text-emerald-300">no EV lost</span>'}` : 'You had no decision this hand.'}${Math.abs(h.luck || 0) >= 0.05 ? ` · all-in luck <b class="${tone(h.luck)}">${fmtBB(h.luck, { sign: true })}</b>` : ''}</div>
     </div>

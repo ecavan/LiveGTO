@@ -36,6 +36,7 @@ export async function render(container) {
         <button class="btn" data-reset="livegto.puzzles.v1">Reset puzzle rating</button>
         <button class="btn" data-reset="livegto.play.v2">Reset Play sessions</button>
         <button class="btn" data-reset="livegto.learn.v1">Reset lesson progress</button>
+        <button class="btn" data-reset="livegto.hands.v1">Clear hand history</button>
       </div>
     </div>
   </div>`;

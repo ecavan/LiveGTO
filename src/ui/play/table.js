@@ -11,7 +11,7 @@ import { settings, saveSettings } from '../../store.js';
 import { ringTable, fmtBB, seg, wireSeg, icon, esc, stat, handText, disc, verdict, sprOf } from '../kit.js';
 import { actionBar, coachCard, decisionRow, playTabs } from './views.js';
 import { pct } from '../../engine/potmath.js';
-import { cardStr, evaluate, category } from '../../engine/hu/hand.js';
+import { cardStr, evaluate, category, classify } from '../../engine/hu/hand.js';
 import { addHand, packTable } from '../../engine/history.js';
 
 let t = null;
@@ -189,14 +189,46 @@ function recapHtml(h) {
     line = shown.map(i => `${i === HERO ? 'You' : esc(t.players[i].name)}: ${handText(byRank(s.holes[i]).map(cardStr))} ${CAT[category(evaluate([...s.holes[i], ...s.runout]))]}`).join(' · ');
   } else line = s.folded[HERO] ? 'You folded.' : 'Everyone folded to you.';
   const quality = h.evLost > 0.005 ? `<span class="text-rose-300">Your decisions cost ${fmtBB(h.evLost)} of EV.</span>` : (h.decisions.length ? '<span class="text-emerald-300">No EV lost.</span>' : '');
+  const why = h.showdown ? showdownWhy(s) : [];
   return `<div class="space-y-3 fade-up">
     <div class="verdict ${won ? 'v-best' : lost ? 'v-mistake' : 'v-fine'}">
       <div class="text-lg font-semibold ${won ? 'text-emerald-300' : lost ? 'text-rose-300' : 'text-sky-300'}">${won ? `You won ${fmtBB(h.net)}` : lost ? `You lost ${fmtBB(-h.net)}` : 'No chips changed hands for you'}</div>
       <div class="text-sm text-ink-200 mt-1">${line}</div>
       <div class="text-sm mt-1">${quality}</div>
     </div>
+    ${why.length ? `<div class="rounded-xl bg-ink-850 border border-ink-700 px-3 py-2.5 space-y-1 text-sm text-ink-200"><div class="text-[11px] uppercase tracking-wider text-ink-400 font-semibold">Why they played it that way</div>${why.map(w => `<p>${w}</p>`).join('')}</div>` : ''}
     ${t.coachMode !== 'off' && h.decisions.length ? `<div class="space-y-2">${h.decisions.map((d, i) => decisionRow(d, i, { evNote: evNote(d) })).join('')}</div>` : ''}
   </div>`;
+}
+
+/**
+ * At showdown, one line per opponent who showed: what his line was (value, bluff, calling down)
+ * and, when styles are shown, the style that explains it. Reads are made of these.
+ */
+function showdownWhy(s) {
+  const out = [];
+  for (let i = 1; i < s.n; i++) {
+    if (s.folded[i]) continue;
+    const p = t.players[i];
+    const main = Object.entries(p.mix).sort((a, b) => b[1] - a[1])[0][0];
+    const A = ARCHETYPES[main];
+    const cls = classify(s.holes[i], s.runout);
+    const made = CAT[category(evaluate([...s.holes[i], ...s.runout]))].toLowerCase();
+    const acts = s.log.filter(e => e.seat === i && e.street >= 1);
+    const aggr = acts.filter(e => e.type === 'bet' || e.type === 'raise' || (e.type === 'allin' && !e.callAllIn));
+    const calls = acts.filter(e => e.type === 'call' || (e.type === 'allin' && e.callAllIn));
+    const weak = cls === 'air' || cls === 'weak' || cls === 'draw';
+    const cards = handText(byRank(s.holes[i]).map(cardStr));
+    let what;
+    if (aggr.length && weak) what = `bet ${aggr.length > 1 ? `${aggr.length} times` : ''} as a bluff with ${cards} (${made})`;
+    else if (aggr.length) what = `bet for value with ${cards} (${made})`;
+    else if (calls.length >= 2 && (weak || cls === 'medium')) what = `called ${calls.length} bets with just ${cards} (${made})`;
+    else if (calls.length) what = `called with ${cards} (${made})`;
+    else what = `checked it down with ${cards} (${made})`;
+    const style = ui.reveal ? ` He's a <b class="text-amber-200">${esc(styleLabel(p))}</b>: ${esc(A.blurb)}.` : ' Remember it: that is his read.';
+    out.push(`<b class="text-white">${esc(p.name)}</b> ${what.replace(/\s+/g, ' ')}.${style}`);
+  }
+  return out;
 }
 
 const evNote = (d) => `EV in bb against every opponent still in the hand (their ranges and strategies)${d.opponents > 1 ? '; multiway: Monte Carlo, one street ahead' : ''}.`;

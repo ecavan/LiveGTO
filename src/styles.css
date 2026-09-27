@@ -13,6 +13,9 @@
   }
   button { -webkit-user-select: none; user-select: none; touch-action: manipulation; }
   select { @apply bg-ink-800 border border-ink-600 rounded-lg px-2.5 py-1.5 text-sm text-ink-100; }
+  input[type=number], input[type=text] { @apply bg-ink-800 border border-ink-600 rounded-lg px-3 py-2 text-base text-ink-100 outline-none; }
+  input[type=number]:focus, input[type=text]:focus { @apply border-amber-400/70; }
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   ::selection { background: rgba(16, 185, 129, .35); }
 }
 
@@ -212,7 +215,9 @@
   .rtable { aspect-ratio: 3 / 3.3; }
   .rtable .pc.sm { --w: 22px; } .rtable .pc-back.sm { --w: 22px; }
   .rtable .tbl-board .pc.md, .rtable .tbl-board .pc-slot { --w: 32px; }
-  .ring-seat .pod-plate { min-width: 70px !important; padding: 3px 7px !important; }
+  .ring-seat .pod-plate { min-width: 70px !important; max-width: 96px; padding: 3px 7px !important; }
+  .ring-seat:not(.hero) .pod-sub { max-width: 82px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rtable { width: calc(100% - 44px); }
 }
 
 /* review: move chips */

@@ -56,7 +56,7 @@ export function render(container) {
       ${quick('#puzzles/daily', 'star', 'text-amber-300', dailyDone ? 'Daily puzzle: done' : 'Daily puzzle', streak ? `${streak}-day streak` : 'one spot a day')}
       ${quick('#puzzles/review', 'target', 'text-rose-300', 'Missed puzzles', due ? `${due} due today` : `${pz.queue?.length ?? 0} in the queue`, due)}
       ${quick('#play/review', 'review', 'text-amber-300', 'Game review', topLeak ? `Top leak: ${topLeak.name.toLowerCase()}` : 'replay your hands')}
-      ${quick('#learn/drill/potodds', 'bolt', 'text-sky-300', 'Quick drill', 'pot odds, 60 seconds')}
+      ${quick('#learn/drill/feel', 'bolt', 'text-sky-300', 'Bet-size feel', 'size and price in 8 seconds')}
     </div>
   </div>`;
 }

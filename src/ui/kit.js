@@ -188,7 +188,7 @@ const RING_POS = {
  * Table for up to six. seats[i]: { name, sub, stack, cards: [..]|'back'|null, folded, dealer, bet,
  * tag (small label, e.g. "Raise 9"), acting, hero }. Seat 0 is drawn at the bottom.
  */
-export function ringTable({ seats, board = [], pot = null, note = '', spr = null }) {
+export function ringTable({ seats, board = [], pot = null, note = '', spr = null, fmt = fmtBB }) {
   const n = seats.length;
   const anchors = RING_POS[n];
   const center = [50, 46];
@@ -205,7 +205,7 @@ export function ringTable({ seats, board = [], pot = null, note = '', spr = null
     const body = hero ? `<div class="flex items-center gap-2"><div class="pod-cards">${cs}</div>${plate}</div>${tag}`
       : `${tag}<div class="pod-cards justify-center">${cs}</div>${plate}`;
     const bx = x + (center[0] - x) * 0.42, by = y + (center[1] - y) * 0.42;
-    const bet = p.bet > 0 ? `<div class="ring-bet" style="left:${bx}%;top:${by}%"><span class="chipstack"></span><b>${fmtBB(p.bet)}</b></div>` : '';
+    const bet = p.bet > 0 ? `<div class="ring-bet" style="left:${bx}%;top:${by}%"><span class="chipstack"></span><b>${fmt(p.bet)}</b></div>` : '';
     return `<div class="ring-seat ${p.acting ? 'acting' : ''} ${p.folded ? 'folded' : ''} ${hero ? 'hero' : ''}" style="left:${x}%;top:${y}%">${body}</div>${bet}`;
   }).join('');
   const slots = [];
@@ -213,7 +213,7 @@ export function ringTable({ seats, board = [], pot = null, note = '', spr = null
   return `<div class="rtable">
     <div class="tbl-rail"></div><div class="tbl-felt"></div>
     <div class="tbl-center" style="top:46%">
-      ${pot ? `<div class="tbl-pot">Pot ${fmtBB(pot)}${sprTag(spr)}</div>` : ''}
+      ${pot ? `<div class="tbl-pot">Pot ${fmt(pot)}${sprTag(spr)}</div>` : ''}
       <div class="tbl-board">${slots.join('')}</div>
       ${note ? `<div class="tbl-note">${note}</div>` : ''}
     </div>

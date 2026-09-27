@@ -202,9 +202,33 @@ with a weak one). Once there are enough attempts, real solve rates replace the h
 Known limits:
 - Profiles act only on the decision street. Earlier streets are GTO, so a Station's turn range
   doesn't yet include his loose flop calls.
-- Flop puzzles aren't in the library yet.
+- Flop puzzles aren't in the solver library; the Flop and Multiway sets (§7c) come from the Play
+  engines instead.
 - The flop tree used for turn ranges is coarse: one 33% c-bet, 3× raises, one turn size and one
   river size plus all-in. It fits in about 1 GB; your Mac can afford a richer one.
+
+## 7c. More puzzle modes
+
+Puzzles has six modes: **Rated** (the library above), **Daily**, **Review**, **Ranges**, **Flop**,
+**Multiway**.
+
+- **Daily**: one library spot per date, fixed by a hash of the date (same spot and same suits for
+  everyone). Unrated; it keeps a streak of consecutive days.
+- **Review** (spaced repetition): every puzzle you miss, in any mode, joins a queue. It comes back
+  after 1 day; solve it and it comes back after 3, then 7; solve it then and it leaves. Miss it and
+  it starts over. Unrated, so nobody farms rating on known puzzles.
+- **Ranges** (range builder): paint a whole preflop range on the 13×13 grid (raise / call / fold,
+  drag to paint on the iPad) for 11 spots: opens from each seat, and 3-bet / call / fold against
+  an open. Graded cell by cell against The Course charts, weighted by combos: score = combos played
+  right ÷ combos either of you plays (a 3-bet where the chart calls counts half). Too loose, too
+  tight and wrong-action cells are coloured.
+- **Flop** and **Multiway** (`scripts/gen-spots.mjs` → `public/spots/*.json`): bots play hands,
+  and at the puzzle decision the Play coach prices every option against the real ranges and
+  strategies of the players still in. A spot is kept when the best option beats the next one by
+  max(0.8bb, 7% of the pot). Flop: heads-up against each of six bots, 40–200bb deep. Multiway:
+  three or more players at a live table (all levels, all stack settings). All-ins bigger than 3×
+  the pot are dropped from these spots (the bot models treat any overbet alike, see §8). Ratings are
+  a heuristic from the EV gap and how counter-intuitive the answer is; they share your puzzle rating.
 
 ## 7b. Board textures and suit relabelling
 
@@ -298,6 +322,14 @@ so the range the coach uses is the true posterior, not a guess.
 ahead (exact on the river; a re-raise is treated as a call). Each option also carries its fold
 equity, your equity when called, and the price, which the "Why" panel turns into one-line reasons.
 
+**Natural sizes**: the best option (the one others are graded against) is always a natural one.
+An all-in of more than 2.5× the pot is never the benchmark, because the bots treat every overbet
+alike (a 20×-pot shove gets the same calls as a 1.2× overbet), so its EV is a model artifact. You
+can still shove; it grades as fine if it's worth as much.
+
+**Stack depth**: heads-up at 40, 100 or 200bb. The table shows the SPR (effective stack ÷ pot at
+the start of the street) from the flop on.
+
 **Sessions** (`session.js`): coach after every decision (pauses on mistakes), after each hand, or
 only in the review. Per hand: result, EV lost, and all-in luck (result minus equity-when-all-in ×
 pot − what you put in), so a lucky shove shows up as luck, not skill. A decision loses ≥ 25% of the
@@ -311,7 +343,12 @@ equity against the range it puts him on and against his actual cards, the fold e
 and the EV of each option. A profile bot shows its style, how often it takes each option with this
 hand, and how far it has adjusted.
 
-**Live table** (`src/engine/ring/`): you and 3–5 players, 100bb each, button moving every hand.
+**Live table** (`src/engine/ring/`): you and 3–5 players, button moving every hand.
+- *Stacks*: everyone 100bb, everyone 200bb, or a live mix: each player sits with his own buy-in
+  (25% short, 25–45bb, the $50 stack at $1/$2; 45% 60–120bb; 30% deep, 150–300bb). You have 100bb.
+  A short stack (≤35bb) facing a raise re-raises all-in instead of 3-betting small (≤15bb: shoves
+  first in too). Facing a shove or a raise to 12bb+, the coach grades you by EV (price vs his
+  shoving range), not the opening chart.
 - *Engine* (`game.js`): 2–6 players, blinds 0.5/1, BB option, min-raise = last full raise, short
   all-ins don't reopen, side pots built from what each player put in (uncalled chips come back to
   their owner). Tested with thousands of random hands for chip conservation, plus side-pot and
@@ -333,7 +370,44 @@ hand, and how far it has adjusted.
 - *Coach* (`coach.js`): every opponent still in has a range read from his own strategy; equity
   against all of them (exact heads-up, Monte Carlo multiway); EV one street ahead, with each
   opponent's fold share taken in turn. Preflop is graded against The Course charts by position
-  (first in, isolating limpers, facing an open), with these EVs sizing the mistake.
+  (first in, isolating limpers, facing an open), with these EVs sizing the mistake. A bet's
+  responses stop at the end of the street (fixed: the first player on the next street used to be
+  counted as calling the bet a second time, which overvalued betting in position).
+- *At showdown*: one line per player who showed: value bet, bluff, or calling down, and (when
+  styles are shown) the style that explains it.
+- *Watch summary*: per-bot VPIP, PFR, c-bet, fold to a bet, share of river bets that are bluffs
+  (every card is known, so every river bet counts, called or not), river calls that lose, and
+  result with and without showdown, plus one sentence on how the winner is winning.
+
+## 8c. Game review, leaks, and your live hands
+
+**Hand history** (`src/engine/history.js`): every hand you play heads-up or at the live table is
+stored on the device (the last 400, ~2KB each): seats, stacks, cards, the action log and your
+graded decisions (`decisions[i].at` = the log index of the action it became).
+
+**Game review** (Play → Review), modelled on chess.com's:
+- *Session*: accuracy (chess-style: 100 for a best or good move, falling with the EV lost relative
+  to the pot: 100·e^(−4·loss/pot) − 10), and each decision classed Best ★ / Good ✓ /
+  Inaccuracy ?! (a mistake under 1bb and 10% of the pot) / Mistake ? / Blunder ??. Key moments:
+  the worst decisions, each a "find a better move".
+- *Replayer*: step through any hand move by move (arrows, or tap a move), the table rebuilt from
+  the log. "Guess first" (your mistakes, every move, or off): before your move the answer is hidden
+  and you pick first; then the coach's full analysis. Their cards stay hidden unless you ask (or
+  they showed).
+- *Leak report*: every non-best decision is classed by what you did against what was best:
+  too tight / too loose / flatting instead of raising preflop; overfolding to bets, calling too
+  much, calling when a raise wins; missed value, missed bluffs, betting too thin, bluffs that
+  don't work; sizing. Each leak: how often, its cost in bb/100, the fix, and the worst example
+  hands (which open in the replayer).
+
+**Log a live hand** (`src/engine/livelog.js`): enter a hand you played at the casino, in dollars
+(stakes $1/$2 to $5/$10): your seat, cards, stacks, the action as it happened ("folds to you" in
+one tap) and the board as it came. Tag the players who played (Station, Whale, Nit, Maniac, Reg,
+Pro, or Unknown: a typical $1/$2 mix). The hand is modelled 6-handed; each opponent's range is
+read through his type, and each of your decisions is priced against those ranges with your real
+bet sizes. The grades stay hidden until you finish. Villains' cards you never saw are
+placeholders (never shown, never used). Logged hands go into Review ("Your live hands", one
+session per day) and count in the leak report.
 
 ## 9. Learn
 
@@ -342,6 +416,8 @@ hand, and how far it has adjusted.
   `src/content/errata.js` (AKQ bet size, Hawrilenko's aces vs a known bluffer, the semi-bluff
   shortcut, iso sizing in limp-heavy games, MDF as a benchmark). Concepts come in three depths:
   Feel, Formula, Proof.
+- **Bet-size feel** (timed, 8 seconds): dollar amounts as they come at the table ("the pot is $95,
+  he bets $55"); name the size bucket or the price to call.
 - **Table maths** (`src/engine/drills.js`): endless generated questions with exact answers. The
   wrong options are the classic wrong formulas (α for pot odds, B/P for MDF), so a miss tells you
   which mistake you made. Outs and combos questions use real cards.
@@ -351,10 +427,10 @@ hand, and how far it has adjusted.
 
 ## 10. Roadmap
 
-1. Flop puzzles; profiles that also act on earlier streets.
-2. Multiway pots (most live limped pots are multiway; the solver is heads-up only).
+1. Profiles that also act on earlier streets in the solver library.
+2. Bot responses that scale with bet size beyond "overbet" (so huge shoves get fewer calls).
 3. Stronger thinking bots: two-street lookahead, and solver strategies as their baseline.
-4. "Your range" view in Play: the best action for every hand you could hold here.
+4. Straddles (optional).
 5. RL track (for the science): a self-play agent on the heads-up engine, measured on the same
    ladder.
 

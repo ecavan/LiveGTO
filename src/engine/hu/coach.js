@@ -99,7 +99,7 @@ export function coach(s, hero, agentOrId) {
     return { ...m, ev: round2(ev), info };
   });
 
-  const best = options.reduce((a, b, i) => (b.ev > options[a].ev ? i : a), 0);
+  const best = bestNatural(options, s.streetBet[hero], P);
   const tol = Math.max(0.1, 0.02 * P);
   const fine = options.map((o, i) => (options[best].ev - o.ev <= tol ? i : -1)).filter(i => i >= 0);
   return {
@@ -115,6 +115,18 @@ export function coach(s, hero, agentOrId) {
     fine,
     tol,
   };
+}
+
+/**
+ * The best option among the natural ones. An all-in of more than 2.5× the pot (a 100bb shove into
+ * a 10bb flop pot) is never the benchmark: the bot models treat any overbet alike, so its EV is
+ * a model artifact. You can still take it, and it grades as fine if it's worth as much.
+ */
+export function bestNatural(options, myBet, P) {
+  const natural = (o) => o.type !== 'allin' || o.to - myBet <= 2.5 * P + 1e-9;
+  let best = -1;
+  options.forEach((o, i) => { if (natural(o) && (best < 0 || o.ev > options[best].ev)) best = i; });
+  return best < 0 ? options.reduce((a, o, i) => (o.ev > options[a].ev ? i : a), 0) : best;
 }
 
 // ------------------------------------------------------------------ preflop

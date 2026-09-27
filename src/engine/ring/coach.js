@@ -17,6 +17,7 @@ import { ALL_COMBOS, handType, classify, CLASSES } from '../hu/hand.js';
 import { N, CA, CB, comboIndex, equityVsRange, evalFast } from '../hu/equity.js';
 import { RFI_RANGES, FACING_OPEN } from '../ranges.js';
 import { requiredEquity } from '../potmath.js';
+import { bestNatural } from '../hu/coach.js';
 
 const round2 = (x) => Math.round(x * 100) / 100;
 const sum = (a) => { let t = 0; for (let i = 0; i < a.length; i++) t += a[i]; return t; };
@@ -109,14 +110,33 @@ function oppsInOrder(s, hero) {
   return out;
 }
 
-export function ringCoach(s, hero, table, stats) {
+/**
+ * `extra`: an action the menu doesn't have (a logged live hand's real bet size) to price too.
+ */
+export function ringCoach(s, hero, table, stats, extra = null) {
   const bd = board(s);
   const opps = oppsInOrder(s, hero);
   const ranges = Object.fromEntries(opps.map(j => [j, rangeOf(s, j, table, hero, stats)]));
   const P = pot(s);
   const L = legal(s);
   const eq = equityMulti(s.holes[hero], opps.map(j => ranges[j]), bd);
-  const options = menu(s).map(m => {
+  const base = menu(s);
+  if (extra && !['fold', 'check', 'call'].includes(extra.type) && !base.some(o => o.to != null && Math.abs(o.to - extra.to) < 0.011)) {
+    const Lx = legal(s);
+    const to = round2(Math.min(Lx.maxTo, Math.max(Lx.minTo, extra.to)));
+    const allin = to >= Lx.maxTo - 1e-9;
+    const isBet = s.street > 0 && !Lx.facing;
+    const opt = allin ? { type: 'allin', to, label: `All-in ${to}` }
+      : { type: isBet ? 'bet' : 'raise', to, label: isBet ? `Bet ${round2(to - s.streetBet[hero])} (${Math.round((100 * (to - s.streetBet[hero])) / P)}%)` : `Raise to ${to}` };
+    // your real size replaces a menu size it's close to (within 5%), else it's added in order
+    const near = base.findIndex(o => o.type === opt.type && o.to != null && Math.abs(o.to - to) <= Math.max(0.25, 0.05 * o.to));
+    if (near >= 0) base[near] = opt;
+    else {
+      const at = base.findIndex(o => (o.to ?? 0) > to && ['bet', 'raise', 'allin'].includes(o.type));
+      base.splice(at < 0 ? base.length : at, 0, opt);
+    }
+  }
+  const options = base.map(m => {
     const info = {};
     let ev = 0;
     if (m.type === 'fold') ev = 0;
@@ -133,7 +153,9 @@ export function ringCoach(s, hero, table, stats) {
       let st = act(s, m);
       let allFold = 1, added = 0;
       const cont = {};
-      for (let guard = 0; guard < s.n && !st.done && st.toAct !== hero; guard++) {
+      // everyone behind responds once, on this street (when the round closes, stop: the next
+      // street's first player is not responding to this bet)
+      for (let guard = 0; guard < s.n && !st.done && st.toAct !== hero && st.street === s.street; guard++) {
         const j = st.toAct;
         const pol = playerPolicyAll(table.players[j], st, j, context(st, j, table.players[j], hero, stats));
         const fk = pol.opts.findIndex(o => o.type === 'fold');
@@ -157,7 +179,7 @@ export function ringCoach(s, hero, table, stats) {
     }
     return { ...m, ev: round2(ev), info };
   });
-  let best = options.reduce((a, o, i) => (o.ev > options[a].ev ? i : a), 0);
+  let best = bestNatural(options, s.streetBet[hero], P);
   const tol = Math.max(0.1, 0.02 * P);
   let fine = options.map((o, i) => (options[best].ev - o.ev <= tol ? i : -1)).filter(i => i >= 0);
   let chart = null;

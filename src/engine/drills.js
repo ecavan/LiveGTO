@@ -236,7 +236,56 @@ function impliedQ(rand) {
   };
 }
 
+// ------------------------------------------------------------------ bet-size feel (timed)
+
+const SIZE_BUCKETS = [
+  { max: 0.4, label: 'Small (under 40%)' },
+  { max: 0.6, label: 'Half pot (40–60%)' },
+  { max: 0.85, label: 'Big (60–85%)' },
+  { max: 1.2, label: 'Pot (85–120%)' },
+  { max: Infinity, label: 'Overbet (120%+)' },
+];
+const bucketOf = (f) => SIZE_BUCKETS.findIndex(b => f < b.max);
+
+/**
+ * Live dollar amounts, read fast: "the pot is $35, he bets $60". Either name the size or the price.
+ * Timed: at the table you get a few seconds, not a calculator.
+ */
+function feelQ(rand) {
+  const raw = 10 + Math.pow(rand(), 1.6) * 390;
+  const P = raw > 40 ? Math.round(raw / 5) * 5 : Math.round(raw);
+  const f = pick(rand, [0.28, 0.33, 0.4, 0.5, 0.55, 0.66, 0.75, 0.8, 1, 1.1, 1.3, 1.6, 2, 2.5]) * (0.93 + rand() * 0.14);
+  const B = Math.max(3, Math.round(P * f / (P * f > 40 ? 5 : 1)) * (P * f > 40 ? 5 : 1));
+  const frac = B / P;
+  const street = pick(rand, ['flop', 'turn', 'river']);
+  if (rand() < 0.5) {
+    const k = bucketOf(frac);
+    const labels = SIZE_BUCKETS.map(b => b.label);
+    const wrong = labels.filter((_, i) => i !== k).sort((a, b) => Math.abs(labels.indexOf(a) - k) - Math.abs(labels.indexOf(b) - k));
+    const r = mc(rand, labels[k], wrong);
+    return {
+      prompt: `${street[0].toUpperCase() + street.slice(1)}. The pot is <b>${money(P)}</b>. He bets <b>${money(B)}</b>. How big is that?`,
+      ...r,
+      explain: `${B} ÷ ${P} = <b>${(100 * frac).toFixed(0)}% of the pot</b>. Quick read: compare the bet with half the pot (${money(P / 2)}) and the whole pot (${money(P)}).
+        <div class="text-ink-400 text-xs mt-1">Live, most big bets on the turn and river are value. Small bets get called wide.</div>`,
+    };
+  }
+  const need = B / (P + 2 * B);
+  const anchors = [0.17, 0.2, 0.23, 0.25, 0.27, 0.29, 0.31, 0.33, 0.36, 0.38, 0.4, 0.42, 0.45];
+  const near = anchors.reduce((a, x) => (Math.abs(x - need) < Math.abs(a - need) ? x : a), anchors[0]);
+  const lab = (x) => `About ${Math.round(100 * x)}%`;
+  const wrong = [lab(B / (P + B)), lab(Math.min(0.6, frac)), ...anchors.filter(x => Math.abs(x - near) >= 0.06).sort((a, b) => Math.abs(a - near) - Math.abs(b - near)).map(lab)];
+  const r = mc(rand, lab(near), wrong);
+  return {
+    prompt: `${street[0].toUpperCase() + street.slice(1)}. The pot is <b>${money(P)}</b>. He bets <b>${money(B)}</b>. What equity do you need to call?`,
+    ...r,
+    explain: `Call ÷ final pot = ${B} ÷ (${P} + ${B} + ${B}) = <b>${(100 * need).toFixed(1)}%</b>. The bet is ${(100 * frac).toFixed(0)}% of the pot.
+      <div class="text-ink-400 text-xs mt-1">Anchors: ⅓ pot → 20%, ½ → 25%, ¾ → 30%, pot → 33%, 1.5× → 37.5%, 2× → 40%.</div>`,
+  };
+}
+
 export const DRILLS = {
+  feel: { name: 'Bet-size feel', blurb: 'Dollar bets at table speed: size and price in 8 seconds.', gen: feelQ, group: 'Speed', timed: 8 },
   potodds: { name: 'Pot odds', blurb: 'Equity you need to call a bet.', gen: potOdds, group: 'Price' },
   ev: { name: 'EV of a call', blurb: 'Win × equity − risk × (1 − equity).', gen: evCallQ, group: 'Price' },
   alpha: { name: 'Bluff break-even', blurb: 'How often a bluff must work (α).', gen: alphaQ, group: 'Bluffing' },

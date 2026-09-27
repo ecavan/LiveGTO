@@ -25,7 +25,95 @@ export function createMatch(aId, bId) {
     net: 0, // bot A's result
     hands: [],
     feed: [], // explained decisions in the current hand
+    stats: [newStats(), newStats()], // per bot (0 = player 1)
   };
+}
+
+const newStats = () => ({ hands: 0, vpip: 0, pfr: 0, cbetOpp: 0, cbet: 0, facedBet: 0, foldedToBet: 0, riverBets: 0, riverBluffs: 0, riverCalls: 0, riverCallsLost: 0, sdNet: 0, nonSdNet: 0 });
+
+/**
+ * Tally one finished hand into both bots' stats. Every card is known in Watch, so a river bet is
+ * a bluff when the bettor held air, a weak pair or a missed draw, whether or not it was called.
+ */
+export function tally(m, s) {
+  const pOf = (seat) => (seat === m.seatOfA ? 0 : 1);
+  const aggr = (e) => e.type === 'bet' || e.type === 'raise' || (e.type === 'allin' && !e.callAllIn);
+  const pre = s.log.filter(e => e.street === 0);
+  const lastPre = [...pre].reverse().find(aggr);
+  for (const seat of [0, 1]) {
+    const st = m.stats[pOf(seat)];
+    st.hands++;
+    const mine = pre.filter(e => e.seat === seat);
+    if (mine.some(e => e.type === 'call' || aggr(e))) st.vpip++;
+    if (mine.some(aggr)) st.pfr++;
+    const net = s.result.net[seat];
+    if (s.result.showdown) st.sdNet += net; else st.nonSdNet += net;
+  }
+  // c-bet: the preflop raiser's first flop action when nobody has bet yet
+  if (lastPre) {
+    const flop = s.log.filter(e => e.street === 1);
+    const first = flop.find(e => e.seat === lastPre.seat);
+    const before = first ? flop.slice(0, flop.indexOf(first)) : [];
+    if (first && !before.some(aggr)) {
+      const st = m.stats[pOf(lastPre.seat)];
+      st.cbetOpp++;
+      if (aggr(first)) st.cbet++;
+    }
+  }
+  // facing bets after the flop, and river bets / calls
+  for (let k = 0; k < s.log.length; k++) {
+    const e = s.log[k];
+    if (e.street === 0) continue;
+    const prev = s.log[k - 1];
+    const st = m.stats[pOf(e.seat)];
+    if (prev && prev.street === e.street && prev.seat !== e.seat && aggr(prev)) {
+      st.facedBet++;
+      if (e.type === 'fold') st.foldedToBet++;
+      if (e.street === 3 && (e.type === 'call' || (e.type === 'allin' && e.callAllIn))) {
+        st.riverCalls++;
+        if (s.result.showdown && s.result.net[e.seat] < 0) st.riverCallsLost++;
+      }
+    }
+    if (e.street === 3 && aggr(e)) {
+      st.riverBets++;
+      const cls = classify(s.holes[e.seat], s.runout);
+      if (cls === 'air' || cls === 'weak' || cls === 'draw') st.riverBluffs++;
+    }
+  }
+}
+
+const r0 = (x) => Math.round(x * 10) / 10;
+const share = (a, b) => (b ? a / b : null);
+
+/** Per-bot numbers and one sentence on how the winner is winning. */
+export function matchSummary(m) {
+  const names = m.agents.map(a => a.name);
+  const rows = m.stats.map(st => ({
+    vpip: share(st.vpip, st.hands), pfr: share(st.pfr, st.hands), cbet: share(st.cbet, st.cbetOpp),
+    foldToBet: share(st.foldedToBet, st.facedBet), riverBluff: share(st.riverBluffs, st.riverBets),
+    riverCallLost: share(st.riverCallsLost, st.riverCalls), sdNet: r0(st.sdNet), nonSdNet: r0(st.nonSdNet),
+    riverBets: st.riverBets, riverCalls: st.riverCalls,
+    n: { vpip: st.hands, pfr: st.hands, cbet: st.cbetOpp, foldToBet: st.facedBet, riverBluff: st.riverBets, riverCallLost: st.riverCalls },
+  }));
+  let story = null;
+  const n = m.hands.length;
+  if (n >= 8 && Math.abs(m.net) >= 3) {
+    const w = m.net > 0 ? 0 : 1, l = 1 - w;
+    const W = rows[w], L = rows[l];
+    const pc = (x) => `${Math.round(100 * x)}%`;
+    const bits = [];
+    if (W.nonSdNet >= W.sdNet) {
+      bits.push(`${names[w]} is winning without showdowns (${W.nonSdNet >= 0 ? '+' : ''}${W.nonSdNet}bb)`);
+      if (L.foldToBet != null) bits.push(`${names[l]} folds to ${pc(L.foldToBet)} of bets after the flop`);
+    } else {
+      bits.push(`${names[w]} is winning at showdown (${W.sdNet >= 0 ? '+' : ''}${W.sdNet}bb)`);
+      if (L.riverCallLost != null && L.riverCalls >= 2) bits.push(`${names[l]} pays off: ${pc(L.riverCallLost)} of his river calls lose`);
+      else if (L.riverBluff != null && L.riverBets >= 2) bits.push(`${names[l]} bluffs too much: ${pc(L.riverBluff)} of his river bets are bluffs`);
+    }
+    if (W.riverBluff != null && W.riverBets >= 3) bits.push(`${names[w]}'s river bets are ${pc(W.riverBluff)} bluffs`);
+    story = bits.join('; ') + '.';
+  }
+  return { names, rows, story, hands: n };
 }
 
 export function startHand(m, rand = Math.random) {
@@ -103,6 +191,7 @@ function finish(m) {
   handEnded(m.agents[1], s, 1 - m.seatOfA);
   const netA = s.result.net[m.seatOfA];
   m.net += netA;
+  tally(m, s);
   m.hands.push({ no: m.handNo, netA, pot: s.result.pot, showdown: s.result.showdown });
 }
 

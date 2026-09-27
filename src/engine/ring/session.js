@@ -76,9 +76,8 @@ export function coachNow(t) {
   return t.pending.k;
 }
 
-export function heroAct(t, idx) {
-  const k = coachNow(t);
-  const s = t.s;
+/** The graded decision for option `idx` of coach result `k` at state `s` (hero `seat`). */
+export function gradeDecision(s, k, idx, seat = HERO) {
   const opt = k.options[idx];
   if (!opt) throw new Error(`no option ${idx}`);
   const best = k.options[k.best];
@@ -91,12 +90,19 @@ export function heroAct(t, idx) {
   }
   loss = Math.round(loss * 100) / 100;
   const verdict = idx === k.best ? 'best' : k.fine.includes(idx) ? 'fine' : (loss >= 10 || loss >= 0.25 * pot(s)) ? 'blunder' : 'mistake';
-  const d = {
-    at: s.log.length, street: s.street, board: board(s), hole: s.holes[HERO], pot: pot(s),
+  return {
+    at: s.log.length, street: s.street, board: board(s), hole: s.holes[seat], pot: pot(s),
     toCall: legal(s).callAmount, options: k.options.map(o => ({ type: o.type, to: o.to, label: o.label, ev: o.ev, info: o.info })),
     best: k.best, fine: k.fine, chosen: idx, loss, verdict, equity: k.equity, need: k.need, range: k.range,
     preflop: k.preflop, chart: k.chart, notes: k.notes, opponents: k.opponents,
   };
+}
+
+export function heroAct(t, idx) {
+  const k = coachNow(t);
+  const s = t.s;
+  const opt = k.options[idx];
+  const d = gradeDecision(s, k, idx);
   t.decisions.push(d);
   track(t, s, HERO, opt);
   t.s = act(s, opt);

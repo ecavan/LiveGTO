@@ -1,10 +1,10 @@
 /**
  * Watch two bots play, every card face up, each decision explained.
  */
-import { createMatch, startHand, step, scoreboard, agentAt, AGENTS, TYPE_NAME } from '../../engine/hu/watch.js';
+import { createMatch, startHand, step, scoreboard, agentAt, AGENTS, TYPE_NAME, matchSummary } from '../../engine/hu/watch.js';
 import { AGENT_IDS, eloOf } from '../../engine/hu/agents.js';
 import { board, pot, BTN } from '../../engine/hu/game.js';
-import { pokerTable, fmtBB, seg, wireSeg, icon, esc, handText, stat } from '../kit.js';
+import { pokerTable, fmtBB, seg, wireSeg, icon, esc, handText, stat, disc } from '../kit.js';
 import { pct } from '../../engine/potmath.js';
 import { historyHtml, playTabs } from './views.js';
 
@@ -113,6 +113,7 @@ function draw(container) {
   const a = AGENTS[m.ids[0]], b = AGENTS[m.ids[1]];
   const tone = (x) => (x > 0 ? 'text-emerald-300' : x < 0 ? 'text-rose-300' : '');
   const feed = m.feed.slice(0, -1).reverse().slice(0, 8).map(d => `<div class="text-xs text-ink-300 flex gap-2"><span class="text-ink-500 w-12 shrink-0">${STREET[d.street]}</span><span><b class="text-ink-100">${esc(d.who)}</b> ${esc(d.action)}</span></div>`).join('');
+  const openState = [...container.querySelectorAll('details')].map(d => d.open);
   container.innerHTML = `<div class="page">
     <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
       <div class="text-sm text-ink-300"><b class="text-white">${a.name}</b> vs <b class="text-white">${b.name}</b> · hand ${m.handNo}</div>
@@ -137,11 +138,13 @@ function draw(container) {
           </div>
           ${sb.readAofB ? `<div class="text-xs text-ink-300">${a.name} reads ${b.name} as <b class="text-amber-200">${TYPE_NAME(sb.readAofB.type)}</b> (${pct(sb.readAofB.p)})</div>` : ''}
           ${sb.readBofA ? `<div class="text-xs text-ink-300">${b.name} reads ${a.name} as <b class="text-amber-200">${TYPE_NAME(sb.readBofA.type)}</b> (${pct(sb.readBofA.p)})</div>` : ''}
+          ${summaryHtml()}
         </div>
       </div>
       <div class="panel panel-pad min-w-0">${historyHtml(m.s, -1, [agentAt(m, 0).name, agentAt(m, 1).name])}</div>
     </div>
   </div>`;
+  container.querySelectorAll('details').forEach((d, i) => { if (openState[i]) d.open = true; });
   container.querySelector('#w-new').addEventListener('click', () => { m = null; st.running = false; setup(container); });
   container.querySelector('#w-toggle').addEventListener('click', () => { st.running = !st.running; draw(container); });
   container.querySelector('#w-step')?.addEventListener('click', () => { advance(); draw(container); });
@@ -154,6 +157,20 @@ function draw(container) {
       draw(container);
     }, m.s.done ? SPEED[st.speed] * 1.6 : SPEED[st.speed]);
   }
+}
+
+function summaryHtml() {
+  const sm = matchSummary(m);
+  if (sm.hands < 3) return '';
+  const f = (x) => (x == null ? '—' : pct(x));
+  const bb = (x) => `<span class="${x > 0 ? 'text-emerald-300' : x < 0 ? 'text-rose-300' : ''}">${x > 0 ? '+' : ''}${x}</span>`;
+  const row = (label, k, fmt = f) => `<tr><td class="py-1 text-ink-400">${label}</td>${sm.rows.map(r => `<td class="py-1 text-right num text-ink-100">${fmt(r[k])}${r.n?.[k] != null && r.n[k] > 0 && r.n[k] < 10 ? `<span class="text-ink-500 text-[11px]"> (${r.n[k]})</span>` : ''}</td>`).join('')}</tr>`;
+  const table = `<table class="w-full text-sm"><thead><tr><th></th>${sm.names.map(n => `<th class="text-right text-xs font-semibold text-ink-300 pb-1">${esc(n)}</th>`).join('')}</tr></thead><tbody>
+    ${row('VPIP', 'vpip')}${row('PFR', 'pfr')}${row('C-bet', 'cbet')}${row('Folds to a bet', 'foldToBet')}
+    ${row('River bets that are bluffs', 'riverBluff')}${row('River calls that lose', 'riverCallLost')}
+    ${row('Won at showdown', 'sdNet', bb)}${row('Won without', 'nonSdNet', bb)}</tbody></table>`;
+  return `${sm.story ? `<div class="text-sm text-ink-100 rounded-lg bg-ink-850 border border-ink-700 px-3 py-2"><b class="text-amber-200">How it's going:</b> ${esc(sm.story)}</div>` : ''}
+    ${disc(`Match stats · ${sm.hands} hands`, table, false)}`;
 }
 
 function advance() {

@@ -7,6 +7,7 @@ import { loadRaw, save, KEYS } from '../../store.js';
 
 let state = null;
 let keyHandler = null;
+let clock = null;
 
 export function render(container, [id = 'potodds'] = []) {
   const d = DRILLS[id] || DRILLS.potodds;
@@ -18,7 +19,7 @@ export function render(container, [id = 'potodds'] = []) {
     else if (e.key === 'Enter' || e.key === ' ') { const b = container.querySelector('#dr-next'); if (b) { e.preventDefault(); b.click(); } }
   };
   window.addEventListener('keydown', keyHandler);
-  return () => { window.removeEventListener('keydown', keyHandler); keyHandler = null; };
+  return () => { window.removeEventListener('keydown', keyHandler); keyHandler = null; clearInterval(clock); clock = null; };
 }
 
 function draw(container, d) {
@@ -40,6 +41,7 @@ function draw(container, d) {
       </div>
     </div>
     <div class="panel panel-pad space-y-4">
+      ${d.timed ? `<div class="h-1.5 rounded-full bg-ink-700 overflow-hidden"><div id="dr-clock" class="h-full bg-amber-400" style="width:${has ? 0 : 100}%;transition:width .1s linear"></div></div>` : ''}
       <div class="text-lg text-white leading-snug">${q.prompt}</div>
       ${q.hole || q.board ? `<div class="flex items-center justify-center gap-6 py-1 flex-wrap">
         ${q.hole ? `<div class="text-center"><div class="text-xs text-ink-400 mb-1">You</div><div class="flex gap-1">${cards(q.hole, 'lg')}</div></div>` : ''}
@@ -54,7 +56,7 @@ function draw(container, d) {
           return `<button data-opt="${i}" class="rounded-xl border px-4 py-4 text-lg font-semibold num transition ${cls}" ${has ? 'disabled' : ''}>${o}</button>`;
         }).join('')}
       </div>
-      ${has ? `${verdict(answered === q.correct ? 'best' : 'mistake', answered === q.correct ? 'Correct' : `Answer: ${q.options[q.correct]}`)}
+      ${has ? `${verdict(answered === q.correct ? 'best' : 'mistake', answered === q.correct ? `Correct${state.took != null ? ` · ${state.took.toFixed(1)}s` : ''}` : answered < 0 ? `Too slow. Answer: ${q.options[q.correct]}` : `Answer: ${q.options[q.correct]}`)}
         <div class="text-[15px] text-ink-100 leading-relaxed">${q.explain}</div>
         <button id="dr-next" class="btn btn-primary btn-lg btn-block">Next ${icon('next', 'w-5 h-5')}</button>` : ''}
     </div>
@@ -66,10 +68,26 @@ function draw(container, d) {
     state.answered = null;
     draw(container, d);
   });
+  clearInterval(clock);
+  clock = null;
+  if (d.timed && !has) {
+    const t0 = performance.now();
+    state.t0 = t0;
+    clock = setInterval(() => {
+      const left = 1 - (performance.now() - t0) / (1000 * d.timed);
+      const bar = container.querySelector('#dr-clock');
+      if (!bar || !container.isConnected) { clearInterval(clock); return; }
+      bar.style.width = `${Math.max(0, 100 * left)}%`;
+      if (left < 0.3) bar.classList.replace('bg-amber-400', 'bg-rose-400');
+      if (left <= 0) { clearInterval(clock); answer(container, d, -1); }
+    }, 100);
+  }
 }
 
 function answer(container, d, i) {
   if (state.answered != null) return;
+  clearInterval(clock);
+  state.took = d.timed && i >= 0 ? (performance.now() - state.t0) / 1000 : null;
   state.answered = i;
   const ok = i === state.q.correct;
   state.streak = ok ? state.streak + 1 : 0;
