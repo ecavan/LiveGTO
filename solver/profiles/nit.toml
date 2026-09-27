@@ -1,0 +1,28 @@
+name = "Nit"
+description = """
+Tight-passive. Folds too much to pressure, only raises the nuts, and his big bets and raises
+are almost never bluffs. Respect his aggression, attack his checks."""
+
+[[rules]]
+note = "folds too much when he isn't strong"
+facing = "bet"
+hands = ["medium", "weak", "draw", "air"]
+scale = { fold = 2.5 }
+
+[[rules]]
+note = "only raises the nuts"
+facing = "bet"
+hands = ["strong", "medium", "weak", "draw", "air"]
+scale = { raise = 0.15 }
+
+[[rules]]
+note = "never bluffs"
+facing = "none"
+hands = ["weak", "draw", "air"]
+scale = { aggressive = 0.1 }
+
+[[rules]]
+note = "checks his medium hands"
+facing = "none"
+hands = ["medium"]
+scale = { aggressive = 0.4 }

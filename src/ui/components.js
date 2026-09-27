@@ -57,6 +57,7 @@ export function renderPokerTable({ seats, board, dealerSeat, pot, situation, bet
   let seatsHtml = '';
   for (let i = 0; i < seats.length; i++) {
     const seat = seats[i];
+    if (seat.hidden) continue;
     let seatClass = 'seat-inactive';
     if (seat.is_hero) seatClass = 'seat-hero seat-active';
     else if (seat.is_active) seatClass = 'seat-active';

@@ -1,0 +1,53 @@
+name = "Station"
+description = """
+Loose-passive calling station. Calls far too much, rarely raises, almost never bluffs, and
+checks a lot of hands he should bet. When he does bet, he has it.
+The most common profitable opponent at $1/$2."""
+
+[[rules]]
+note = "never folds a pair to a normal bet"
+facing_size = ["small", "large"]
+hands = ["strong", "medium", "weak"]
+scale = { fold = 0.25 }
+
+[[rules]]
+note = "calls off top pair against an overbet or shove"
+facing_size = ["overbet"]
+hands = ["strong"]
+scale = { fold = 0.5 }
+
+[[rules]]
+note = "but usually lets go of weaker pairs when the bet is huge"
+facing_size = ["overbet"]
+hands = ["medium", "weak"]
+scale = { fold = 0.85 }
+
+[[rules]]
+note = "floats too much with nothing, but does give up eventually"
+facing = "bet"
+hands = ["draw", "air"]
+scale = { fold = 0.8 }
+
+[[rules]]
+note = "calls instead of raising, except with the nuts"
+facing = "bet"
+hands = ["strong", "medium", "weak", "draw", "air"]
+scale = { raise = 0.3 }
+
+[[rules]]
+note = "doesn't bluff"
+facing = "none"
+hands = ["weak", "draw", "air"]
+scale = { aggressive = 0.15 }
+
+[[rules]]
+note = "checks his medium hands"
+facing = "none"
+hands = ["medium"]
+scale = { aggressive = 0.5 }
+
+[[rules]]
+note = "bets smaller than he should with value"
+facing = "none"
+hands = ["monster", "strong"]
+scale = { bet_small = 1.5 }

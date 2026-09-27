@@ -12,6 +12,15 @@ export function render(container) {
     </div>
 
     <div class="grid gap-4 max-w-sm mx-auto">
+      <a href="#puzzles"
+         class="block p-6 bg-emerald-900/40 rounded-xl border border-emerald-500/50
+                hover:border-emerald-400/80 hover:bg-emerald-900/60 transition-all">
+        <h2 class="text-lg font-semibold text-emerald-300">Puzzles</h2>
+        <p class="text-sm text-gray-400 mt-1">Real cards, one right answer &mdash; vs GTO or vs a Station, Nit, Maniac or Whale. Rated like chess puzzles.</p>
+      </a>
+
+      <p class="text-[0.7rem] text-gray-600 -mb-2">The modes below still run on the old bucket model and are being rebuilt on the solver.</p>
+
       <a href="#simulate"
          class="block p-6 bg-amber-900/30 rounded-xl border border-amber-700/40
                 hover:border-amber-500/60 hover:bg-amber-900/50 transition-all">

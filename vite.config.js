@@ -22,6 +22,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,json,svg,png}'],
+        // the puzzle library ships as a few MB of JSON; keep it all offline
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/cdn\.tailwindcss\.com/,

@@ -2,6 +2,7 @@
  * Simulate mode — heads-up session with AI villain.
  * Full state machine ported from Flask routes.
  */
+import { requiredEquity, potOddsRatio, pct } from '../engine/potmath.js';
 import {
   generateSimHand, villainPreflopAct, villainPostflopAct,
   resolveShowdown, getHeroGtoAction, computeDeviation,
@@ -66,17 +67,15 @@ function renderBlockerChips(insights) {
   return `<div class="flex flex-wrap justify-center gap-1.5 mt-1">${chips}</div>`;
 }
 
-function renderPotOdds(pot, betToCall) {
-  if (betToCall <= 0) return '';
-  const totalPot = pot + betToCall;
-  const pct = Math.round((betToCall / totalPot) * 100);
-  const ratio = (totalPot / betToCall).toFixed(1);
+/** Pot odds for a call. `potWithBet` includes villain's bet; see engine/potmath.js. */
+function renderPotOdds(potWithBet, toCall) {
+  if (toCall <= 0) return '';
+  const need = requiredEquity(potWithBet, toCall);
+  const ratio = potOddsRatio(potWithBet, toCall).toFixed(1);
   return `<div class="text-center text-xs text-gray-500 mt-1">
-    Pot odds: <span class="text-amber-400 font-mono">${pct}%</span>
+    Pot odds <span class="text-gray-400 font-mono">${ratio}:1</span>
     <span class="text-gray-600 mx-1">|</span>
-    <span class="text-gray-400 font-mono">${ratio}:1</span>
-    <span class="text-gray-600 mx-1">|</span>
-    Need <span class="text-amber-400 font-mono">${pct}%</span> equity to call
+    Need <span class="text-amber-400 font-mono">${pct(need)}</span> equity to call
   </div>`;
 }
 
@@ -396,7 +395,7 @@ function renderSimHand(container) {
       && ['raise', 'bet_s', 'bet_m', 'bet_l'].includes(state.villain_last_action);
     if (facingBet) {
       const betToCall = state.villain_street_invested - state.hero_street_invested;
-      extras += renderPotOdds(state.pot - betToCall, betToCall);
+      extras += renderPotOdds(state.pot, betToCall);
     }
     phaseContent = `${villainMsg}${extras}${renderActionButtons(actions, labels)}`;
   } else if (state.sim_phase === 'showdown') {
@@ -972,7 +971,7 @@ function renderMultiwayHand(container) {
     const facingBet = state.current_bet > hero.street_invested;
     if (facingBet) {
       const betToCall = state.current_bet - hero.street_invested;
-      extras += renderPotOdds(state.pot - betToCall, betToCall);
+      extras += renderPotOdds(state.pot, betToCall);
     }
     phaseContent = `${extras}${renderActionButtons(actions, labels)}`;
   } else if (state.sim_phase === 'showdown') {

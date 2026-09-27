@@ -1,0 +1,11 @@
+name = "Turn barrel"
+description = """
+Single-raised pot, you raised the button and c-bet an ace-high flop; he called.
+Turn is a blank and he checks. Do you barrel?"""
+board = "As9h4d7c"
+hero = "ip"
+line = ["x"]
+pot = 16.0
+stack = 90.0
+oop_range = "A8s-A2s,A8o-A2o,99,44,77,98s,T9s,J9s,Q9s,K9s,T8s,65s,JTs,86s"
+ip_range = "AA,99,44,AKs,AKo,AQs,AQo,AJs,AJo,ATs,KQs,KJs,QJs,JTs,T8s,65s,K9s,Q9s,KTs,QTs,76s,55,66"

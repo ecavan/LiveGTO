@@ -1,0 +1,25 @@
+[workspace]
+resolver = "2"
+members = ["crates/ps-core", "crates/ps-solve", "crates/ps-cli"]
+
+[workspace.package]
+edition = "2021"
+license = "AGPL-3.0-or-later"
+
+[workspace.dependencies]
+# Pinned: development of postflop-solver is suspended, so we pin the last commit.
+postflop-solver = { git = "https://github.com/b-inary/postflop-solver", rev = "9d1509fe5077d019825f833eed04b16d342dfda1", default-features = false, features = ["rayon"] }
+# (its optional `bincode` save/load feature no longer compiles against current bincode releases;
+#  we persist our own JSON instead)
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+
+[profile.test]
+opt-level = 3

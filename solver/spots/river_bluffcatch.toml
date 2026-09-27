@@ -1,0 +1,13 @@
+name = "River bluff-catch"
+description = """
+Single-raised pot, BB vs BTN. You called flop and turn, checked the river, and he bets 75% pot.
+The classic 'I have top pair, can I fold?' spot (the Queen problem)."""
+board = "Kh9d4c7s2h"
+hero = "oop"
+line = ["x", "b75"]
+pot = 20.0
+stack = 80.0
+# BB after check-calling flop and turn: top pairs, second pairs, a few sets, missed draws.
+oop_range = "99,77,44,22,KJs-K2s,KJo-K9o,A9s,Q9s,J9s,T9s,98s,97s,A4s,QJs,JTs,T8s,86s,65s"
+# BTN after betting flop and turn: strong kings and overpairs, sets, plus missed draws.
+ip_range = "AA,KK,99,44,AKs,AKo,KQs,KQo,KJs,KTs,A9s,QJs,JTs,T8s,86s,65s,A5s,Q9s"

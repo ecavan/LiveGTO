@@ -1,0 +1,11 @@
+name = "River thin value"
+description = """
+Single-raised pot, you are on the button. He checks the river to you.
+How thin can you value bet, and how big?"""
+board = "Qs8h5d3c2s"
+hero = "ip"
+line = ["x"]
+pot = 18.0
+stack = 90.0
+oop_range = "QJs,QTs,Q9s,QJo,QTo,88,55,33,J8s,T8s,98s,87s,A8s,76s,KQs,KJs,A5s,64s,JTs"
+ip_range = "AQs,AQo,KQs,KQo,QJs,QJo,QTs,Q9s,A8s,98s,87s,T8s,88,99,TT,JJ,AKs,AKo,A5s,64s,KJs,JTs"

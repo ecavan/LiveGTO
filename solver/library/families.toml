@@ -1,0 +1,25 @@
+# Spot families for the puzzle library. Build with:
+#   cargo run --release -p ps-cli -- library library/families.toml --out ../public/library
+#
+# Ranges (docs/theory-audit.md §4):
+#  - BTN open: Ed Miller, The Course p.43-75 (live 9-10 handed $1/$2), ~33%.
+#  - BB vs a small BTN open: The Course p.71-73 says defend ~36% in total. Flat ~33% here after
+#    removing a value/bluff 3-bet range (QQ+, AK, A5s-A4s).
+
+profiles_dir = "../profiles"
+
+[[family]]
+id = "srp_btn_bb"
+name = "Single-raised pot, BTN vs BB"
+preflop = "BTN opens 2.5bb, SB folds, BB calls"
+oop_pos = "BB"
+ip_pos = "BTN"
+ip_range = "22+,A2s+,K2s+,Q5s+,J7s+,T9s,98s,87s,76s,65s,54s,43s,T8s,97s,86s,75s,64s,53s,T7s,96s,A7o+,K9o+,QTo+,JTo"
+oop_range = "JJ-22,AQs-A6s,A3s-A2s,KQs-K5s,QJs-Q6s,JTs-J7s,T9s-T7s,98s-96s,87s-85s,76s-74s,65s-63s,54s-53s,43s,AQo-A8o,KQo-K9o,QJo-Q9o,JTo-J9o,T9o,98o"
+pot = 5.5
+stack = 97.5
+flops = ["Kh9s4d", "As7d2c", "QsJh8h", "Td9d6c", "8s5h2d", "7h7d3c", "AhKd5s", "9h8c7d", "Jc6c3c", "5d4c3h"]
+turns_per_line = 2
+rivers_per_line = 1
+profiles = ["gto.toml", "station.toml", "nit.toml", "maniac.toml", "whale.toml"]
+seed = 7

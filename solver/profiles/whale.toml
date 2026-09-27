@@ -1,0 +1,34 @@
+name = "Whale"
+description = """
+The recreational player who is there to gamble. Calls almost anything, raises every draw,
+and sizes his bets by hand strength (big = strong, small = not)."""
+
+[[rules]]
+note = "almost never folds"
+facing = "bet"
+scale = { fold = 0.15 }
+
+[[rules]]
+note = "raises his draws every time"
+facing = "bet"
+streets = ["flop", "turn"]
+hands = ["draw"]
+set = { raise = 0.7, call = 0.3 }
+
+[[rules]]
+note = "otherwise just calls"
+facing = "bet"
+hands = ["strong", "medium", "weak", "air"]
+scale = { raise = 0.3 }
+
+[[rules]]
+note = "size tell: big bet = big hand"
+facing = "none"
+hands = ["monster", "strong"]
+scale = { bet_large = 3.0, bet_small = 0.5 }
+
+[[rules]]
+note = "size tell: small bet = weak or drawing"
+facing = "none"
+hands = ["medium", "weak", "draw", "air"]
+scale = { bet_large = 0.2, bet_small = 1.5 }

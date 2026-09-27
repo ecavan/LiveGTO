@@ -1,0 +1,20 @@
+name = "Maniac"
+description = """
+Loose-aggressive to a fault. Bets and raises far too often, especially with air and draws,
+and folds too little. Call him down lighter; let him bluff."""
+
+[[rules]]
+note = "bets whenever checked to"
+facing = "none"
+scale = { aggressive = 2.5 }
+
+[[rules]]
+note = "bluffs big with nothing"
+facing = "none"
+hands = ["weak", "draw", "air"]
+scale = { bet_large = 2.0, allin = 2.0 }
+
+[[rules]]
+note = "raises too much"
+facing = "bet"
+scale = { raise = 2.5, fold = 0.6 }

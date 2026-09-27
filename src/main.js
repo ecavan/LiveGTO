@@ -13,7 +13,11 @@ register('home', renderHome);
 register('preflop', renderPreflop);
 register('postflop', renderPostflop);
 
-// Lazy-load play and simulate (bigger modules)
+// Lazy-load puzzles, play and simulate (bigger modules)
+register('puzzles', async (container) => {
+  const { render } = await import('./ui/puzzles.js');
+  render(container);
+});
 register('play', async (container) => {
   const { render } = await import('./ui/play.js');
   render(container);
@@ -24,7 +28,7 @@ register('simulate', async (container) => {
 });
 
 // Header navigation
-document.querySelector('.logo-link')?.addEventListener('click', (e) => {
+document.querySelector('header a')?.addEventListener('click', (e) => {
   e.preventDefault();
   window.location.hash = 'home';
 });
