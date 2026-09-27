@@ -9,12 +9,13 @@ import {
   cellLabel, cellOf, loadStats, saveStats,
 } from '../engine/puzzles.js';
 import { pct } from '../engine/potmath.js';
+import { flopTexture, textureLabel, boardTags, randomSuitMap, remapCard, isCard } from '../engine/texture.js';
 
 let index = null;
 const files = new Map();
 let stats = loadStats();
-let filters = { street: '', profile: '', decision: '', family: '' };
-let current = null; // { cand, record, puzzle, answered, gridTab }
+let filters = { street: '', profile: '', decision: '', family: '', suits: '', connect: '', paired: '', height: '' };
+let current = null; // { cand, record, puzzle, view, answered, gridTab }
 
 async function getIndex() {
   if (!index) {
@@ -53,7 +54,15 @@ async function next(container) {
     return;
   }
   const record = await getRecord(cand);
-  current = { cand, record, puzzle: record.puzzles[cand.i], answered: null, gridTab: 'villain' };
+  const puzzle = record.puzzles[cand.i];
+  // Relabel suits at random: the same solved spot, shown as any member of its board family.
+  const m = randomSuitMap();
+  const view = {
+    board: record.board.map(c => remapCard(c, m)),
+    cards: remapCard(puzzle.cards, m),
+    prior: record.history.prior.map(x => (isCard(x) ? remapCard(x, m) : x)),
+  };
+  current = { cand, record, puzzle, view, answered: null, gridTab: 'villain' };
   draw(container);
 }
 
@@ -72,6 +81,21 @@ function filterBar() {
     <select data-f="family" class="bg-gray-900 border border-gray-700 rounded px-2 py-1">
       ${opt('', 'All pots', filters.family)}
       ${families(index).map(f => opt(f.id, f.name, filters.family)).join('')}
+    </select>
+  </div>
+  <div class="flex flex-wrap gap-2 justify-center text-xs">
+    <span class="text-gray-500 self-center">Flop:</span>
+    <select data-f="suits" class="bg-gray-900 border border-gray-700 rounded px-2 py-1">
+      ${opt('', 'any suits', filters.suits)}${opt('rainbow', 'rainbow', filters.suits)}${opt('two-tone', 'two-tone', filters.suits)}${opt('monotone', 'monotone', filters.suits)}
+    </select>
+    <select data-f="connect" class="bg-gray-900 border border-gray-700 rounded px-2 py-1">
+      ${opt('', 'any connectedness', filters.connect)}${opt('connected', 'connected', filters.connect)}${opt('semi', 'semi-connected', filters.connect)}${opt('dry', 'dry', filters.connect)}
+    </select>
+    <select data-f="paired" class="bg-gray-900 border border-gray-700 rounded px-2 py-1">
+      ${opt('', 'paired or not', filters.paired)}${opt('unpaired', 'unpaired', filters.paired)}${opt('paired', 'paired', filters.paired)}
+    </select>
+    <select data-f="height" class="bg-gray-900 border border-gray-700 rounded px-2 py-1">
+      ${opt('', 'any high card', filters.height)}${opt('ace', 'A-high', filters.height)}${opt('big', 'K/Q-high', filters.height)}${opt('mid', 'J–8-high', filters.height)}${opt('low', '7-high or lower', filters.height)}
     </select>
     <select data-f="street" class="bg-gray-900 border border-gray-700 rounded px-2 py-1">
       ${opt('', 'Turn + river', filters.street)}${opt('turn', 'Turn', filters.street)}${opt('river', 'River', filters.street)}
@@ -99,9 +123,9 @@ function header() {
   </div>`;
 }
 
-function historyLines(r) {
+function historyLines(r, view) {
   const street = { turn: 'Turn', river: 'River' }[r.street];
-  const prior = r.history.prior.join(', ');
+  const prior = view.prior.join(', ');
   const cur = r.history.street.length ? r.history.street.join(', ') : '—';
   return `
   <div class="text-xs text-gray-400 space-y-0.5 font-mono">
@@ -122,8 +146,8 @@ function villainBadge(r) {
 }
 
 /** Heads-up table: hero at the bottom (seat 1), villain at the top (seat 4), nobody else. */
-function table(r, p) {
-  const heroCards = [p.cards.slice(0, 2), p.cards.slice(2, 4)].map(cardToDisplay);
+function table(r, view) {
+  const heroCards = [view.cards.slice(0, 2), view.cards.slice(2, 4)].map(cardToDisplay);
   const seats = Array.from({ length: 6 }, () => ({ hidden: true }));
   seats[0] = { position: r.hero.pos, is_hero: true, is_active: true, cards: heroCards, stack: r.stack.toFixed(1) };
   seats[3] = { position: r.villain.pos, is_active: true, cards: null, stack: (r.stack - r.to_call).toFixed(1) };
@@ -132,12 +156,19 @@ function table(r, p) {
   const potShown = (r.pot - r.to_call).toFixed(1);
   return renderPokerTable({
     seats, dealerSeat, bets,
-    board: r.board.map(cardToDisplay),
+    board: view.board.map(cardToDisplay),
     pot: null,
     situation: null,
   }) + `<div class="text-center text-sm font-mono text-amber-300/90 -mt-1">`
     + `${r.street === 'turn' ? 'Turn' : 'River'} · pot ${potShown}bb · ${r.decision_desc}`
-    + (r.to_call > 0 ? ` · ${r.to_call}bb to call` : '') + `</div>`;
+    + (r.to_call > 0 ? ` · ${r.to_call}bb to call` : '') + `</div>`
+    + textureLine(view.board);
+}
+
+function textureLine(board) {
+  const tags = boardTags(board).map(t => `<span class="inline-block whitespace-nowrap px-1.5 py-0.5 rounded bg-gray-800 text-gray-300">${t}</span>`).join(' ');
+  return `<div class="text-center text-[0.7rem] text-gray-400 mt-1 space-x-1">
+    <span>Flop: ${textureLabel(flopTexture(board))}</span>${tags ? ` · ${tags}` : ''}</div>`;
 }
 
 function actionButtons(r) {
@@ -229,8 +260,8 @@ function draw(container) {
     ${header()}
     ${filterBar()}
     ${villainBadge(r)}
-    ${table(r, p)}
-    ${historyLines(r)}
+    ${table(r, current.view)}
+    ${historyLines(r, current.view)}
     <div class="text-sm text-center text-gray-300">You have <span class="font-semibold">${p.hand}</span>. What's your play?</div>
     <div id="pz-body">${answered ? feedback(r, p, answered.g, answered.choice) : actionButtons(r)}</div>
   </div>`;

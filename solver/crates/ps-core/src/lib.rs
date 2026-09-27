@@ -67,9 +67,9 @@ pub fn cards_from_str(s: &str) -> Option<Vec<Card>> {
 )]
 #[serde(rename_all = "snake_case")]
 pub enum HandClass {
-    /// Sets, straights, flushes, boats, two pair using both hole cards on an unpaired board.
+    /// Sets, straights, flushes, boats, top two pair.
     Monster,
-    /// Overpairs, top pair with a good kicker (T+), trips.
+    /// Overpairs, top pair with a good kicker (T+), trips, other two pair using both hole cards.
     Strong,
     /// Top pair weak kicker, second pair, pocket pair between the top two board cards.
     Medium,
@@ -147,9 +147,11 @@ pub fn classify(hole: (Card, Card), board: &[Card]) -> HandClass {
         }
     }
 
-    // Two pair using both hole cards on an unpaired board.
+    // Two pair using both hole cards on an unpaired board: top two is a monster, the rest are
+    // strong (bottom two on A-Q-J-8-3 is often beaten by the lines that bet big).
     if !pocket_pair && !board_paired && board_count(r1) == 1 && board_count(r2) == 1 {
-        return HandClass::Monster;
+        let top_two = board_ranks.len() >= 2 && r1.max(r2) == board_ranks[0] && r1.min(r2) == board_ranks[1];
+        return if top_two { HandClass::Monster } else { HandClass::Strong };
     }
 
     // Hero's own pair, if any.
@@ -266,7 +268,9 @@ mod tests {
     fn made_hands() {
         assert_eq!(cls("9h9s", "9dTc2s"), HandClass::Monster); // set
         assert_eq!(cls("JhQd", "9dTc8s"), HandClass::Monster); // straight
-        assert_eq!(cls("Th9h", "9dTc2s"), HandClass::Monster); // two pair, both cards
+        assert_eq!(cls("Th9h", "9dTc2s"), HandClass::Monster); // top two pair
+        assert_eq!(cls("Th2h", "9dTc2s"), HandClass::Strong); // top and bottom
+        assert_eq!(cls("8h3d", "AsQdJc8c3h"), HandClass::Strong); // bottom two
         assert_eq!(cls("AhAd", "9dTc2s"), HandClass::Strong); // overpair
         assert_eq!(cls("AhTd", "9dTc2s"), HandClass::Strong); // TPTK
         assert_eq!(cls("Th5d", "9dTc2s"), HandClass::Medium); // top pair weak kicker

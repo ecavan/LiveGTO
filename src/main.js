@@ -14,6 +14,10 @@ register('preflop', renderPreflop);
 register('postflop', renderPostflop);
 
 // Lazy-load puzzles, play and simulate (bigger modules)
+register('playbook', async (container) => {
+  const { render } = await import('./ui/playbook.js');
+  render(container);
+});
 register('puzzles', async (container) => {
   const { render } = await import('./ui/puzzles.js');
   render(container);

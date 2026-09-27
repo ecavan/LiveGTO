@@ -7,6 +7,9 @@ a PWA and works offline on a phone.
   solver or against a specific villain type (Station, Nit, Maniac, Whale). The review shows what it
   cost, both ranges on a 13×13 grid, the pot odds, and why the exploit differs from GTO. Puzzles are
   rated, and so are you, like chess puzzles.
+- **Playbook**: the rules behind the puzzles. For a villain type, spot and flop texture (rainbow /
+  two-tone / monotone, connected / semi / dry, paired, high card), it shows what each hand class
+  does against him next to what a solver does, plus the adjustments that matter.
 - **Play / Simulate / Preflop / Postflop**: the original drills. They still run on the old bucket
   model and are being rebuilt on the solver (see the roadmap).
 

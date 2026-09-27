@@ -19,6 +19,13 @@ export function render(container) {
         <p class="text-sm text-gray-400 mt-1">Real cards, one right answer &mdash; vs GTO or vs a Station, Nit, Maniac or Whale. Rated like chess puzzles.</p>
       </a>
 
+      <a href="#playbook"
+         class="block p-5 bg-amber-900/25 rounded-xl border border-amber-700/40
+                hover:border-amber-500/60 hover:bg-amber-900/40 transition-all">
+        <h2 class="text-base font-semibold text-amber-300">Playbook</h2>
+        <p class="text-sm text-gray-400 mt-1">The rules behind the puzzles: how to play each hand class vs each villain type, by board texture.</p>
+      </a>
+
       <p class="text-[0.7rem] text-gray-600 -mb-2">The modes below still run on the old bucket model and are being rebuilt on the solver.</p>
 
       <a href="#simulate"

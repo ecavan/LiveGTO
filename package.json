@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "dev:phone": "vite --host",
-    "library": "cd solver && cargo run --release -p ps-cli -- library library/families.toml --out ../public/library"
+    "library": "cd solver && cargo run --release -p ps-cli -- library library/families.toml --out ../public/library && cd .. && node scripts/build-playbook.mjs",
+    "playbook": "node scripts/build-playbook.mjs"
   },
   "dependencies": {
     "pokersolver": "^2.1.4"

@@ -184,10 +184,38 @@ Known limits:
 - The flop tree used for turn ranges is coarse: one 33% c-bet, 3× raises, one turn size and one
   river size plus all-in. It fits in about 1 GB; your Mac can afford a richer one.
 
+## 7b. Board textures and suit relabelling
+
+`src/engine/texture.js` sorts flops the way a live player does:
+
+- **Suits**: rainbow, two-tone or monotone.
+- **Connectedness**:
+  - *connected*: three ranks in one 5-card straight window, so straights are already possible;
+  - *semi*: two ranks within 3 of each other, so there are plenty of draws (J-9-4);
+  - *dry*: K-7-2, J-6-2.
+- **Pairing**: unpaired, paired or trips.
+- **High card**: A, K/Q, J–8, or 7 and lower.
+
+Each puzzle also tags what the current board makes possible: flush draw or flush possible, straight
+possible or 4 to a straight, paired.
+
+Suits only matter through what they make possible, so **every puzzle is shown with its suits
+randomly relabelled**. J♥5♥9♠ and J♦5♦9♠ are the same solved spot. Poker is exactly symmetric
+under relabelling suits, so this is free variety that trains the texture, not the specific cards.
+
+**Playbook** (`src/engine/playbook.js`, data from `scripts/build-playbook.mjs`) rolls every solved
+spot up into rules. For a filter (villain, pot type, facing a bet or not, street, texture), it
+averages each hand class's one-action answers, weighted by how much of your range that class is.
+Actions are grouped as fold / check / call / bet small (< ½ pot) / bet big / raise / all-in. The
+classes it shows where the exploit's usual action differs from the solver's are the adjustments
+to remember.
+
 ## 8. Roadmap
 
-1. **Puzzles** (done): library, rating, EV grading, range vs range, real cards. Five pot types.
-   Puzzles default to exploitative villains; GTO is an opt-in baseline filter.
+1. **Puzzles** (done): library, rating, EV grading, range vs range, real cards. Five pot types,
+   board-texture filters, suit relabelling. Puzzles default to exploitative villains; GTO is an
+   opt-in baseline filter.
+1b. **Playbook** (done): texture × villain × spot rules.
 2. **Rebuild Play and Simulate on the solver.** Port the Boot Camp's heads-up engine, which the
    audit found correct (BB option, all-ins, min-raises). Bots play library strategies, bent by
    profiles, and are rated by bb/100 against the GTO bot. Session review shows EV lost per decision.

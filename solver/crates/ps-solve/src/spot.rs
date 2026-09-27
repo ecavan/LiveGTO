@@ -7,7 +7,8 @@ use anyhow::{anyhow, bail, Context, Result};
 use postflop_solver::*;
 use serde::{Deserialize, Serialize};
 
-pub const CHIPS_PER_BB: f64 = 10.0;
+/// 0.01bb resolution, so small (limped) pots still get exact bet sizes.
+pub const CHIPS_PER_BB: f64 = 100.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

@@ -9,6 +9,7 @@
  *   - "mistake" anything else; the cost is shown in bb and % of the pot
  */
 import { requiredEquity, alpha, mdf, pct } from './potmath.js';
+import { flopTexture } from './texture.js';
 
 export const PROFILES = {
   gto: 'GTO',
@@ -35,6 +36,8 @@ const FACING = new Set(['oop_vs_bet', 'ip_vs_bet']);
  *   street?: 'turn' | 'river'
  *   decision?: 'facing' (you face a bet) | 'betting' (checked to you / first to act)
  *   family?: family id, e.g. '3bp_bb_btn'
+ *   suits?, connect?, paired?, height?: flop texture classes (see texture.js); paired accepts
+ *     'paired' (paired or trips) or 'unpaired'
  * }
  */
 export function candidates(index, filters = {}) {
@@ -47,6 +50,7 @@ export function candidates(index, filters = {}) {
     if (filters.decision === 'facing' && !FACING.has(r.decision)) continue;
     if (filters.decision === 'betting' && FACING.has(r.decision)) continue;
     if (filters.family && r.family !== filters.family) continue;
+    if (!textureMatches(r, filters)) continue;
     (r.ratings || []).forEach((rating, i) => out.push({ id: r.id, file: r.file, i, rating }));
   }
   return out;
@@ -66,6 +70,23 @@ export function pickPuzzle(cands, rating, seen = new Set(), rand = Math.random) 
 }
 
 export const key = (c) => `${c.id}#${c.i}`;
+
+/** Flop texture of an index record (cached on the record). */
+export function recordTexture(r) {
+  if (!r._tex) r._tex = flopTexture(r.board);
+  return r._tex;
+}
+
+export function textureMatches(r, f) {
+  if (!f.suits && !f.connect && !f.paired && !f.height) return true;
+  const t = recordTexture(r);
+  if (f.suits && t.suits !== f.suits) return false;
+  if (f.connect && t.connect !== f.connect) return false;
+  if (f.height && t.height !== f.height) return false;
+  if (f.paired === 'unpaired' && t.paired !== 'unpaired') return false;
+  if (f.paired === 'paired' && t.paired === 'unpaired') return false;
+  return true;
+}
 
 /** Spot families present in the library: [{ id, name }]. */
 export function families(index) {

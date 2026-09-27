@@ -38,7 +38,7 @@ oop_range = "22+,A2s+,K7s+,Q9s+,JTs,T9s,98s,87s,76s,65s,54s,43s,J9s,T8s,97s,86s,
 ip_range = "JJ-22,AQs-A6s,A3s-A2s,KTs+,QTs+,JTs,T9s,98s,87s,76s,65s,AQo,AJo,KQo"
 pot = 11.5
 stack = 95.0
-flops = ["Ah8d3c", "Kc7s2h", "Js9s4d", "Th6c5h", "9d9c4s", "Qh5d3s"]
+flops = ["Ah8d3c", "Kc7s2h", "Js9s4d", "Th6c5h", "9d9c4s", "Qh5d3s", "8c7c2c", "KsQd9h"]
 profiles = ["gto.toml", "station.toml", "nit.toml", "maniac.toml", "whale.toml"]
 seed = 11
 
@@ -54,7 +54,7 @@ ip_range = "22+,A2s+,KTs+,QTs+,JTs,T9s,98s,87s,76s,AQo+"
 oop_range = "JJ-22,AJs-A2s,KTs+,QTs+,JTs,T9s,98s,87s,76s,65s,54s,AQo,KQo"
 pot = 10.5
 stack = 95.0
-flops = ["Ks8d3c", "Ad9h5s", "QcJc4h", "8h7h2d", "6s6d2c", "Tc4d3s"]
+flops = ["Ks8d3c", "Ad9h5s", "QcJc4h", "8h7h2d", "6s6d2c", "Tc4d3s", "AhTh5h", "JdTc9s"]
 profiles = ["gto.toml", "station.toml", "nit.toml", "maniac.toml", "whale.toml"]
 seed = 13
 
@@ -70,7 +70,7 @@ oop_range = "TT+,AJs+,KQs,A5s,A4s,76s,65s,AKo,AQo"
 ip_range = "JJ-55,AQs-ATs,KJs+,QJs,JTs,T9s,98s,AQo"
 pot = 36.5
 stack = 82.0
-flops = ["Kh7d2s", "Ac9c5d", "Jh8h6c", "Td5s5c", "Qs4d3h", "9h7c6d"]
+flops = ["Kh7d2s", "Ac9c5d", "Jh8h6c", "Td5s5c", "Qs4d3h", "9h7c6d", "Kc9c3c", "5s4d2h"]
 profiles = ["gto.toml", "station.toml", "nit.toml", "maniac.toml", "whale.toml"]
 seed = 17
 
