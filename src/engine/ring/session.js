@@ -4,19 +4,20 @@
  * Every decision of yours is graded by the ring coach; the table learns your tendencies.
  */
 import { newHand, act, board, pot, live, posOf, menu, legal } from './game.js';
-import { randomPlayer, playerPolicyAll, context, newHeroStats, keyedMenu } from './players.js';
+import { randomPlayer, playerPolicyAll, context, newHeroStats, keyedMenu, tableTiers } from './players.js';
 import { ringCoach } from './coach.js';
 import { comboIndex } from '../hu/equity.js';
 import { classify, cardStr } from '../hu/hand.js';
 
 export const HERO = 0;
 
-export function createTable({ n = 6, coachMode = 'decision', rand = Math.random } = {}) {
+export function createTable({ n = 6, coachMode = 'decision', level = 'medium', rand = Math.random } = {}) {
   const used = new Set();
-  const players = [null, ...Array.from({ length: n - 1 }, () => randomPlayer(rand, used))];
+  const tiers = tableTiers(level, n, rand);
+  const players = [null, ...tiers.map(tier => randomPlayer(rand, used, tier))];
   for (const p of players) if (p) p.hud = { hands: 0, vpip: 0, pfr: 0 };
   return {
-    n, coachMode, players, used,
+    n, coachMode, level, players, used,
     btn: Math.floor(rand() * n),
     handNo: 0,
     stats: newHeroStats(),
@@ -36,7 +37,7 @@ export function startHand(t, rand = Math.random) {
   if (t.handNo > 0 && rand() < 0.04) {
     const seat = 1 + Math.floor(rand() * (t.n - 1));
     t.used.delete(t.players[seat].name);
-    const p = randomPlayer(rand, t.used);
+    const p = randomPlayer(rand, t.used, t.players[seat].tier); // same kind of player: the difficulty holds
     p.hud = { hands: 0, vpip: 0, pfr: 0 };
     t.arrivals.push(`${t.players[seat].name} left; ${p.name} sat down.`);
     t.players[seat] = p;

@@ -6,7 +6,7 @@ import {
   createTable, startHand, heroToAct, coachNow, coachReady, heroAct, botAct, endHand, summary, HERO,
 } from '../../engine/ring/session.js';
 import { board, pot, posOf, legal } from '../../engine/ring/game.js';
-import { styleLabel, ARCHETYPES, adjustment } from '../../engine/ring/players.js';
+import { styleLabel, ARCHETYPES, adjustment, LEVELS } from '../../engine/ring/players.js';
 import { settings, saveSettings } from '../../store.js';
 import { ringTable, fmtBB, seg, wireSeg, icon, esc, stat, handText, disc, verdict } from '../kit.js';
 import { actionBar, coachCard, decisionRow, playTabs } from './views.js';
@@ -38,11 +38,20 @@ export function render(container) {
 function setup(container) {
   const st = settings();
   const size = st.tableSize ?? 6;
+  const level = st.tableLevel ?? 'medium';
   container.innerHTML = `<div class="page space-y-6 fade-up">
     <div class="flex items-end justify-between gap-4 flex-wrap">
       <div><div class="h-sec">Play</div><h1 class="h-title">Live table</h1>
-        <p class="muted mt-1 text-sm max-w-2xl">Sit down with up to five players from a live $1/$2 pool: stations, whales, nits, regs, the odd maniac or shark, and mixes of them. Nobody wears a label: read them from how they play. They read you too.</p></div>
+        <p class="muted mt-1 text-sm max-w-2xl">Sit down with up to five players from a live $1/$2 pool: stations, whales, nits, maniacs, regs, sharks and pros, and mixes of them. Choose how tough the table is. Nobody wears a label: read them from how they play. They read you too.</p></div>
       ${playTabs('table')}
+    </div>
+    <div class="grid sm:grid-cols-3 gap-3">
+      ${Object.entries(LEVELS).map(([k, L]) => `<button data-level="${k}" class="text-left panel panel-pad transition hover:border-ink-500 ${k === level ? 'ring-2 ring-emerald-400/80 border-emerald-500/40' : ''}">
+        <div class="flex items-center justify-between"><span class="text-lg font-semibold text-white">${L.name}</span>
+          <span class="flex gap-1">${[0, 1, 2].map(j => `<i class="inline-block w-2 h-2 rounded-full ${j <= ['easy', 'medium', 'hard'].indexOf(k) ? 'bg-amber-300' : 'bg-ink-600'}"></i>`).join('')}</span></div>
+        <p class="text-sm text-ink-300 mt-2 leading-snug">${L.blurb}</p>
+        <p class="text-xs text-ink-400 mt-2">A solid reg wins about ${{ easy: 100, medium: 45, hard: 20 }[k]}bb/100 here.</p>
+      </button>`).join('')}
     </div>
     <div class="panel panel-pad grid md:grid-cols-3 gap-5">
       <div class="space-y-2"><div class="h-sec">Players</div>
@@ -63,9 +72,13 @@ function setup(container) {
     saveSettings(cur);
     setup(container);
   });
+  container.querySelectorAll('[data-level]').forEach(b => b.addEventListener('click', () => {
+    saveSettings({ ...settings(), tableLevel: b.dataset.level });
+    setup(container);
+  }));
   container.querySelector('#start').addEventListener('click', () => {
     const cur = settings();
-    t = createTable({ n: cur.tableSize ?? 6, coachMode: cur.coach });
+    t = createTable({ n: cur.tableSize ?? 6, coachMode: cur.coach, level: cur.tableLevel ?? 'medium' });
     ui = { last: null, paused: false, recap: null, over: false, reveal: !!cur.reveal };
     startHand(t);
     draw(container);
@@ -206,7 +219,7 @@ function draw(container) {
   const openState = [...container.querySelectorAll('#coach details, #side details')].map(d => d.open);
   container.innerHTML = `<div class="page">
     <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
-      <div class="text-sm text-ink-300"><b class="text-white">Hand ${t.handNo}</b> · ${t.n}-handed · you are <b class="text-white">${posOf(s, HERO)}</b></div>
+      <div class="text-sm text-ink-300"><b class="text-white">Hand ${t.handNo}</b> · ${LEVELS[t.level].name} · ${t.n}-handed · you are <b class="text-white">${posOf(s, HERO)}</b></div>
       ${playTabs('table')}
     </div>
     <div class="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-5 lg:grid-flow-dense items-start">
@@ -262,7 +275,7 @@ function review(container) {
   const tone = (x) => (x > 0 ? 'text-emerald-300' : x < 0 ? 'text-rose-300' : '');
   container.innerHTML = `<div class="page space-y-5 fade-up">
     <div class="flex items-end justify-between gap-3 flex-wrap">
-      <div><div class="h-sec">Session review</div><h1 class="h-title">Live table, ${t.n}-handed</h1></div>
+      <div><div class="h-sec">Session review</div><h1 class="h-title">Live table: ${LEVELS[t.level].name}, ${t.n}-handed</h1></div>
       <div class="flex gap-2"><button class="btn" id="rv-again">Same table</button><button class="btn btn-primary" id="rv-new">New table</button></div>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">

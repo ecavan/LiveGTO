@@ -28,8 +28,34 @@ export const ARCHETYPES = {
   nit: { name: 'Nit', profile: 'nit', learn: 0.35, first: 0.22, limp: 0.22, vs1: [0.03, 0.1], vs2: [0.02, 0.04], vs3: [0.015, 0.02], noise: 0, blurb: 'tight and scared; folds to pressure; big bets are the nuts' },
   maniac: { name: 'Maniac', profile: 'maniac', learn: 0.3, first: 0.7, limp: 0.7, vs1: [0.3, 0.5], vs2: [0.15, 0.35], vs3: [0.08, 0.15], noise: 0.04, blurb: 'raises and bluffs relentlessly' },
   reg: { name: 'Reg', profile: 'gto', learn: 0.5, first: 0.45, limp: 0.45, vs1: [0.07, 0.18], vs2: [0.03, 0.08], vs3: [0.02, 0.03], noise: 0, blurb: 'solid, sensible ranges' },
-  shark: { name: 'Shark', profile: 'tag', learn: 0.7, first: 0.5, limp: 0.5, vs1: [0.09, 0.16], vs2: [0.04, 0.08], vs3: [0.025, 0.035], noise: 0, blurb: 'tight-aggressive, adjusts to you quickly' },
+  shark: { name: 'Shark', profile: 'tag', learn: 0.7, ramp: 60, first: 0.5, limp: 0.5, vs1: [0.09, 0.16], vs2: [0.04, 0.08], vs3: [0.025, 0.035], noise: 0, blurb: 'tight-aggressive, adjusts to you quickly' },
+  pro: { name: 'Pro', profile: 'tag', learn: 1, ramp: 30, first: 0.55, limp: 0.55, vs1: [0.1, 0.18], vs2: [0.045, 0.085], vs3: [0.025, 0.035], noise: 0, blurb: 'a strong regular: disciplined ranges, reads you fast and exploits it' },
 };
+ARCHETYPES.whale.ramp = 200; ARCHETYPES.station.ramp = 180; ARCHETYPES.maniac.ramp = 160; ARCHETYPES.nit.ramp = 140; ARCHETYPES.reg.ramp = 90;
+
+/**
+ * Table difficulty: which kinds of players fill the seats.
+ *   easy    only fish (whales, stations, nits, maniacs, and blends of them)
+ *   medium  one strong player (a shark or a pro) and one reg; the rest fish
+ *   hard    three strong players (mostly pros) and one reg; the rest fish
+ */
+export const LEVELS = {
+  easy: { name: 'Easy', blurb: 'All fish: whales, stations, nits and the odd maniac. Learn to take their money.', strong: 0, regs: 0 },
+  medium: { name: 'Medium', blurb: 'One shark or pro and one solid reg among the fish. Pick your spots.', strong: 1, regs: 1 },
+  hard: { name: 'Hard', blurb: 'Three strong players who read you fast, one reg, and whoever is left over.', strong: 3, regs: 1 },
+};
+const FISH = { station: 0.35, whale: 0.25, nit: 0.25, maniac: 0.15 };
+
+/** Seat tiers for a table of `n` (you included): 'strong' | 'reg' | 'fish', shuffled. */
+export function tableTiers(level, n, rand = Math.random) {
+  const L = LEVELS[level] || LEVELS.medium;
+  const opp = n - 1;
+  const strong = Math.min(L.strong, Math.max(0, opp - 1));
+  const regs = Math.min(L.regs, opp - strong);
+  const tiers = [...Array(strong).fill('strong'), ...Array(regs).fill('reg'), ...Array(opp - strong - regs).fill('fish')];
+  for (let i = tiers.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [tiers[i], tiers[j]] = [tiers[j], tiers[i]]; }
+  return tiers;
+}
 /** A live $1/$2 pool. */
 const POOL = { station: 0.28, whale: 0.14, nit: 0.2, reg: 0.2, maniac: 0.06, shark: 0.12 };
 const POS_MULT = { UTG: 0.42, HJ: 0.55, CO: 0.75, BTN: 1, SB: 0.7, BB: 1 };
@@ -41,21 +67,31 @@ function pick(rand, weights) {
   return Object.keys(weights)[0];
 }
 
-/** A random player: a main style, often blended with a second one. */
-export function randomPlayer(rand = Math.random, used = new Set()) {
-  const main = pick(rand, POOL);
+/**
+ * A random player of a tier: fish (a fish style, often blended with another), reg (a reg, sometimes
+ * with a fishy streak), or strong (a pro or a shark, sometimes a blend of the two).
+ * With no tier: anyone from the general live pool.
+ */
+export function randomPlayer(rand = Math.random, used = new Set(), tier = null) {
+  const pool = tier === 'fish' ? FISH : tier === 'reg' ? { reg: 1 } : tier === 'strong' ? { pro: 0.6, shark: 0.4 } : POOL;
+  const main = pick(rand, pool);
   const mix = { [main]: 1 };
-  if (rand() < 0.5) {
-    const second = pick(rand, Object.fromEntries(Object.entries(POOL).filter(([k]) => k !== main)));
-    const w = 0.2 + rand() * 0.25;
-    mix[main] = 1 - w;
-    mix[second] = w;
+  const blendPool = tier === 'fish' ? FISH : tier === 'reg' ? { nit: 0.4, station: 0.4, shark: 0.2 } : tier === 'strong' ? { pro: 0.5, shark: 0.5 } : POOL;
+  if (rand() < (tier === 'reg' ? 0.35 : 0.5)) {
+    const options = Object.fromEntries(Object.entries(blendPool).filter(([k]) => k !== main));
+    if (Object.keys(options).length) {
+      const second = pick(rand, options);
+      const w = 0.2 + rand() * 0.25;
+      mix[main] = 1 - w;
+      mix[second] = w;
+    }
   }
   let name;
   do { name = NAMES[Math.floor(rand() * NAMES.length)]; } while (used.has(name) && used.size < NAMES.length);
   used.add(name);
   const learn = Object.entries(mix).reduce((a, [k, w]) => a + w * ARCHETYPES[k].learn, 0);
-  return { name, mix, learn, seen: 0 };
+  const ramp = Object.entries(mix).reduce((a, [k, w]) => a + w * (ARCHETYPES[k].ramp ?? 120), 0);
+  return { name, mix, learn, ramp, tier: tier ?? (main === 'pro' || main === 'shark' ? 'strong' : main === 'reg' ? 'reg' : 'fish'), seen: 0 };
 }
 
 /** "Station / whale" style label. */
@@ -72,7 +108,7 @@ export function newHeroStats() {
 }
 
 /** How far a player has adjusted to you (0…1): his learning rate × how much he has seen. */
-export const adjustment = (p, stats) => p.learn * Math.min(1, stats.hands / 120);
+export const adjustment = (p, stats) => p.learn * Math.min(1, stats.hands / (p.ramp ?? 120));
 
 // ------------------------------------------------------------------ strategies
 

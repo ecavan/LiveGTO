@@ -323,6 +323,12 @@ hand, and how far it has adjusted.
   profile rules as the heads-up bots, bluffing less and folding weak hands more multiway. The
   table learns you from your VPIP / PFR and your river showdowns: it steals more from a tight
   player and calls down a player who has shown bluffs, each at its own rate.
+- *Difficulty*: Easy is all fish (whales, stations, nits, maniacs and blends); Medium adds one
+  shark or pro and one reg; Hard has three strong players (mostly pros) and one reg. A player who
+  leaves is replaced by one of the same kind, so the level holds. Strong players read you faster
+  (their adjustment ramps up over ~30–60 hands instead of ~150–200) and further. Measured with
+  a solid reg in your seat (`scripts/table-levels.mjs`, 8,000 hands per level): about +104bb/100
+  on Easy, +46 on Medium, +20 on Hard.
 - *Reading them*: VPIP / PFR per player like a HUD, or reveal their styles.
 - *Coach* (`coach.js`): every opponent still in has a range read from his own strategy; equity
   against all of them (exact heads-up, Monte Carlo multiway); EV one street ahead, with each

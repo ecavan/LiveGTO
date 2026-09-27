@@ -53,3 +53,20 @@ describe('live table', () => {
     expect(raiseShare(tight)).toBeGreaterThan(raiseShare(loose));
   });
 });
+
+import { tableTiers, LEVELS } from '../src/engine/ring/players.js';
+describe('table difficulty', () => {
+  it('easy is all fish; medium has one strong player; hard has three', () => {
+    const r = rng(4);
+    const count = (lvl, n) => tableTiers(lvl, n, r).filter(x => x === 'strong').length;
+    expect(count('easy', 6)).toBe(0);
+    expect(count('medium', 6)).toBe(1);
+    expect(count('hard', 6)).toBe(3);
+    expect(count('hard', 4)).toBe(2); // always at least one fish at the table
+    const t = createTable({ n: 6, level: 'easy', rand: r });
+    for (const p of t.players.slice(1)) expect(Object.keys(p.mix).every(k => ['station', 'whale', 'nit', 'maniac'].includes(k))).toBe(true);
+    const h = createTable({ n: 6, level: 'hard', rand: r });
+    expect(h.players.slice(1).filter(p => p.mix.pro || p.mix.shark).length).toBeGreaterThanOrEqual(3);
+    expect(Object.keys(LEVELS)).toEqual(['easy', 'medium', 'hard']);
+  });
+});
