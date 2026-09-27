@@ -17,12 +17,13 @@ import CAL from './calibration.json';
 
 export const HAND_STACK = 100;
 
-export function createSession({ botId = 'reg', length = 0, coachMode = 'decision', model = null } = {}) {
+export function createSession({ botId = 'reg', length = 0, coachMode = 'decision', model = null, stack = HAND_STACK } = {}) {
   const agent = createAgent(botId);
   if (model) agent.model = { ...agent.model, ...model, pi: { ...agent.model.pi, ...model.pi } }; // every bot remembers you
   return {
     botId,
     agent,
+    stack, // bb each, every hand
     length, // 0 = endless
     coachMode,
     handNo: 0,
@@ -37,7 +38,7 @@ export function createSession({ botId = 'reg', length = 0, coachMode = 'decision
 
 export function startHand(sess, rand = Math.random) {
   sess.hero = sess.handNo % 2 === 0 ? BTN : BB;
-  sess.s = newHand({ stacks: [HAND_STACK, HAND_STACK], rand });
+  sess.s = newHand({ stacks: [sess.stack ?? HAND_STACK, sess.stack ?? HAND_STACK], rand });
   sess.decisions = [];
   sess.allin = null;
   sess.pending = null;
@@ -81,6 +82,7 @@ export function heroAct(sess, idx) {
   const verdict = idx === k.best ? 'best' : k.fine.includes(idx) ? 'fine'
     : (loss >= 10 || loss >= 0.25 * pot(s)) ? 'blunder' : 'mistake';
   const d = {
+    at: s.log.length,
     street: s.street,
     board: board(s),
     hole: s.holes[sess.hero],

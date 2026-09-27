@@ -7,7 +7,7 @@ import { evaluate, category, cardStr, ALL_COMBOS, handType } from '../../engine/
 import { AGENTS, eloOf, readOfYou } from '../../engine/hu/agents.js';
 import { pct } from '../../engine/potmath.js';
 import {
-  pokerTable, card, cards, fmtBB, evBars, disc, stat, verdict, icon, esc, rangeGrid, GRID, handText,
+  pokerTable, card, cards, fmtBB, evBars, disc, stat, verdict, icon, esc, rangeGrid, GRID, handText, sprOf,
 } from '../kit.js';
 
 export const POS = ['BTN', 'BB'];
@@ -38,6 +38,7 @@ export function liveTable(sess, { thinking = false } = {}) {
     },
     board: bd,
     pot: inPot,
+    spr: s.done ? null : sprOf({ street: s.street, stacks: s.stacks, streetBet: s.streetBet, pot: pot(s), live: [0, 1], seat: hero }),
     note: thinking ? `${a.name} is thinking…` : '',
     bets: s.done ? {} : { top: s.streetBet[vil], bottom: s.streetBet[hero] },
     acting: s.done ? null : s.toAct === hero ? 'bottom' : 'top',
@@ -245,7 +246,7 @@ export function reviewHtml(sess, sum, pastSessions) {
   return `<div class="space-y-5 fade-up">
     <div class="flex items-end justify-between gap-3 flex-wrap">
       <div><div class="h-sec">Session review</div><h1 class="h-title">vs ${AGENTS[sess.botId].name} <span class="text-ink-400 text-lg font-medium">${eloOf(sess.botId)}</span></h1></div>
-      <div class="flex gap-2"><button class="btn" id="rv-again">Play again</button><button class="btn btn-primary" id="rv-new">New session</button></div>
+      <div class="flex gap-2 flex-wrap"><a class="btn" href="#play/review/s/${sess.startedAt}">${icon('review', 'w-4 h-4')} Game review</a><button class="btn" id="rv-again">Play again</button><button class="btn btn-primary" id="rv-new">New session</button></div>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       ${stat('Played like', sum.rating ?? '—', sum.rating ? `EV lost ${sum.lossPer100.toFixed(1)}bb/100` : 'play 5+ hands', 'text-amber-200')}
@@ -319,8 +320,8 @@ export function rangeViewHtml(v, heroHole) {
   </div>`;
 }
 
-/** Heads-up · Live table · Watch */
+/** Heads-up · Live table · Watch · Review */
 export function playTabs(active) {
-  return `<div class="seg">${[['', 'Heads-up'], ['table', 'Live table'], ['watch', 'Watch']].map(([v, l]) =>
+  return `<div class="seg">${[['', 'Heads-up'], ['table', 'Live table'], ['watch', 'Watch'], ['review', 'Review']].map(([v, l]) =>
     `<a href="#play${v ? '/' + v : ''}" class="px-3 py-1.5 rounded-lg text-sm font-medium ${v === active ? 'bg-ink-700 text-white shadow-card' : 'text-ink-300 hover:text-ink-100'}">${l}</a>`).join('')}</div>`;
 }

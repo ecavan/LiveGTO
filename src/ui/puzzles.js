@@ -4,20 +4,30 @@
  */
 import {
   PROFILES, candidates, families, pickPuzzle, key, grade, updateRating, explain,
-  cellLabel, cellOf, loadStats, saveStats,
+  cellLabel, cellOf, loadStats, saveStats, queueMiss, queueResult, dueItems, dailyPick, dailyStreak, today, dayRand, INTERVALS,
 } from '../engine/puzzles.js';
 import { getIndex, getRecord } from '../engine/library.js';
 import { pct } from '../engine/potmath.js';
 import { flopTexture, textureLabel, boardTags, randomSuitMap, remapCard, isCard } from '../engine/texture.js';
 import { pokerTable, icon, esc, verdict, disc, rangeGrid, fmtBB, lossKind } from './kit.js';
+import { puzzleTabs } from './puzzles/tabs.js';
+import { navigate } from '../router.js';
 
 let index = null;
 let stats = loadStats();
 let filters = { street: '', profile: '', decision: '', family: '', suits: '', connect: '', paired: '', height: '' };
-let current = null; // { cand, record, puzzle, view, answered, gridTab }
+let mode = 'rated'; // rated | daily | review
+const cur = { rated: null, daily: null, review: null }; // { cand, record, puzzle, view, answered, gridTab }
+let current = null;
+let practiceAll = false;
 let keyHandler = null;
 
-export async function render(container) {
+export async function render(container, params = []) {
+  const m = params[0] || '';
+  if (m === 'ranges') return (await import('./puzzles/ranges.js')).render(container, params.slice(1));
+  if (m === 'flop' || m === 'multiway') return (await import('./puzzles/generated.js')).render(container, m);
+  mode = m === 'daily' || m === 'review' ? m : 'rated';
+  stats = loadStats();
   container.innerHTML = `<div class="page text-ink-400">Loading puzzles…</div>`;
   try {
     index = await getIndex();
@@ -25,7 +35,14 @@ export async function render(container) {
     container.innerHTML = `<div class="page text-rose-300">${esc(e.message)}. Build it with <code>npm run library</code>.</div>`;
     return undefined;
   }
-  if (!current || current.answered) await next();
+  if (mode === 'daily') { if (!cur.daily || cur.daily.date !== today()) await next(); }
+  else if (!cur[mode] || cur[mode].answered || cur[mode].gen) await next();
+  current = cur[mode];
+  if (current?.gen) {
+    // a missed Flop / Multiway spot: that module shows it
+    const it = current.gen;
+    return (await import('./puzzles/generated.js')).render(container, it.id.slice(4), { review: it });
+  }
   draw(container);
   keyHandler = (e) => {
     if (!container.isConnected) return;
@@ -36,19 +53,37 @@ export async function render(container) {
   return () => window.removeEventListener('keydown', keyHandler);
 }
 
-async function next() {
-  const cands = candidates(index, filters);
-  const cand = pickPuzzle(cands, stats.rating, new Set(stats.seen));
-  if (!cand) { current = null; return; }
+async function load(cand, rand = Math.random) {
   const record = await getRecord(cand);
   const puzzle = record.puzzles[cand.i];
-  const m = randomSuitMap();
+  const m = randomSuitMap(rand);
   const view = {
     board: record.board.map(c => remapCard(c, m)),
     cards: remapCard(puzzle.cards, m),
     prior: record.history.prior.map(x => (isCard(x) ? remapCard(x, m) : x)),
   };
-  current = { cand, record, puzzle, view, answered: null, gridTab: 'villain' };
+  return { cand, record, puzzle, view, answered: null, gridTab: 'villain' };
+}
+
+async function next() {
+  if (mode === 'daily') {
+    const date = today();
+    const cand = dailyPick(index, date);
+    cur.daily = cand ? { ...(await load(cand, dayRand(date))), date } : null;
+    const done = stats.daily?.[date];
+    if (cur.daily && done) cur.daily.answered = { g: grade(cur.daily.puzzle, cur.daily.record, done.choice), choice: done.choice };
+  } else if (mode === 'review') {
+    const due = dueItems(stats);
+    const pool = due.length ? due : practiceAll ? [...(stats.queue || [])].sort((a, b) => a.due - b.due) : [];
+    const skip = cur.review?.cand ? key(cur.review.cand) : null;
+    const it = pool.find(x => x.k !== skip) || pool[0];
+    cur.review = !it ? null : it.id.startsWith('gen:') ? { gen: it, cand: { id: it.id, i: it.i } } : await load({ id: it.id, file: it.file, i: it.i, rating: it.rating });
+  } else {
+    const cands = candidates(index, filters);
+    const cand = pickPuzzle(cands, stats.rating, new Set(stats.seen));
+    cur.rated = cand ? await load(cand) : null;
+  }
+  current = cur[mode];
 }
 
 // ------------------------------------------------------------------ pieces
@@ -114,8 +149,15 @@ function feedback(r, p, g, choice) {
     ${evBarsFromLoss(opts, p, choice)}
     ${disc('Why', `<div class="space-y-2">${points}</div>`, g.verdict !== 'best')}
     ${disc('Ranges', rangePanel(r, p))}
-    <button id="pz-next" class="btn btn-primary btn-lg btn-block">Next puzzle ${icon('next', 'w-5 h-5')}</button>
+    ${nextButton()}
   </div>`;
+}
+
+function nextButton() {
+  if (mode === 'daily') return `<div class="text-sm text-ink-300 text-center">Streak: <b class="text-amber-200">${dailyStreak(stats)} day${dailyStreak(stats) === 1 ? '' : 's'}</b>. A new puzzle tomorrow.</div>
+    <a href="#puzzles" class="btn btn-primary btn-lg btn-block">Rated puzzles ${icon('next', 'w-5 h-5')}</a>`;
+  if (mode === 'review') return `<button id="pz-next" class="btn btn-primary btn-lg btn-block">Next missed puzzle ${icon('next', 'w-5 h-5')}</button>`;
+  return `<button id="pz-next" class="btn btn-primary btn-lg btn-block">Next puzzle ${icon('next', 'w-5 h-5')}</button>`;
 }
 
 function evBarsFromLoss(opts, p, choice) {
@@ -160,15 +202,32 @@ function rangePanel(r, p) {
 
 function draw(container) {
   const acc = stats.played ? Math.round((100 * stats.solved) / stats.played) : 0;
+  const title = { rated: 'Find the best play', daily: 'Daily puzzle', review: 'Your missed puzzles' }[mode];
+  const q = stats.queue || [];
+  const statsHtml = mode === 'daily'
+    ? `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Streak</div><div class="text-2xl font-semibold num text-amber-200">${dailyStreak(stats)}<span class="text-sm text-ink-400"> days</span></div></div>`
+    : mode === 'review'
+      ? `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Due</div><div class="text-2xl font-semibold num text-rose-200">${dueItems(stats).length}</div></div>
+         <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">In queue</div><div class="text-2xl font-semibold num">${q.length}</div></div>`
+      : `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Rating</div><div class="text-2xl font-semibold num text-emerald-300">${stats.rating}</div></div>
+         <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Solved</div><div class="text-2xl font-semibold num">${acc}%</div></div>`;
   const header = `<div class="flex items-end justify-between gap-4 flex-wrap">
-    <div><div class="h-sec">Puzzles</div><h1 class="h-title">Find the best play</h1></div>
-    <div class="flex gap-5 text-right">
-      <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Rating</div><div class="text-2xl font-semibold num text-emerald-300">${stats.rating}</div></div>
-      <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Solved</div><div class="text-2xl font-semibold num">${acc}%</div></div>
+    <div><div class="h-sec">Puzzles</div><h1 class="h-title">${title}</h1></div>
+    <div class="flex gap-5 text-right items-end">
+      ${statsHtml}
       ${current ? `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Puzzle</div><div class="text-2xl font-semibold num text-ink-200">${current.puzzle.rating}</div></div>` : ''}
-    </div></div>`;
+    </div></div>
+    <div>${puzzleTabs(mode === 'rated' ? '' : mode)}</div>
+    ${mode === 'review' && current ? `<p class="text-sm text-ink-400">Missed puzzles come back after ${INTERVALS.join(', ')} days. Solve one each time and it leaves the queue. Not rated.</p>` : ''}
+    ${mode === 'daily' ? `<p class="text-sm text-ink-400">One spot a day, the same for everyone. Not rated: it counts toward your streak.</p>` : ''}`;
   if (!current) {
-    container.innerHTML = `<div class="page space-y-4">${header}${filterPanel()}<p class="text-ink-400 pt-6">No puzzles match these filters.</p></div>`;
+    const empty = mode === 'review'
+      ? `<div class="panel panel-pad text-center py-10 space-y-3">
+          <div class="text-lg font-semibold text-white">${q.length ? 'Nothing due right now' : 'No missed puzzles'}</div>
+          <p class="text-sm text-ink-300 max-w-md mx-auto">${q.length ? `${q.length} puzzle${q.length > 1 ? 's' : ''} will come back over the next days.` : 'Every puzzle you miss comes back here the next day, then after 3 and 7 days, until you get it right.'}</p>
+          ${q.length ? '<button id="practice-all" class="btn btn-primary">Practise them now anyway</button>' : '<a href="#puzzles" class="btn btn-primary">Rated puzzles</a>'}</div>`
+      : `<p class="text-ink-400 pt-6">No puzzles match these filters.</p>`;
+    container.innerHTML = `<div class="page space-y-4">${header}${mode === 'rated' ? filterPanel() : ''}${empty}</div>`;
     wire(container);
     return;
   }
@@ -193,7 +252,7 @@ function draw(container) {
       </div>
       <div class="space-y-4 min-w-0">
         <div class="panel panel-pad">${lineHtml(r, current.view)}</div>
-        ${filterPanel()}
+        ${mode === 'rated' ? filterPanel() : ''}
       </div>
     </div>
   </div>`;
@@ -213,19 +272,32 @@ function wire(container) {
     draw(container);
     container.querySelectorAll('details').forEach((d, i) => { if (open[i]) d.open = true; });
   }));
-  container.querySelector('#pz-next')?.addEventListener('click', async () => { await next(); draw(container); window.scrollTo(0, 0); });
+  container.querySelector('#pz-next')?.addEventListener('click', async () => {
+    if (mode === 'review') { navigate('puzzles/review'); return; }
+    await next(); draw(container); window.scrollTo(0, 0);
+  });
+  container.querySelector('#practice-all')?.addEventListener('click', async () => { practiceAll = true; cur.review = null; navigate('puzzles/review'); });
 }
 
 function answer(container, choice) {
   if (!current || current.answered) return;
   const { record: r, puzzle: p, cand } = current;
   const g = grade(p, r, choice);
-  const before = stats.rating;
-  stats.rating = updateRating(stats.rating, p.rating, g.correct, stats.played);
-  stats.played += 1;
-  if (g.correct) stats.solved += 1;
-  stats.seen = [...stats.seen, key(cand)].slice(-300);
-  stats.history = [...stats.history, { id: key(cand), v: g.verdict, loss: +g.loss_bb.toFixed(2), d: stats.rating - before }].slice(-500);
+  const k = key(cand);
+  if (mode === 'rated') {
+    const before = stats.rating;
+    stats.rating = updateRating(stats.rating, p.rating, g.correct, stats.played);
+    stats.played += 1;
+    if (g.correct) stats.solved += 1;
+    stats.seen = [...stats.seen, k].slice(-300);
+    stats.history = [...stats.history, { id: k, v: g.verdict, loss: +g.loss_bb.toFixed(2), d: stats.rating - before }].slice(-500);
+    if (!g.correct) queueMiss(stats, cand);
+  } else if (mode === 'daily') {
+    stats.daily = { ...(stats.daily || {}), [current.date]: { choice, v: g.verdict } };
+    if (!g.correct) queueMiss(stats, cand);
+  } else {
+    queueResult(stats, k, g.correct);
+  }
   saveStats(stats);
   current.answered = { g, choice };
   window.dispatchEvent(new Event('livegto:ratings'));

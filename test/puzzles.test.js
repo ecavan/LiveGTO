@@ -138,3 +138,36 @@ describe('explanations', () => {
     expect(text).toMatch(/doesn't bluff/);
   });
 });
+
+import { queueMiss, queueResult, dueItems, dailyStreak, today, dailyPick } from '../src/engine/puzzles.js';
+
+describe('review queue and daily', () => {
+  it('a missed puzzle comes back after 1, 3 and 7 days, and restarts on a miss', () => {
+    const D = 86400000, t0 = 1_700_000_000_000;
+    const st = { queue: [] };
+    const cand = { id: 'x', file: 'f.json', i: 2, rating: 1400 };
+    queueMiss(st, cand, t0);
+    expect(dueItems(st, t0).length).toBe(0);
+    expect(dueItems(st, t0 + D).length).toBe(1);
+    queueResult(st, 'x#2', true, t0 + D);
+    expect(dueItems(st, t0 + 3 * D).length).toBe(0);
+    expect(dueItems(st, t0 + 4 * D).length).toBe(1);
+    queueResult(st, 'x#2', false, t0 + 4 * D);
+    expect(st.queue[0].step).toBe(0);
+    queueResult(st, 'x#2', true, t0 + 5 * D);
+    queueResult(st, 'x#2', true, t0 + 8 * D);
+    queueResult(st, 'x#2', true, t0 + 15 * D);
+    expect(st.queue.length).toBe(0);
+  });
+  it('daily streak counts back from today', () => {
+    const now = new Date(2026, 8, 27);
+    const d = (k) => { const x = new Date(now); x.setDate(x.getDate() - k); return today(x); };
+    expect(dailyStreak({ daily: { [d(0)]: 1, [d(1)]: 1, [d(3)]: 1 } }, now)).toBe(2);
+    expect(dailyStreak({ daily: { [d(1)]: 1, [d(2)]: 1 } }, now)).toBe(2);
+    expect(dailyStreak({ daily: {} }, now)).toBe(0);
+  });
+  it('the daily pick is fixed by the date', () => {
+    const index = { records: [{ id: 'a', file: 'a', profile: 'station', street: 'turn', decision: 'ip_vs_bet', board: ['Ah', 'Kd', '2c'], ratings: [1200, 1500, 1700] }] };
+    expect(dailyPick(index, '2026-09-27')).toEqual(dailyPick(index, '2026-09-27'));
+  });
+});

@@ -8,10 +8,11 @@ import {
 import { board, pot, posOf, legal } from '../../engine/ring/game.js';
 import { styleLabel, ARCHETYPES, adjustment, LEVELS } from '../../engine/ring/players.js';
 import { settings, saveSettings } from '../../store.js';
-import { ringTable, fmtBB, seg, wireSeg, icon, esc, stat, handText, disc, verdict } from '../kit.js';
+import { ringTable, fmtBB, seg, wireSeg, icon, esc, stat, handText, disc, verdict, sprOf } from '../kit.js';
 import { actionBar, coachCard, decisionRow, playTabs } from './views.js';
 import { pct } from '../../engine/potmath.js';
 import { cardStr, evaluate, category } from '../../engine/hu/hand.js';
+import { addHand, packTable } from '../../engine/history.js';
 
 let t = null;
 let ui = { last: null, paused: false, recap: null, over: false, reveal: false };
@@ -53,9 +54,12 @@ function setup(container) {
         <p class="text-xs text-ink-400 mt-2">A solid reg wins about ${{ easy: 100, medium: 45, hard: 20 }[k]}bb/100 here.</p>
       </button>`).join('')}
     </div>
-    <div class="panel panel-pad grid md:grid-cols-3 gap-5">
+    <div class="panel panel-pad grid md:grid-cols-2 lg:grid-cols-4 gap-5">
       <div class="space-y-2"><div class="h-sec">Players</div>
         ${seg('size', [{ v: 4, label: '4' }, { v: 5, label: '5' }, { v: 6, label: '6-max' }], size)}</div>
+      <div class="space-y-2"><div class="h-sec">Stacks</div>
+        ${seg('stacks', [{ v: 'even', label: '100bb' }, { v: 'mixed', label: 'Live mix' }, { v: 'deep', label: '200bb' }], st.tableStacks ?? 'even')}
+        <p class="text-xs text-ink-400">${{ even: 'Everyone 100bb.', mixed: 'Like a real game: $50 short stacks next to $600 deep ones. You have 100bb. Watch the SPR.', deep: 'Everyone 200bb deep: implied odds and big pots.' }[st.tableStacks ?? 'even']}</p></div>
       <div class="space-y-2"><div class="h-sec">Coach</div>
         ${seg('coach', [{ v: 'decision', label: 'Every decision' }, { v: 'hand', label: 'After hands' }, { v: 'off', label: 'Off' }], st.coach)}</div>
       <div class="space-y-2"><div class="h-sec">Player styles</div>
@@ -69,6 +73,7 @@ function setup(container) {
     if (name === 'size') cur.tableSize = Number(v);
     if (name === 'coach') cur.coach = v;
     if (name === 'reveal') cur.reveal = v === 'show';
+    if (name === 'stacks') cur.tableStacks = v;
     saveSettings(cur);
     setup(container);
   });
@@ -78,7 +83,7 @@ function setup(container) {
   }));
   container.querySelector('#start').addEventListener('click', () => {
     const cur = settings();
-    t = createTable({ n: cur.tableSize ?? 6, coachMode: cur.coach, level: cur.tableLevel ?? 'medium' });
+    t = createTable({ n: cur.tableSize ?? 6, coachMode: cur.coach, level: cur.tableLevel ?? 'medium', stacks: cur.tableStacks ?? 'even' });
     ui = { last: null, paused: false, recap: null, over: false, reveal: !!cur.reveal };
     startHand(t);
     draw(container);
@@ -129,6 +134,7 @@ function tableHtml(thinking) {
   return ringTable({
     seats, board: bd,
     pot: s.done ? pot(s) : pot(s) - s.streetBet.reduce((x, y) => x + y, 0),
+    spr: s.done || s.folded[HERO] ? null : sprOf({ street: s.street, stacks: s.stacks, streetBet: s.streetBet, pot: pot(s), live: s.holes.map((_, i) => i).filter(i => !s.folded[i]), seat: HERO }),
     note: thinking ? `${t.players[s.toAct].name} is thinking…` : '',
   });
 }
@@ -219,7 +225,7 @@ function draw(container) {
   const openState = [...container.querySelectorAll('#coach details, #side details')].map(d => d.open);
   container.innerHTML = `<div class="page">
     <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
-      <div class="text-sm text-ink-300"><b class="text-white">Hand ${t.handNo}</b> · ${LEVELS[t.level].name} · ${t.n}-handed · you are <b class="text-white">${posOf(s, HERO)}</b></div>
+      <div class="text-sm text-ink-300"><b class="text-white">Hand ${t.handNo}</b> · ${LEVELS[t.level].name} · ${t.n}-handed${t.stacks === 'mixed' ? ' · live stacks' : t.stacks === 'deep' ? ' · 200bb' : ''} · you are <b class="text-white">${posOf(s, HERO)}</b></div>
       ${playTabs('table')}
     </div>
     <div class="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-5 lg:grid-flow-dense items-start">
@@ -255,7 +261,7 @@ function draw(container) {
 }
 
 function after(container) {
-  if (t.s.done) { ui.recap = endHand(t); ui.paused = false; }
+  if (t.s.done) { ui.recap = endHand(t); ui.paused = false; addHand(packTable(t, ui.recap, styleLabel)); }
   draw(container);
 }
 
@@ -276,7 +282,7 @@ function review(container) {
   container.innerHTML = `<div class="page space-y-5 fade-up">
     <div class="flex items-end justify-between gap-3 flex-wrap">
       <div><div class="h-sec">Session review</div><h1 class="h-title">Live table: ${LEVELS[t.level].name}, ${t.n}-handed</h1></div>
-      <div class="flex gap-2"><button class="btn" id="rv-again">Same table</button><button class="btn btn-primary" id="rv-new">New table</button></div>
+      <div class="flex gap-2 flex-wrap"><a class="btn" href="#play/review/s/${t.startedAt}">${icon('review', 'w-4 h-4')} Game review</a><button class="btn" id="rv-again">Same table</button><button class="btn btn-primary" id="rv-new">New table</button></div>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       ${stat('Decisions', pct(sum.accuracy), `${sum.blunders} blunders · ${sum.mistakes} mistakes`)}

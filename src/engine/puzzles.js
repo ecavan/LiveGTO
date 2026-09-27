@@ -250,3 +250,76 @@ export function saveStats(stats) {
     localStorage.setItem(STORE, JSON.stringify(stats));
   } catch { /* storage unavailable: keep in memory only */ }
 }
+
+// ---------------------------------------------------------------- review queue (spaced repetition)
+
+const DAY = 86400000;
+export const INTERVALS = [1, 3, 7]; // days until the next try after a miss, then after each solve
+
+/**
+ * A puzzle you missed comes back tomorrow, then after 3 and 7 more days if you solve it each time.
+ * Miss it again and it starts over. Items: { k, file, id, i, due, step, misses }.
+ */
+export function queueMiss(stats, cand, now = Date.now()) {
+  const q = (stats.queue ||= []);
+  const k = key(cand);
+  const it = q.find(x => x.k === k);
+  if (it) { it.step = 0; it.due = now + INTERVALS[0] * DAY; it.misses = (it.misses || 0) + 1; }
+  else q.push({ k, file: cand.file, id: cand.id, i: cand.i, rating: cand.rating, due: now + INTERVALS[0] * DAY, step: 0, misses: 1 });
+  stats.queue = q.slice(-200);
+  return stats;
+}
+
+/** A review attempt: solved → next interval (or done after the last); missed → start over. */
+export function queueResult(stats, k, correct, now = Date.now()) {
+  const q = stats.queue || [];
+  const it = q.find(x => x.k === k);
+  if (!it) return stats;
+  if (!correct) { it.step = 0; it.due = now + INTERVALS[0] * DAY; it.misses = (it.misses || 0) + 1; return stats; }
+  it.step += 1;
+  if (it.step >= INTERVALS.length) stats.queue = q.filter(x => x !== it);
+  else it.due = now + INTERVALS[it.step] * DAY;
+  return stats;
+}
+
+export const dueItems = (stats, now = Date.now()) => (stats.queue || []).filter(x => x.due <= now).sort((a, b) => a.due - b.due);
+
+// ---------------------------------------------------------------- daily puzzle
+
+export const today = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+function hashStr(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+/** Seeded generator for a date (same puzzle, same suits, for everyone on that day). */
+export function dayRand(date) {
+  let a = hashStr(`livegto:${date}`);
+  return () => {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** The daily puzzle: an exploitative spot of middling difficulty, fixed by the date. */
+export function dailyPick(index, date = today()) {
+  const all = candidates(index, {});
+  const pool = all.filter(c => c.rating >= 1150 && c.rating <= 1750);
+  const list = (pool.length ? pool : all).sort((a, b) => (key(a) < key(b) ? -1 : 1));
+  if (!list.length) return null;
+  return list[hashStr(date) % list.length];
+}
+
+/** Consecutive days (ending today, or yesterday if today isn't done yet) with the daily played. */
+export function dailyStreak(stats, now = new Date()) {
+  const done = stats.daily || {};
+  let n = 0;
+  const d = new Date(now);
+  if (!done[today(d)]) d.setDate(d.getDate() - 1);
+  while (done[today(d)]) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}

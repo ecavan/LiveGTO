@@ -1,6 +1,8 @@
 /**
  * A live table session: you (seat 0) and up to five players drawn from a live pool, button
- * moving every hand, everyone reset to 100bb each hand. Players come and go now and then.
+ * moving every hand. Stacks: everyone 100bb, all 200bb deep, or a live mix (short stacks of
+ * 25–45bb next to 150–300bb deep ones); each player starts every hand with his own buy-in.
+ * Players come and go now and then.
  * Every decision of yours is graded by the ring coach; the table learns your tendencies.
  */
 import { newHand, act, board, pot, live, posOf, menu, legal } from './game.js';
@@ -11,13 +13,26 @@ import { classify, cardStr } from '../hu/hand.js';
 
 export const HERO = 0;
 
-export function createTable({ n = 6, coachMode = 'decision', level = 'medium', rand = Math.random } = {}) {
+/** A buy-in in bb for a new player: 100, 200, or a live mix. */
+export function depthFor(mode, rand = Math.random) {
+  if (mode === 'deep') return 200;
+  if (mode !== 'mixed') return 100;
+  const x = rand();
+  const r5 = (v) => Math.round(v / 5) * 5;
+  if (x < 0.25) return r5(25 + rand() * 20); // the $50–$90 short stack
+  if (x < 0.7) return r5(60 + rand() * 60);
+  return r5(150 + rand() * 150); // the deep regular or the whale with a brick
+}
+
+export const heroDepth = (mode) => (mode === 'deep' ? 200 : 100);
+
+export function createTable({ n = 6, coachMode = 'decision', level = 'medium', stacks = 'even', rand = Math.random } = {}) {
   const used = new Set();
   const tiers = tableTiers(level, n, rand);
   const players = [null, ...tiers.map(tier => randomPlayer(rand, used, tier))];
-  for (const p of players) if (p) p.hud = { hands: 0, vpip: 0, pfr: 0 };
+  for (const p of players) if (p) { p.hud = { hands: 0, vpip: 0, pfr: 0 }; p.depth = depthFor(stacks, rand); }
   return {
-    n, coachMode, level, players, used,
+    n, coachMode, level, stacks, players, used,
     btn: Math.floor(rand() * n),
     handNo: 0,
     stats: newHeroStats(),
@@ -39,10 +54,11 @@ export function startHand(t, rand = Math.random) {
     t.used.delete(t.players[seat].name);
     const p = randomPlayer(rand, t.used, t.players[seat].tier); // same kind of player: the difficulty holds
     p.hud = { hands: 0, vpip: 0, pfr: 0 };
-    t.arrivals.push(`${t.players[seat].name} left; ${p.name} sat down.`);
+    p.depth = depthFor(t.stacks, rand);
+    t.arrivals.push(`${t.players[seat].name} left; ${p.name} sat down${t.stacks === 'mixed' ? ` with ${p.depth}bb` : ''}.`);
     t.players[seat] = p;
   }
-  t.s = newHand({ n: t.n, btn: t.btn, rand });
+  t.s = newHand({ n: t.n, btn: t.btn, stacks: t.players.map((p, i) => (i === HERO ? heroDepth(t.stacks) : p.depth ?? 100)), rand });
   t.snap = { ...t.stats };
   t.decisions = [];
   t.pending = null;
@@ -76,7 +92,7 @@ export function heroAct(t, idx) {
   loss = Math.round(loss * 100) / 100;
   const verdict = idx === k.best ? 'best' : k.fine.includes(idx) ? 'fine' : (loss >= 10 || loss >= 0.25 * pot(s)) ? 'blunder' : 'mistake';
   const d = {
-    street: s.street, board: board(s), hole: s.holes[HERO], pot: pot(s),
+    at: s.log.length, street: s.street, board: board(s), hole: s.holes[HERO], pot: pot(s),
     toCall: legal(s).callAmount, options: k.options.map(o => ({ type: o.type, to: o.to, label: o.label, ev: o.ev, info: o.info })),
     best: k.best, fine: k.fine, chosen: idx, loss, verdict, equity: k.equity, need: k.need, range: k.range,
     preflop: k.preflop, chart: k.chart, notes: k.notes, opponents: k.opponents,

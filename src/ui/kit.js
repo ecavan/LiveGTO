@@ -31,7 +31,7 @@ export const handText = (list) => list.map(cardText).join('');
  * Heads-up table. top/bottom: { name, sub, stack, cards: [ids] | 'back' | null, folded, dealer }
  * bets: { top, bottom } amounts (bb). acting: 'top' | 'bottom' | null.
  */
-export function pokerTable({ top, bottom, board = [], pot = null, note = '', bets = {}, acting = null, dim = [] }) {
+export function pokerTable({ top, bottom, board = [], pot = null, note = '', bets = {}, acting = null, dim = [], spr = null }) {
   const pod = (p, where) => {
     if (!p) return '';
     const cs = p.cards === 'back' ? back('') + back('')
@@ -49,13 +49,27 @@ export function pokerTable({ top, bottom, board = [], pot = null, note = '', bet
   return `<div class="tbl">
     <div class="tbl-rail"></div><div class="tbl-felt"></div>
     <div class="tbl-center">
-      ${pot != null ? `<div class="tbl-pot">Pot ${fmtBB(pot)}</div>` : ''}
+      ${pot != null ? `<div class="tbl-pot">Pot ${fmtBB(pot)}${sprTag(spr)}</div>` : ''}
       <div class="tbl-board">${slots.join('')}</div>
       ${note ? `<div class="tbl-note">${note}</div>` : ''}
     </div>
     ${bet(bets.top, 'top')}${bet(bets.bottom, 'bottom')}
     ${pod(top, 'top')}${pod(bottom, 'bottom')}
   </div>`;
+}
+
+const sprTag = (spr) => (spr != null && Number.isFinite(spr) ? `<span class="tbl-spr" title="Stack-to-pot ratio: the effective stack divided by the pot at the start of this street">SPR ${spr >= 10 ? Math.round(spr) : spr.toFixed(1)}</span>` : '');
+
+/**
+ * Stack-to-pot ratio for `seat` at the start of the current street: the smaller of his stack and
+ * the biggest stack still in against him, over the pot before this street's bets. null preflop.
+ */
+export function sprOf({ street, stacks, streetBet, pot, live, seat }) {
+  if (!street) return null;
+  const mine = stacks[seat] + streetBet[seat];
+  const other = Math.max(0, ...live.filter(i => i !== seat).map(i => stacks[i] + streetBet[i]));
+  const potStart = pot - streetBet.reduce((a, b) => a + b, 0);
+  return potStart > 0 ? Math.min(mine, other) / potStart : null;
 }
 
 export function fmtBB(x, { sign = false } = {}) {
@@ -133,6 +147,11 @@ const ICONS = {
   bot: '<rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 8V4M8 14h.01M16 14h.01"/>',
   pause: '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>',
   flag: '<path d="M4 22V4a1 1 0 0 1 1-1h11l-2 4 2 4H5"/>',
+  first: '<path d="m17 18-6-6 6-6"/><path d="M7 6v12"/>',
+  last: '<path d="m7 18 6-6-6-6"/><path d="M17 6v12"/>',
+  review: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9L12 3Z"/>',
+  pen: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/>',
 };
 export function icon(name, cls = 'w-5 h-5') {
   return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
@@ -169,7 +188,7 @@ const RING_POS = {
  * Table for up to six. seats[i]: { name, sub, stack, cards: [..]|'back'|null, folded, dealer, bet,
  * tag (small label, e.g. "Raise 9"), acting, hero }. Seat 0 is drawn at the bottom.
  */
-export function ringTable({ seats, board = [], pot = null, note = '' }) {
+export function ringTable({ seats, board = [], pot = null, note = '', spr = null }) {
   const n = seats.length;
   const anchors = RING_POS[n];
   const center = [50, 46];
@@ -194,7 +213,7 @@ export function ringTable({ seats, board = [], pot = null, note = '' }) {
   return `<div class="rtable">
     <div class="tbl-rail"></div><div class="tbl-felt"></div>
     <div class="tbl-center" style="top:46%">
-      ${pot ? `<div class="tbl-pot">Pot ${fmtBB(pot)}</div>` : ''}
+      ${pot ? `<div class="tbl-pot">Pot ${fmtBB(pot)}${sprTag(spr)}</div>` : ''}
       <div class="tbl-board">${slots.join('')}</div>
       ${note ? `<div class="tbl-note">${note}</div>` : ''}
     </div>

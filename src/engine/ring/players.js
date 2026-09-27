@@ -236,8 +236,12 @@ export function playerPolicyAll(player, s, seat, ctx) {
     const a = ARCHETYPES[arch];
     if (s.street === 0) {
       const { R, C, F } = preflopArch(a, s, seat, ctx);
-      // one raise size: the first raise option (the all-in only if it's the only one)
-      const rOpt = opts.findIndex(o => o.type === 'raise') >= 0 ? opts.findIndex(o => o.type === 'raise') : opts.findIndex(o => o.type === 'allin');
+      // one raise size: the first raise option (the all-in only if it's the only one). A short
+      // stack (≤35bb) facing a raise, or ≤15bb first in, raises all-in: re-raise shoves, not 3-bets
+      const eff = s.stacks[seat] + s.streetBet[seat];
+      const shoveOnly = (eff <= 35 && raisesBefore(s) >= 1) || eff <= 15;
+      const aOpt = opts.findIndex(o => o.type === 'allin');
+      const rOpt = shoveOnly && aOpt >= 0 ? aOpt : opts.findIndex(o => o.type === 'raise') >= 0 ? opts.findIndex(o => o.type === 'raise') : aOpt;
       const cOpt = opts.findIndex(o => o.type === 'call' || o.type === 'check');
       const fOpt = opts.findIndex(o => o.type === 'fold');
       for (let i = 0; i < N; i++) {

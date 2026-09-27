@@ -15,6 +15,7 @@ import {
 } from './play/views.js';
 import { villainRange } from '../engine/hu/range.js';
 import { rangeView } from '../engine/hu/coach.js';
+import { addHand, packHU } from '../engine/history.js';
 
 let sess = null;
 let ui = { last: null, lastWeights: null, paused: false, recap: null, over: false };
@@ -26,6 +27,7 @@ const BOT_DELAY = 650;
 export async function render(container, params = []) {
   if (params[0] === 'watch') return (await import('./play/watch.js')).render(container, params.slice(1));
   if (params[0] === 'table') return (await import('./play/table.js')).render(container, params.slice(1));
+  if (params[0] === 'review') return (await import('./play/review.js')).render(container, params.slice(1));
   if (params[0] === 'new') { sess = null; }
   const cleanup = () => {
     clearTimeout(timer);
@@ -80,7 +82,7 @@ function setup(container) {
   container.innerHTML = `<div class="page space-y-6 fade-up">
     <div class="flex items-end justify-between gap-4 flex-wrap">
       <div><div class="h-sec">Play</div><h1 class="h-title">Choose your opponent</h1>
-        <p class="muted mt-1 text-sm">Heads-up, 100bb, button vs big blind. Every decision is graded against the bot's real range.</p></div>
+        <p class="muted mt-1 text-sm">Heads-up, ${st.huStack ?? 100}bb, button vs big blind. Every decision is graded against the bot's real range.</p></div>
       <div class="flex items-end gap-3 flex-wrap">${playTabs('')}<div class="stat min-w-[150px]"><div class="k">Your Play rating</div><div class="v text-amber-200">${mine ? mine.rating : '—'}</div>
         <div class="s">${mine ? `${mine.hands} rated hands` : 'play a session to get rated'}</div></div></div>
     </div>
@@ -100,7 +102,7 @@ function setup(container) {
         </button>`;
       }).join('')}
     </div>
-    <div class="panel panel-pad grid md:grid-cols-2 gap-5">
+    <div class="panel panel-pad grid md:grid-cols-3 gap-5">
       <div class="space-y-2"><div class="h-sec">Coach</div>
         ${seg('coach', [{ v: 'decision', label: 'Every decision' }, { v: 'hand', label: 'After each hand' }, { v: 'off', label: 'Session review only' }], st.coach)}
         <p class="text-xs text-ink-400">${{ decision: 'See the verdict after each decision. The hand pauses when you make a mistake.', hand: 'Play the hand uninterrupted, then see how each decision rated.', off: 'Play a clean session, like a real game. The review comes at the end.' }[st.coach]}</p>
@@ -108,6 +110,10 @@ function setup(container) {
       <div class="space-y-2"><div class="h-sec">Session</div>
         ${seg('length', [{ v: 0, label: 'Endless' }, { v: 25, label: '25 hands' }, { v: 50, label: '50' }, { v: 100, label: '100' }], st.length)}
         <p class="text-xs text-ink-400">Your rating comes from the EV you give up per 100 hands, not from the cards. Luck is shown separately.</p>
+      </div>
+      <div class="space-y-2"><div class="h-sec">Stacks</div>
+        ${seg('huStack', [{ v: 40, label: '40bb' }, { v: 100, label: '100bb' }, { v: 200, label: '200bb' }], st.huStack ?? 100)}
+        <p class="text-xs text-ink-400">${{ 40: 'Short: low SPR, more all-ins. Top pair is often a stack-off.', 100: 'The standard live buy-in.', 200: 'Deep: high SPR, implied odds, and one pair gets expensive.' }[st.huStack ?? 100]}</p>
       </div>
     </div>
     <button id="start" class="btn btn-primary btn-lg btn-block">${icon('play', 'w-5 h-5')} Play ${AGENTS[st.bot].name}</button>
@@ -117,7 +123,7 @@ function setup(container) {
     setup(container);
   }));
   wireSeg(container, (name, v) => {
-    saveSettings({ ...settings(), [name]: name === 'length' ? Number(v) : v });
+    saveSettings({ ...settings(), [name]: name === 'length' || name === 'huStack' ? Number(v) : v });
     setup(container);
   });
   container.querySelector('#start').addEventListener('click', () => start(container));
@@ -126,7 +132,7 @@ function setup(container) {
 function start(container) {
   const st = settings();
   const memory = playStore().models?.[st.bot] ?? null; // adaptive bots remember how you play
-  sess = createSession({ botId: st.bot, length: st.length, coachMode: st.coach, model: memory });
+  sess = createSession({ botId: st.bot, length: st.length, coachMode: st.coach, model: memory, stack: st.huStack ?? 100 });
   ui = { last: null, lastWeights: null, paused: false, recap: null, over: false };
   startHand(sess);
   table(container);
@@ -177,6 +183,7 @@ function table(container) {
     <div class="flex items-center justify-between mb-3 gap-3">
       <div class="flex items-center gap-2 text-sm text-ink-300">
         <span class="font-semibold text-white">Hand ${sess.handNo}${sess.length ? ` / ${sess.length}` : ''}</span>
+        <span>·</span><span>${sess.stack ?? 100}bb</span>
         <span>·</span><span>${sess.coachMode === 'decision' ? 'Coach on' : sess.coachMode === 'hand' ? 'Coach after hands' : 'Coach off'}</span>
       </div>
       <a href="#play/new" class="btn btn-quiet text-sm">${icon('back', 'w-4 h-4')} Opponents</a>
@@ -220,6 +227,7 @@ function table(container) {
 function afterAction(container) {
   if (sess.s.done) {
     ui.recap = endHand(sess);
+    addHand(packHU(sess, ui.recap, AGENTS[sess.botId].name));
     ui.paused = false;
   }
   table(container);

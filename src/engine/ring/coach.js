@@ -121,7 +121,13 @@ export function ringCoach(s, hero, table, stats) {
     let ev = 0;
     if (m.type === 'fold') ev = 0;
     else if (m.type === 'check') ev = eq * P;
-    else if (m.type === 'call') { const C = L.callAmount; ev = eq * (P + C) - C; info.eq = eq; info.need = requiredEquity(P, C); }
+    else if (m.type === 'call') {
+      // a bet bigger than your stack: the part you can't cover comes back to him
+      const top = Math.max(...s.streetBet);
+      const excess = Math.max(0, top - (s.streetBet[hero] + s.stacks[hero]));
+      const C = L.callAmount, Pe = P - excess;
+      ev = eq * (Pe + C) - C; info.eq = eq; info.need = requiredEquity(Pe, C);
+    }
     else {
       const x = m.to - s.streetBet[hero];
       let st = act(s, m);
@@ -196,6 +202,8 @@ export function preflopChart(s, hero) {
     return rfi.has(key) ? { action: 'raise', note: `${key} is a raise first in from ${pos}.` } : { action: L.check ? 'call' : 'fold', note: `${key} is a fold first in from ${pos}: raise or fold, never limp.` };
   }
   if (raises.length === 1) {
+    // a short stack's shove or an oversized raise isn't an "open": the price decides (EV)
+    if (raises[0].type === 'allin' || raises[0].to >= 12) return null;
     const opener = posOf(s, raises[0].seat);
     const fo = FACING_OPEN[`${chartPos}|${opener === 'HJ' ? 'MP' : opener}`];
     if (!fo) return null;

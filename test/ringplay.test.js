@@ -70,3 +70,31 @@ describe('table difficulty', () => {
     expect(Object.keys(LEVELS)).toEqual(['easy', 'medium', 'hard']);
   });
 });
+
+describe('live stacks', () => {
+  it('mixed stacks: chips conserved, short stacks re-raise all-in, the coach prices shoves by EV', () => {
+    const rand = rng(33);
+    const t = createTable({ n: 6, stacks: 'mixed', rand });
+    const depths = t.players.slice(1).map(p => p.depth);
+    expect(depths.every(d => d >= 25 && d <= 300)).toBe(true);
+    let shoveSpots = 0;
+    for (let h = 0; h < 150; h++) {
+      startHand(t, rand);
+      const total = t.s.start.reduce((a, b) => a + b, 0);
+      let g = 0;
+      while (!t.s.done && g++ < 100) {
+        if (heroToAct(t)) {
+          const k = coachNow(t);
+          const facingShove = t.s.street === 0 && t.s.log.some(e => e.type === 'allin' && !e.callAllIn);
+          if (facingShove) { shoveSpots++; expect(k.preflop).toBe(false); }
+          const raise = k.options.findIndex(o => o.type === 'raise');
+          heroAct(t, t.s.street === 0 && !facingShove && raise >= 0 ? raise : k.best); // open everything: the short stacks shove over it
+        } else botAct(t, rand);
+      }
+      expect(t.s.stacks.reduce((a, b) => a + b, 0)).toBeCloseTo(total, 6);
+      endHand(t);
+    }
+    console.log('preflop shove spots faced', shoveSpots);
+    expect(shoveSpots).toBeGreaterThan(0);
+  });
+});
