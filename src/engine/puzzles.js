@@ -25,16 +25,28 @@ const CLASS_LABELS = {
 
 // ---------------------------------------------------------------- selection
 
+const FACING = new Set(['oop_vs_bet', 'ip_vs_bet']);
+
 /**
  * Flatten the index into puzzle candidates matching the filters.
- * filters: { street?: 'turn'|'river', profile?: string, seat?: 'ip'|'oop' }
+ * filters: {
+ *   profile?: ''  → every exploitative villain (the default: this isn't a GTO trainer)
+ *             'all' → including GTO,  or one profile id ('gto', 'station', …)
+ *   street?: 'turn' | 'river'
+ *   decision?: 'facing' (you face a bet) | 'betting' (checked to you / first to act)
+ *   family?: family id, e.g. '3bp_bb_btn'
+ * }
  */
 export function candidates(index, filters = {}) {
   const out = [];
   for (const r of index.records) {
+    const prof = filters.profile || '';
+    if (prof === '' && r.profile === 'gto') continue;
+    if (prof !== '' && prof !== 'all' && r.profile !== prof) continue;
     if (filters.street && r.street !== filters.street) continue;
-    if (filters.profile && r.profile !== filters.profile) continue;
-    if (filters.decision && r.decision !== filters.decision) continue;
+    if (filters.decision === 'facing' && !FACING.has(r.decision)) continue;
+    if (filters.decision === 'betting' && FACING.has(r.decision)) continue;
+    if (filters.family && r.family !== filters.family) continue;
     (r.ratings || []).forEach((rating, i) => out.push({ id: r.id, file: r.file, i, rating }));
   }
   return out;
@@ -54,6 +66,13 @@ export function pickPuzzle(cands, rating, seen = new Set(), rand = Math.random) 
 }
 
 export const key = (c) => `${c.id}#${c.i}`;
+
+/** Spot families present in the library: [{ id, name }]. */
+export function families(index) {
+  const seen = new Map();
+  for (const r of index.records) if (r.family && !seen.has(r.family)) seen.set(r.family, r.family_name || r.family);
+  return [...seen].map(([id, name]) => ({ id, name }));
+}
 
 // ---------------------------------------------------------------- grading
 

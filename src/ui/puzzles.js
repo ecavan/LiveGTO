@@ -5,7 +5,7 @@
 import { renderPokerTable, renderCard } from './components.js';
 import { cardToDisplay } from '../engine/cards.js';
 import {
-  PROFILES, candidates, pickPuzzle, key, grade, updateRating, explain,
+  PROFILES, candidates, families, pickPuzzle, key, grade, updateRating, explain,
   cellLabel, cellOf, loadStats, saveStats,
 } from '../engine/puzzles.js';
 import { pct } from '../engine/potmath.js';
@@ -13,7 +13,7 @@ import { pct } from '../engine/potmath.js';
 let index = null;
 const files = new Map();
 let stats = loadStats();
-let filters = { street: '', profile: '', decision: '' };
+let filters = { street: '', profile: '', decision: '', family: '' };
 let current = null; // { cand, record, puzzle, answered, gridTab }
 
 async function getIndex() {
@@ -45,11 +45,7 @@ export async function render(container) {
 }
 
 async function next(container) {
-  const cands = candidates(index, {
-    street: filters.street || undefined,
-    profile: filters.profile || undefined,
-    decision: filters.decision || undefined,
-  });
+  const cands = candidates(index, filters);
   const cand = pickPuzzle(cands, stats.rating, new Set(stats.seen));
   if (!cand) {
     current = null;
@@ -68,16 +64,22 @@ function filterBar() {
   return `
   <div class="flex flex-wrap gap-2 justify-center text-xs">
     <select data-f="profile" class="bg-gray-900 border border-gray-700 rounded px-2 py-1">
-      ${opt('', 'Any villain', filters.profile)}
-      ${Object.entries(PROFILES).map(([k, v]) => opt(k, `vs ${v}`, filters.profile)).join('')}
+      ${opt('', 'All villain types', filters.profile)}
+      ${Object.entries(PROFILES).filter(([k]) => k !== 'gto').map(([k, v]) => opt(k, `vs ${v}`, filters.profile)).join('')}
+      ${opt('gto', 'vs GTO (baseline)', filters.profile)}
+      ${opt('all', 'Everything', filters.profile)}
+    </select>
+    <select data-f="family" class="bg-gray-900 border border-gray-700 rounded px-2 py-1">
+      ${opt('', 'All pots', filters.family)}
+      ${families(index).map(f => opt(f.id, f.name, filters.family)).join('')}
     </select>
     <select data-f="street" class="bg-gray-900 border border-gray-700 rounded px-2 py-1">
       ${opt('', 'Turn + river', filters.street)}${opt('turn', 'Turn', filters.street)}${opt('river', 'River', filters.street)}
     </select>
     <select data-f="decision" class="bg-gray-900 border border-gray-700 rounded px-2 py-1">
       ${opt('', 'All spots', filters.decision)}
-      ${opt('ip_checked_to', 'Checked to you (IP)', filters.decision)}
-      ${opt('oop_vs_bet', 'Facing a bet (OOP)', filters.decision)}
+      ${opt('facing', 'Facing a bet', filters.decision)}
+      ${opt('betting', 'Bet or check', filters.decision)}
     </select>
   </div>`;
 }

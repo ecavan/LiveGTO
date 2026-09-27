@@ -29,6 +29,15 @@ enum Cmd {
         /// Only the first N flops of each family (for quick runs).
         #[arg(long)]
         flops: Option<usize>,
+        /// Only this family id.
+        #[arg(long)]
+        family: Option<String>,
+        /// Print each flop tree's memory and exit.
+        #[arg(long)]
+        dry_run: bool,
+        /// Only rebuild index.json from the files already in --out.
+        #[arg(long)]
+        index_only: bool,
     },
     /// Solve a spot and show hero's answer: GTO vs the best exploit of a villain profile.
     Spot {
@@ -55,8 +64,13 @@ enum Cmd {
 
 fn main() -> Result<()> {
     match Cli::parse().cmd {
-        Cmd::Library { config, out, flops } => {
-            ps_solve::library::build(&config, &out, flops, &mut |m| println!("{m}"))?;
+        Cmd::Library { config, out, flops, family, dry_run, index_only } => {
+            if index_only {
+                let n = ps_solve::library::reindex(&out)?;
+                println!("indexed {n} files");
+                return Ok(());
+            }
+            ps_solve::library::build(&config, &out, flops, family.as_deref(), dry_run, &mut |m| println!("{m}"))?;
         }
         Cmd::Spot {
             spot,

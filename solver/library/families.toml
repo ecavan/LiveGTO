@@ -23,3 +23,69 @@ turns_per_line = 2
 rivers_per_line = 1
 profiles = ["gto.toml", "station.toml", "nit.toml", "maniac.toml", "whale.toml"]
 seed = 7
+
+# ---- Live-sized families: opens are 5bb ($10 at $1/$2), 100bb deep. ------------------------
+
+[[family]]
+id = "srp_co_btn"
+name = "Single-raised pot, CO vs BTN"
+preflop = "CO opens 5bb, BTN calls, blinds fold"
+oop_pos = "CO"
+ip_pos = "BTN"
+aggressor = "oop"
+# CO: The Course ~22%. BTN flats vs a CO open; 3-bets QQ+, AK, A5s-A4s.
+oop_range = "22+,A2s+,K7s+,Q9s+,JTs,T9s,98s,87s,76s,65s,54s,43s,J9s,T8s,97s,86s,75s,64s,53s,ATo+,KJo+"
+ip_range = "JJ-22,AQs-A6s,A3s-A2s,KTs+,QTs+,JTs,T9s,98s,87s,76s,65s,AQo,AJo,KQo"
+pot = 11.5
+stack = 95.0
+flops = ["Ah8d3c", "Kc7s2h", "Js9s4d", "Th6c5h", "9d9c4s", "Qh5d3s"]
+profiles = ["gto.toml", "station.toml", "nit.toml", "maniac.toml", "whale.toml"]
+seed = 11
+
+[[family]]
+id = "srp_ep_bb"
+name = "Single-raised pot, early position vs BB"
+preflop = "UTG opens 5bb, folds to BB, BB calls"
+oop_pos = "BB"
+ip_pos = "UTG"
+aggressor = "ip"
+# UTG: The Course early position ~14%. BB flats a big early raise tightly (The Course p.69).
+ip_range = "22+,A2s+,KTs+,QTs+,JTs,T9s,98s,87s,76s,AQo+"
+oop_range = "JJ-22,AJs-A2s,KTs+,QTs+,JTs,T9s,98s,87s,76s,65s,54s,AQo,KQo"
+pot = 10.5
+stack = 95.0
+flops = ["Ks8d3c", "Ad9h5s", "QcJc4h", "8h7h2d", "6s6d2c", "Tc4d3s"]
+profiles = ["gto.toml", "station.toml", "nit.toml", "maniac.toml", "whale.toml"]
+seed = 13
+
+[[family]]
+id = "3bp_bb_btn"
+name = "3-bet pot, BB vs BTN"
+preflop = "BTN opens 5bb, BB 3-bets to 18bb, BTN calls"
+oop_pos = "BB"
+ip_pos = "BTN"
+aggressor = "oop"
+# BB 3-bets value-heavy with a few suited bluffs; BTN calls the middle (4-bets QQ+, AK).
+oop_range = "TT+,AJs+,KQs,A5s,A4s,76s,65s,AKo,AQo"
+ip_range = "JJ-55,AQs-ATs,KJs+,QJs,JTs,T9s,98s,AQo"
+pot = 36.5
+stack = 82.0
+flops = ["Kh7d2s", "Ac9c5d", "Jh8h6c", "Td5s5c", "Qs4d3h", "9h7c6d"]
+profiles = ["gto.toml", "station.toml", "nit.toml", "maniac.toml", "whale.toml"]
+seed = 17
+
+[[family]]
+id = "limp_mp_bb"
+name = "Limped pot, limper vs BB"
+preflop = "MP limps 1bb, SB folds, BB checks"
+oop_pos = "BB"
+ip_pos = "MP"
+aggressor = "none"
+# Typical live limper; BB checks everything except The Course's raise range (99+, ATs+, KJs+, AQo+).
+ip_range = "99-22,AJs-A2s,K8s+,Q9s+,J9s+,T8s+,97s+,86s+,75s+,65s,54s,AJo-A8o,KTo+,QTo+,JTo"
+oop_range = "88-22,A9s-A2s,KTs-K2s,QJs-Q2s,JTs-J2s,T9s-T2s,98s-92s,87s-82s,76s-72s,65s-62s,54s-52s,43s-42s,32s,AJo-A2o,KQo-K2o,QJo-Q2o,JTo-J2o,T9o-T2o,98o-92o,87o-82o,76o-72o,65o-62o,54o-52o,43o-42o,32o"
+pot = 2.5
+stack = 99.0
+flops = ["Kd8s4h", "Ah6c2d", "Jc9c7s", "7d5d3h", "QhQs8c", "Ts4c2h"]
+profiles = ["gto.toml", "station.toml", "nit.toml", "maniac.toml", "whale.toml"]
+seed = 19

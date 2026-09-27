@@ -104,14 +104,23 @@ describe('Elo like chess puzzles', () => {
 
 describe('selection', () => {
   const index = { records: [
-    { id: 'a', file: 'f', street: 'turn', profile: 'gto', decision: 'ip_checked_to', ratings: [900, 1500] },
-    { id: 'b', file: 'f', street: 'river', profile: 'station', decision: 'oop_vs_bet', ratings: [1000] },
+    { id: 'a', file: 'f', street: 'turn', profile: 'gto', decision: 'ip_checked_to', family: 'srp', ratings: [900, 1500] },
+    { id: 'b', file: 'f', street: 'river', profile: 'station', decision: 'oop_vs_bet', family: 'srp', ratings: [1000] },
+    { id: 'c', file: 'g', street: 'turn', profile: 'nit', decision: 'oop_first', family: '3bp', ratings: [1200] },
   ] };
-  it('filters and picks near the rating, skipping seen ones', () => {
-    expect(candidates(index)).toHaveLength(3);
-    expect(candidates(index, { street: 'river' })).toHaveLength(1);
+  it('defaults to exploit spots; GTO is opt-in', () => {
+    expect(candidates(index).map(c => c.id)).toEqual(['b', 'c']);
+    expect(candidates(index, { profile: 'all' })).toHaveLength(4);
     expect(candidates(index, { profile: 'gto' }).map(c => c.rating)).toEqual([900, 1500]);
-    const c = candidates(index);
+  });
+  it('filters by street, decision type and pot family', () => {
+    expect(candidates(index, { street: 'river' })).toHaveLength(1);
+    expect(candidates(index, { decision: 'facing' }).map(c => c.id)).toEqual(['b']);
+    expect(candidates(index, { decision: 'betting', profile: 'all' }).map(c => c.id)).toEqual(['a', 'a', 'c']);
+    expect(candidates(index, { family: '3bp' }).map(c => c.id)).toEqual(['c']);
+  });
+  it('picks near the rating, skipping seen ones', () => {
+    const c = candidates(index, { profile: 'all' });
     expect(pickPuzzle(c, 1480, new Set(), () => 0).rating).toBe(1500);
     expect(pickPuzzle(c, 1480, new Set(['a#1']), () => 0).rating).not.toBe(1500);
     expect(pickPuzzle([], 1000)).toBeNull();

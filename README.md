@@ -17,7 +17,8 @@ play is pure, and against GTO a mixed hand is indifferent.
 
 ```sh
 npm install
-npm run dev        # http://localhost:5173
+npm run dev        # http://localhost:5173 → tap Puzzles
+npm run dev:phone  # same, reachable from your phone on the same Wi-Fi (Vite prints the Network URL)
 npm test           # engine + pot math + puzzle engine (vitest)
 npm run build      # static site in dist/ (Vercel)
 ```

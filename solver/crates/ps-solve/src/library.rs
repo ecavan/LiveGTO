@@ -38,6 +38,10 @@ pub struct Family {
     pub pot: f64,
     pub stack: f64,
     pub flops: Vec<String>,
+    /// Who has the betting lead: "ip" (IP raised preflop), "oop" (OOP raised/3-bet),
+    /// or "none" (limped pot). Decides the flop tree, the lines studied and the decisions.
+    #[serde(default = "d_aggressor")]
+    pub aggressor: String,
     #[serde(default = "d_turns")]
     pub turns_per_line: usize,
     #[serde(default = "d_rivers")]
@@ -48,6 +52,9 @@ pub struct Family {
     pub seed: u64,
 }
 
+fn d_aggressor() -> String {
+    "ip".into()
+}
 fn d_turns() -> usize {
     2
 }
@@ -66,13 +73,29 @@ pub struct LibraryConfig {
 }
 
 /// Flop lines that reach the turn, and turn lines that reach the river (solver line tokens).
-const STREET_LINES: &[(&str, &[&str])] = &[("cbet_called", &["x", "b33", "c"]), ("checked", &["x", "x"])];
-const TURN_LINES: &[(&str, &[&str])] = &[("barrel_called", &["x", "b75", "c"]), ("checked", &["x", "x"])];
-/// Decisions studied on each street: (id, who is hero, line to the decision, description).
-const DECISIONS: &[(&str, Seat, &[&str], &str)] = &[
-    ("ip_checked_to", Seat::Ip, &["x"], "checked to you"),
-    ("oop_vs_bet", Seat::Oop, &["x", "b75"], "facing a 75% bet"),
-];
+type Lines = &'static [(&'static str, &'static [&'static str])];
+type Decisions = &'static [(&'static str, Seat, &'static [&'static str], &'static str)];
+
+/// Lines that end the flop / the turn, and the decisions studied on each later street.
+/// When IP has the lead (or nobody does), OOP checks to him; when OOP has it, OOP bets first.
+fn plan(aggressor: &str) -> (Lines, Lines, Decisions) {
+    const IP_FLOP: Lines = &[("cbet_called", &["x", "b33", "c"]), ("checked", &["x", "x"])];
+    const OOP_FLOP: Lines = &[("cbet_called", &["b33", "c"]), ("checked", &["x", "x"])];
+    const IP_TURN: Lines = &[("barrel_called", &["x", "b75", "c"]), ("checked", &["x", "x"])];
+    const OOP_TURN: Lines = &[("barrel_called", &["b75", "c"]), ("checked", &["x", "x"])];
+    const IP_DEC: Decisions = &[
+        ("ip_checked_to", Seat::Ip, &["x"], "checked to you"),
+        ("oop_vs_bet", Seat::Oop, &["x", "b75"], "facing a 75% bet"),
+    ];
+    const OOP_DEC: Decisions = &[
+        ("oop_first", Seat::Oop, &[], "first to act"),
+        ("ip_vs_bet", Seat::Ip, &["b75"], "facing a 75% bet"),
+    ];
+    match aggressor {
+        "oop" => (OOP_FLOP, OOP_TURN, OOP_DEC),
+        _ => (IP_FLOP, IP_TURN, IP_DEC),
+    }
+}
 
 /// Tiny deterministic RNG (xorshift) so the library is reproducible without a dependency.
 struct Rng(u64);
@@ -149,7 +172,12 @@ fn flop_game(fam: &Family, flop: &str) -> Result<PostFlopGame> {
         effective_stack: (fam.stack * CHIPS_PER_BB).round() as i32,
         rake_rate: 0.0,
         rake_cap: 0.0,
-        flop_bet_sizes: [o("", "3x")?, o("33%", "3x")?],
+        // the preflop aggressor c-bets; the caller doesn't donk (but IP may stab when checked to)
+        flop_bet_sizes: if fam.aggressor == "oop" {
+            [o("33%", "3x")?, o("33%", "3x")?]
+        } else {
+            [o("", "3x")?, o("33%", "3x")?]
+        },
         turn_bet_sizes: [o("75%", "")?, o("75%", "")?],
         river_bet_sizes: [o("75%, a", "")?, o("75%, a", "")?],
         turn_donk_sizes: None,
@@ -326,6 +354,18 @@ fn puzzles(r: &Report, is_gto: bool, max: usize) -> Vec<Value> {
     out
 }
 
+/// "facing a 33% bet" / "facing an all-in", from what the villain actually bet (a planned 75% bet
+/// can come out smaller or as an all-in when stacks are short).
+fn facing_desc(r: &Report) -> Option<String> {
+    if r.to_call_bb <= 0.0 {
+        return None;
+    }
+    if (r.stack_bb - r.to_call_bb).abs() < 0.05 {
+        return Some("facing an all-in".into());
+    }
+    Some(format!("facing a {:.0}% bet", 100.0 * r.to_call_bb / (r.pot_bb - r.to_call_bb)))
+}
+
 fn record(fam: &Family, id: &str, board: &str, prior: &[String], dec: &str, desc: &str, profile_file: &str, profile: &Profile, r: &Report) -> Value {
     let hero_pos = match r.hero {
         Seat::Oop => &fam.oop_pos,
@@ -349,7 +389,7 @@ fn record(fam: &Family, id: &str, board: &str, prior: &[String], dec: &str, desc
         "family_name": fam.name,
         "street": r.street,
         "decision": dec,
-        "decision_desc": desc,
+        "decision_desc": facing_desc(r).unwrap_or_else(|| desc.to_string()),
         "board": board_cards.iter().map(|&c| ps_core::card_to_string(c)).collect::<Vec<_>>(),
         "hero": { "pos": hero_pos, "seat": r.hero },
         "villain": { "pos": villain_pos, "profile": profile_file.trim_end_matches(".toml"),
@@ -378,14 +418,29 @@ fn record(fam: &Family, id: &str, board: &str, prior: &[String], dec: &str, desc
 }
 
 /// Builds the library. Writes one JSON file per flop plus `index.json`.
-pub fn build(config_path: &Path, out_dir: &Path, only_flops: Option<usize>, log: &mut dyn FnMut(&str)) -> Result<()> {
+pub fn build(
+    config_path: &Path,
+    out_dir: &Path,
+    only_flops: Option<usize>,
+    only_family: Option<&str>,
+    dry_run: bool,
+    log: &mut dyn FnMut(&str),
+) -> Result<()> {
     let cfg_str = std::fs::read_to_string(config_path).with_context(|| format!("reading {}", config_path.display()))?;
     let cfg: LibraryConfig = toml::from_str(&cfg_str)?;
     let base = config_path.parent().unwrap_or(Path::new("."));
     let profiles_dir = base.join(&cfg.profiles_dir);
     std::fs::create_dir_all(out_dir)?;
     let mut index = Vec::new();
-    for fam in &cfg.family {
+    for fam in cfg.family.iter().filter(|f| only_family.map_or(true, |id| f.id == id)) {
+        if dry_run {
+            for flop in fam.flops.iter().take(only_flops.unwrap_or(usize::MAX)) {
+                let fg = flop_game(fam, flop)?;
+                let (_, mc) = fg.memory_usage();
+                log(&format!("[{}] {flop}: flop tree {:.2} GB (compressed)", fam.id, mc as f64 / 1e9));
+            }
+            continue;
+        }
         let profiles: Vec<(String, Profile)> = fam
             .profiles
             .iter()
@@ -407,11 +462,17 @@ pub fn build(config_path: &Path, out_dir: &Path, only_flops: Option<usize>, log:
             let t0 = std::time::Instant::now();
             log(&format!("[{}] flop {flop}: solving GTO for turn ranges", fam.id));
             let mut fg = flop_game(fam, flop)?;
+            let (_, mc) = fg.memory_usage();
+            if mc as f64 > 4.5e9 {
+                log(&format!("  skip {flop}: flop tree needs {:.1} GB", mc as f64 / 1e9));
+                continue;
+            }
             fg.allocate_memory(true);
             let pot_chips = (fam.pot * CHIPS_PER_BB) as f32;
             solve(&mut fg, 600, pot_chips * 0.005, false);
             let mut records = Vec::new();
-            for (fl_id, fl_line) in STREET_LINES {
+            let (street_lines, turn_lines, decisions) = plan(&fam.aggressor);
+            for (fl_id, fl_line) in street_lines {
                 let cont = match continue_after(&mut fg, fl_line, pos) {
                     Ok(c) => c,
                     Err(e) => {
@@ -423,7 +484,7 @@ pub fn build(config_path: &Path, out_dir: &Path, only_flops: Option<usize>, log:
                     let tboard = format!("{flop}{}", ps_core::card_to_string(turn));
                     let mut prior_t = cont.history.clone();
                     prior_t.push(ps_core::card_to_string(turn));
-                    for (dec, hero, line, desc) in DECISIONS {
+                    for (dec, hero, line, desc) in decisions {
                         let id = format!("{}/{}/{}/{}", fam.id, tboard, fl_id, dec);
                         let spot = spot_from(fam, &tboard, &cont, *hero, line, &id);
                         match analyze_many(&spot, &profs, &opts) {
@@ -441,7 +502,7 @@ pub fn build(config_path: &Path, out_dir: &Path, only_flops: Option<usize>, log:
                     let mut tg = tspot.build_game()?;
                     tg.allocate_memory(false);
                     solve(&mut tg, 1000, (cont.pot * CHIPS_PER_BB * 0.002) as f32, false);
-                    for (tl_id, tl_line) in TURN_LINES {
+                    for (tl_id, tl_line) in turn_lines {
                         let rc = match continue_after(&mut tg, tl_line, pos) {
                             Ok(c) => c,
                             Err(e) => {
@@ -454,7 +515,7 @@ pub fn build(config_path: &Path, out_dir: &Path, only_flops: Option<usize>, log:
                             let mut prior_r = prior_t.clone();
                             prior_r.extend(rc.history.iter().cloned());
                             prior_r.push(ps_core::card_to_string(river));
-                            for (dec, hero, line, desc) in DECISIONS {
+                            for (dec, hero, line, desc) in decisions {
                                 let id = format!("{}/{}/{}-{}/{}", fam.id, rboard, fl_id, tl_id, dec);
                                 let spot = spot_from(fam, &rboard, &rc, *hero, line, &id);
                                 match analyze_many(&spot, &profs, &opts) {
@@ -482,6 +543,22 @@ pub fn build(config_path: &Path, out_dir: &Path, only_flops: Option<usize>, log:
     Ok(())
 }
 
+/// Rebuilds `index.json` from every library file already in `out_dir`.
+pub fn reindex(out_dir: &Path) -> Result<usize> {
+    let mut files: Vec<_> = std::fs::read_dir(out_dir)?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.extension().map_or(false, |x| x == "json") && p.file_name().map_or(false, |n| n != "index.json"))
+        .collect();
+    files.sort();
+    let mut index = Vec::new();
+    for path in &files {
+        let v: Value = serde_json::from_str(&std::fs::read_to_string(path)?)?;
+        index.extend(index_entries(&v, &path.file_name().unwrap().to_string_lossy()));
+    }
+    std::fs::write(out_dir.join("index.json"), serde_json::to_string(&json!({ "version": 1, "records": index }))?)?;
+    Ok(files.len())
+}
+
 fn index_entries(v: &Value, file: &str) -> Vec<Value> {
     v["records"]
         .as_array()
@@ -490,6 +567,7 @@ fn index_entries(v: &Value, file: &str) -> Vec<Value> {
                 .map(|r| {
                     json!({
                         "id": r["id"], "file": file, "street": r["street"], "decision": r["decision"],
+                        "family": r["family"], "family_name": r["family_name"],
                         "hero": r["hero"]["pos"], "profile": r["villain"]["profile"],
                         "board": r["board"], "n": r["puzzles"].as_array().map_or(0, |p| p.len()),
                         "ratings": r["puzzles"].as_array().map(|p| p.iter().map(|x| x["rating"].clone()).collect::<Vec<_>>()),

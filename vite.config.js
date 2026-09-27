@@ -22,9 +22,15 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,json,svg,png}'],
-        // the puzzle library ships as a few MB of JSON; keep it all offline
-        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+        // The puzzle library (~30 MB of JSON) isn't precached at install; each file is cached the
+        // first time it's used, so puzzles you've seen work offline.
+        globIgnores: ['library/**'],
         runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/library/'),
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'puzzle-library', expiration: { maxEntries: 100 } },
+          },
           {
             urlPattern: /^https:\/\/cdn\.tailwindcss\.com/,
             handler: 'CacheFirst',

@@ -119,8 +119,10 @@ So a 1000 bot bleeds about 17× faster than a 2000 bot.
 
 ## 6. Is the solver right? Textbook games with exact answers
 
-Every number the app shows comes from `solver/`, so the solver is tested against poker games that
-have closed-form solutions, played on real cards (`solver/crates/ps-solve/tests/textbook.rs`).
+These are **engine tests only**. They never appear in the app, whose puzzles are about exploiting
+real player types. They exist because every number the app shows comes from `solver/`, so the
+solver is checked against poker games with closed-form solutions, played on real cards
+(`solver/crates/ps-solve/tests/textbook.rs`).
 Sources and derivations are in `docs/theory-audit.md` §2.
 
 | Test | Game | Checked |
@@ -146,12 +148,23 @@ material.
 
 `ps library solver/library/families.toml --out public/library` builds it:
 
-1. **Preflop** gives the ranges for each spot family. The first is BTN opens 2.5bb and BB calls, with
-   BTN at Ed Miller's live range (The Course) and BB defending ~36% in total.
+1. **Preflop** gives the ranges for each spot family (`solver/library/families.toml`):
+
+   | Family | Preflop | Lead |
+   |---|---|---|
+   | `srp_btn_bb` | BTN opens 2.5bb, BB calls | BTN |
+   | `srp_co_btn` | CO opens 5bb, BTN calls | CO (out of position) |
+   | `srp_ep_bb` | UTG opens 5bb, BB calls | UTG |
+   | `3bp_bb_btn` | BTN opens 5bb, BB 3-bets to 18bb, BTN calls (SPR ≈ 2.2) | BB (out of position) |
+   | `limp_mp_bb` | MP limps, BB checks (SPR ≈ 40) | nobody |
+
+   Opening ranges are Ed Miller's live ranges (The Course). The 5bb opens match $10 at $1/$2.
 2. **Flop**: GTO solve on a coarse tree, only to get realistic ranges at the start of the turn after
    "c-bet called" and "checked through".
-3. **Turn**: for sampled turn cards, analyse "checked to you (IP)" and "facing a 75% bet (OOP)"
-   against every profile (5 games each, §4).
+3. **Turn**: for sampled turn cards, analyse the two decisions of the line against every profile
+   (5 games each, §4). When IP has the lead, that's "checked to you" (IP) and "facing a 75% bet"
+   (OOP). When OOP has it (CO vs BTN, the 3-bet pot), it's "first to act" (OOP) and "facing a
+   75% bet" (IP).
 4. **River**: a GTO turn solve gives river ranges after "barrel called" / "checked through". Same
    two decisions × profiles.
 5. **Records**: each (decision × profile) record stores the table, the history, class-level answers,
@@ -173,14 +186,15 @@ Known limits:
 
 ## 8. Roadmap
 
-1. **Puzzles** (done): library, rating, EV grading, range vs range, real cards.
+1. **Puzzles** (done): library, rating, EV grading, range vs range, real cards. Five pot types.
+   Puzzles default to exploitative villains; GTO is an opt-in baseline filter.
 2. **Rebuild Play and Simulate on the solver.** Port the Boot Camp's heads-up engine, which the
    audit found correct (BB option, all-ins, min-raises). Bots play library strategies, bent by
    profiles, and are rated by bb/100 against the GTO bot. Session review shows EV lost per decision.
 3. **Preflop**: replace `ranges.js` with The Course live charts: raise-or-fold, 3-bet vs strong
    and loose opens, blind defense, isolating limpers. Add a steal calculator.
-4. **Flop puzzles** and more families: CO vs BTN, 3-bet pots, limped pots, which are the most common
-   live spot.
+4. **Flop puzzles**, **multiway pots** (most live limped pots are multiway; the solver is heads-up
+   only), and profiles that also act on earlier streets.
 5. **Lessons**: import the Boot Camp `COURSE`, applying the corrections in `docs/THEORY.md`.
 6. **RL track** (for the science): self-play agent on the heads-up engine, measured on the same
    ladder.
