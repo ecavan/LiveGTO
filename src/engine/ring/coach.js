@@ -17,16 +17,17 @@ import { ALL_COMBOS, handType, classify, CLASSES } from '../hu/hand.js';
 import { N, CA, CB, comboIndex, equityVsRange, evalFast } from '../hu/equity.js';
 import { RFI_RANGES, FACING_OPEN } from '../ranges.js';
 import { requiredEquity } from '../potmath.js';
-import { bestNatural } from '../hu/coach.js';
+import { bestNatural, slimRows } from '../hu/coach.js';
+import { composition, bucketOf, plan, bucketsOn, BUCKET_KEYS } from '../buckets.js';
 
 const round2 = (x) => Math.round(x * 100) / 100;
 const sum = (a) => { let t = 0; for (let i = 0; i < a.length; i++) t += a[i]; return t; };
 
 /** Opponent `seat`'s range at state `s` (from his actions this hand). */
-export function rangeOf(s, seat, table, heroSeat, stats) {
+export function rangeOf(s, seat, table, heroSeat, stats, { withHero = true } = {}) {
   const p = table.players[seat];
   const w = new Float64Array(N).fill(1);
-  const dead = new Set([...s.holes[heroSeat], ...board(s)]);
+  const dead = new Set([...(withHero ? s.holes[heroSeat] : []), ...board(s)]);
   for (let i = 0; i < N; i++) if (dead.has(CA[i]) || dead.has(CB[i])) w[i] = 0;
   for (const { before, entry } of replay(s)) {
     if (entry.seat !== seat) continue;
@@ -113,10 +114,17 @@ function oppsInOrder(s, hero) {
 /**
  * `extra`: an action the menu doesn't have (a logged live hand's real bet size) to price too.
  */
-export function ringCoach(s, hero, table, stats, extra = null) {
+export function ringCoach(s, hero, table, stats, extra = null, cache = null) {
   const bd = board(s);
   const opps = oppsInOrder(s, hero);
-  const ranges = Object.fromEntries(opps.map(j => [j, rangeOf(s, j, table, hero, stats)]));
+  // cache.ranges: the opponents' ranges without your cards removed (they don't depend on your hand)
+  const mask = (w) => {
+    const out = Float64Array.from(w);
+    const [h1, h2] = s.holes[hero];
+    for (let i = 0; i < N; i++) if (CA[i] === h1 || CB[i] === h1 || CA[i] === h2 || CB[i] === h2) out[i] = 0;
+    return out;
+  };
+  const ranges = Object.fromEntries(opps.map(j => [j, cache?.ranges?.[j] ? mask(cache.ranges[j]) : rangeOf(s, j, table, hero, stats)]));
   const P = pot(s);
   const L = legal(s);
   const eq = equityMulti(s.holes[hero], opps.map(j => ranges[j]), bd);
@@ -200,13 +208,70 @@ export function ringCoach(s, hero, table, stats, extra = null) {
   let tot = 0;
   if (bd.length) for (const j of opps) { const w = ranges[j]; for (let i = 0; i < N; i++) if (w[i] > 0) { byClass[classify(ALL_COMBOS[i], bd)] += w[i]; tot += w[i]; } }
   if (tot) for (const k of CLASSES) byClass[k] /= tot;
+  let buckets = null;
+  if (bd.length) {
+    // everyone still in, each opponent's range weighted equally
+    const all = new Float64Array(N);
+    for (const j of opps) { const w = ranges[j]; const W = sum(w); if (W > 0) for (let i = 0; i < N; i++) all[i] += w[i] / W; }
+    buckets = slimRows(composition(all, bd));
+  }
   return {
-    street: s.street, options, best, fine, tol, equity: eq,
+    street: s.street, options, best, fine, tol, equity: eq, buckets, heroBucket: bd.length ? bucketOf(s.holes[hero], bd) : null,
     need: L.facing ? requiredEquity(P, L.callAmount) : null,
     range: bd.length ? byClass : null,
     preflop, chart, notes, nominal: round2(Math.max(0.25, 0.15 * P)),
     opponents: opps.length,
   };
+}
+
+/** Your range on this line: a solid reg's strategy replayed through your actions. */
+export function heroRangeOf(s, hero, stats) {
+  const reg = { name: 'You', mix: { reg: 1 }, learn: 0, ramp: 120 };
+  const w = new Float64Array(N).fill(1);
+  const dead = new Set(board(s));
+  for (let i = 0; i < N; i++) if (dead.has(CA[i]) || dead.has(CB[i])) w[i] = 0;
+  for (const { before, entry } of replay(s)) {
+    if (entry.seat !== hero) continue;
+    const pr = probOfAction(playerPolicyAll(reg, before, hero, context(before, hero, reg, hero, stats)), entry);
+    for (let i = 0; i < N; i++) if (w[i] > 0) w[i] *= pr[i];
+  }
+  return w;
+}
+
+/**
+ * Your range by bucket at a table decision, with the best play for each bucket. Multiway EVs are
+ * Monte Carlo, so a handful of hands per bucket (spread across its strength) are priced with the
+ * coach and stand in for the bucket. { rows, options, hero, board }
+ */
+export function ringBucketView(s, hero, table, stats, perBucket = 4) {
+  const bd = board(s);
+  if (!bd.length) return null;
+  const hr = heroRangeOf(s, hero, stats);
+  const b = bucketsOn(bd);
+  const opps = oppsInOrder(s, hero);
+  const cache = { ranges: Object.fromEntries(opps.map(j => [j, rangeOf(s, j, table, hero, stats, { withHero: false })])) };
+  const options = menu(s).map(o => ({ type: o.type, to: o.to, label: o.label }));
+  const best = new Int8Array(N).fill(-1);
+  const w = new Float64Array(N);
+  for (let k = 0; k < BUCKET_KEYS.length; k++) {
+    const idx = [];
+    let tot = 0;
+    for (let i = 0; i < N; i++) if (b[i] === k && hr[i] > 0) { idx.push(i); tot += hr[i]; }
+    if (!idx.length) continue;
+    idx.sort((x, y) => hr[y] - hr[x]);
+    const n = Math.min(perBucket, idx.length);
+    for (let q = 0; q < n; q++) {
+      const i = idx[Math.floor(((q + 0.5) * idx.length) / n)];
+      const s2 = { ...s, holes: s.holes.map((h, j) => (j === hero ? [CA[i], CB[i]] : h)) };
+      const kk = ringCoach(s2, hero, table, stats, null, cache);
+      best[i] = kk.best;
+      w[i] = tot / n;
+    }
+  }
+  const rows = plan(w, bd, best, options.length);
+  const ex = Object.fromEntries(composition(hr, bd, 0).map(r => [r.key, r.examples]));
+  for (const r of rows) r.examples = ex[r.key] || r.examples;
+  return { rows, options, hero: bucketOf(s.holes[hero], bd), board: bd, sampled: perBucket };
 }
 
 /** The Course chart for the hero's preflop spot, when there is one. */

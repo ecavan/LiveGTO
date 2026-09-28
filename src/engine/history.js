@@ -37,6 +37,8 @@ export function packDecision(d) {
   if (d.chart) out.chart = d.chart;
   if (d.notes?.length) out.notes = d.notes;
   if (d.opponents) out.opponents = d.opponents;
+  if (d.buckets) out.buckets = d.buckets;
+  if (d.heroBucket) out.heroBucket = d.heroBucket;
   return out;
 }
 

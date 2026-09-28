@@ -20,6 +20,7 @@ import { probOf } from './policy.js';
 import { equityVsRange } from './equity.js';
 import { readOpponent } from './thinker.js';
 import { PREFLOP_RANK } from './preflopRank.js';
+import { plan, bucketOf, composition } from '../buckets.js';
 import { alpha, requiredEquity } from '../potmath.js';
 
 const round2 = (x) => Math.round(x * 100) / 100;
@@ -108,6 +109,8 @@ export function coach(s, hero, agentOrId) {
     equity: overall,
     need: L.facing ? requiredEquity(P, L.callAmount) : null,
     range: rangeByClass(w, bd),
+    buckets: slimRows(composition(w, bd)),
+    heroBucket: bucketOf(s.holes[hero], bd),
     weights: w,
     combos: Math.round(W * 10) / 10,
     options,
@@ -338,12 +341,14 @@ export function rangeView(s, hero, agentOrId) {
   // best play per hand; within 2% of the pot, prefer the simpler (earlier, less aggressive) option
   const tol = Math.max(0.1, 0.02 * P);
   const best = new Int8Array(w.length).fill(-1);
+  // only natural sizes compete (see bestNatural): no 20×-pot shoves as anyone's best play
+  const nat = opts.map(o => o.type !== 'allin' || o.to - s.streetBet[hero] <= 2.5 * P + 1e-9);
   for (let i = 0; i < w.length; i++) {
     if (!(hr[i] > 0)) continue;
     let mx = -Infinity;
-    for (let k = 0; k < opts.length; k++) mx = Math.max(mx, EV[k][i]);
+    for (let k = 0; k < opts.length; k++) if (nat[k]) mx = Math.max(mx, EV[k][i]);
     let b = 0;
-    while (b < opts.length - 1 && EV[b][i] < mx - tol) b++;
+    while (b < opts.length - 1 && (!nat[b] || EV[b][i] < mx - tol)) b++;
     best[i] = b;
   }
   const [h1, h2] = s.holes[hero];
@@ -355,3 +360,17 @@ export function rangeView(s, hero, agentOrId) {
 }
 
 const nz = (x) => (Number.isNaN(x) ? 0 : x);
+const r3 = (x) => Math.round(x * 1000) / 1000;
+/** Composition rows, trimmed for storage. */
+export const slimRows = (rows) => rows.map(r => ({ key: r.key, name: r.name, desc: r.desc, share: r3(r.share), examples: r.examples }));
+
+/**
+ * Your range by bucket at this decision, and the best play for each bucket (from rangeView):
+ * { rows, options, hero: your hand's bucket, board }.
+ */
+export function bucketView(s, hero, agentOrId) {
+  const v = rangeView(s, hero, agentOrId);
+  if (!v) return null;
+  const bd = board(s);
+  return { rows: plan(v.weights, bd, v.best, v.options.length), options: v.options, hero: bucketOf(s.holes[hero], bd), board: bd, read: agentOrId?.kind === 'thinker', v };
+}

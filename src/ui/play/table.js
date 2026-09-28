@@ -9,7 +9,8 @@ import { board, pot, posOf, legal } from '../../engine/ring/game.js';
 import { styleLabel, ARCHETYPES, adjustment, LEVELS } from '../../engine/ring/players.js';
 import { settings, saveSettings } from '../../store.js';
 import { ringTable, fmtBB, seg, wireSeg, icon, esc, stat, handText, disc, verdict, sprOf } from '../kit.js';
-import { actionBar, coachCard, decisionRow, playTabs } from './views.js';
+import { actionBar, coachCard, decisionRow, playTabs, bucketViewHtml } from './views.js';
+import { ringBucketView } from '../../engine/ring/coach.js';
 import { pct } from '../../engine/potmath.js';
 import { cardStr, evaluate, category, classify } from '../../engine/hu/hand.js';
 import { addHand, packTable } from '../../engine/history.js';
@@ -252,7 +253,7 @@ function draw(container) {
   }
   let coach;
   if (ui.recap) coach = recapHtml(ui.recap);
-  else if (t.coachMode === 'decision' && ui.last) coach = coachCard(ui.last, { evNote: evNote(ui.last) });
+  else if (t.coachMode === 'decision' && ui.last) coach = coachCard(ui.last, { evNote: evNote(ui.last), live: !!ui.lastState && ui.last.street > 0 });
   else coach = `<div class="text-sm text-ink-400">${t.coachMode === 'decision' ? 'Make your decision. The coach grades it against every player still in the hand.' : t.coachMode === 'hand' ? 'The coach speaks at the end of the hand.' : 'Coach off.'}</div>`;
   const openState = [...container.querySelectorAll('#coach details, #side details')].map(d => d.open);
   container.innerHTML = `<div class="page">
@@ -273,9 +274,27 @@ function draw(container) {
     </div>
   </div>`;
   container.querySelectorAll('#coach details, #side details').forEach((d, i) => { if (openState[i]) d.open = true; });
+  // your range by bucket for the decision just made (sampled with the coach, off the paint)
+  const rv = container.querySelector('details[data-rangeview]');
+  if (rv && ui.rangeHtml) { rv.dataset.done = '1'; rv.querySelector('.body').innerHTML = ui.rangeHtml; }
+  const fill = () => {
+    if (!rv || !rv.open || rv.dataset.done || ui.rvFor === ui.lastState) return;
+    rv.dataset.done = '1';
+    const state = ui.lastState;
+    ui.rvFor = state;
+    setTimeout(() => {
+      if (!t || ui.lastState !== state) return;
+      const bv = ringBucketView(state, HERO, t, t.snap);
+      ui.rangeHtml = bucketViewHtml(bv, state.holes[HERO], 'Your range as a solid player has it on this line; each bucket priced against everyone still in (a few hands per bucket).');
+      const el = container.querySelector('details[data-rangeview] .body');
+      if (el) el.innerHTML = ui.rangeHtml;
+    }, 40);
+  };
+  rv?.addEventListener('toggle', fill);
+  fill();
   container.querySelectorAll('#controls [data-i]').forEach(b => b.addEventListener('click', () => choose(container, Number(b.dataset.i))));
   container.querySelector('#continue')?.addEventListener('click', () => { ui.paused = false; draw(container); });
-  container.querySelector('#next')?.addEventListener('click', () => { ui.recap = null; ui.last = null; startHand(t); draw(container); });
+  container.querySelector('#next')?.addEventListener('click', () => { ui.recap = null; ui.last = null; ui.lastState = null; ui.rangeHtml = null; startHand(t); draw(container); });
   container.querySelector('#end')?.addEventListener('click', () => { ui.over = true; review(container); });
   container.querySelector('#reveal')?.addEventListener('click', () => { ui.reveal = !ui.reveal; draw(container); });
 
@@ -299,6 +318,8 @@ function after(container) {
 
 function choose(container, i) {
   if (!heroToAct(t) || ui.paused || !coachReady(t)) return;
+  ui.lastState = t.s;
+  ui.rangeHtml = null;
   const d = heroAct(t, i);
   ui.last = d;
   if (t.coachMode === 'decision' && (d.verdict === 'mistake' || d.verdict === 'blunder') && !t.s.done) ui.paused = true;

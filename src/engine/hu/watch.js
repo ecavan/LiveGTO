@@ -197,7 +197,12 @@ function finish(m) {
 
 export function scoreboard(m) {
   const n = m.hands.length;
+  // win rate with a 95% interval: only meaningful after a few dozen hands
+  const mean = n ? m.net / n : 0;
+  const sd = n > 1 ? Math.sqrt(m.hands.reduce((a, h) => a + (h.netA - mean) ** 2, 0) / (n - 1)) : 0;
   return {
+    ci100: n >= 25 ? Math.round(196 * sd / Math.sqrt(n)) : null,
+    curve: m.hands.reduce((a, h) => { a.push((a.at(-1) ?? 0) + h.netA); return a; }, []),
     hands: n,
     netA: Math.round(m.net * 10) / 10,
     bb100: n ? Math.round((100 * m.net) / n) : 0,

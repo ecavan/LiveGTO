@@ -6,6 +6,7 @@ import { board, pot, BTN } from '../../engine/hu/game.js';
 import { evaluate, category, cardStr, ALL_COMBOS, handType } from '../../engine/hu/hand.js';
 import { AGENTS, eloOf, readOfYou } from '../../engine/hu/agents.js';
 import { pct } from '../../engine/potmath.js';
+import { bucketPlanHtml, bucketBarsHtml, bucketName } from '../buckets.js';
 import {
   pokerTable, card, cards, fmtBB, evBars, disc, stat, verdict, icon, esc, rangeGrid, GRID, handText, sprOf,
 } from '../kit.js';
@@ -160,12 +161,14 @@ export function coachCard(d, { weights = null, botName = 'He', live = false, evN
       ${disc('Why', `<div class="space-y-1.5">${(d.notes || []).map(n => `<p>${n}</p>`).join('')}</div>`)}</div>`;
   }
   const why = whyLines(d).map(l => `<p>${l}</p>`).join('');
+  const his = d.buckets?.length ? bucketBarsHtml(d.buckets) : d.range ? rangeBars(d.range) : '';
   return `<div class="space-y-3">${head}
+    ${d.heroBucket ? `<div class="text-sm text-ink-300">Your hand: <b class="text-amber-200">${esc(bucketName(d.heroBucket))}</b>${d.board?.length ? ` on ${handText(d.board.map(cardStr))}` : ''}</div>` : ''}
     ${evBars(d.options, { best: d.best, fine: d.fine, chosen: d.chosen })}
     <div class="text-xs text-ink-400">${evNote ?? `EV in bb vs ${esc(botName)}'s actual range and strategy. ${d.street === 3 ? 'Exact on the river.' : 'One street ahead, equity treated as realised.'}`}</div>
+    ${live ? `<details class="disc" data-rangeview open><summary>Your range by bucket: a plan for each kind of hand</summary><div class="body"><div class="text-ink-400 text-sm">Working it out…</div></div></details>` : ''}
     ${disc('Why', `<div class="space-y-1.5">${why}</div>`)}
-    ${d.range ? disc(`His range · you have ${pct(d.equity)} against it`, rangeBars(d.range) + (weights ? `<div class="pt-2">${weightGrid(weights, d.hole)}</div>` : '')) : ''}
-    ${live ? `<details class="disc" data-rangeview><summary>Your whole range: the play for every hand</summary><div class="body"><div class="text-ink-400 text-sm">Working it out…</div></div></details>` : ''}
+    ${his ? disc(`His range${d.buckets?.length ? ' by bucket' : ''} · you have ${pct(d.equity)} against it`, his + (weights ? `<div class="pt-2">${weightGrid(weights, d.hole)}</div>` : '')) : ''}
   </div>`;
 }
 
@@ -273,6 +276,13 @@ export function reviewHtml(sess, sum, pastSessions) {
 }
 
 export { card, cards };
+
+/** The bucket plan, with every hand's grid underneath. */
+export function bucketViewHtml(bv, heroHole, note = '') {
+  if (!bv) return '<div class="text-sm text-ink-400">Not available here.</div>';
+  return `${bucketPlanHtml(bv, { note: note || (bv.read ? 'Your range as he reads you; each bucket\'s best play against him.' : 'Your range as a solid player has it on this line; each bucket\'s best play against him.') })}
+    ${bv.v ? `<details class="disc mt-2"><summary>Every hand in your range</summary><div class="body">${rangeViewHtml(bv.v, heroHole)}</div></details>` : ''}`;
+}
 
 const ACT_COL = { fold: '#475569', check: '#0ea5e9', call: '#38bdf8', bet: '#10b981', raise: '#f59e0b', allin: '#f43f5e' };
 /** Grid of the best action for every hand in your range (from coach.rangeView). */

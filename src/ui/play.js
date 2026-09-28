@@ -11,10 +11,10 @@ import { AGENTS, AGENT_IDS, eloOf, levelOf } from '../engine/hu/agents.js';
 import { settings, saveSettings, loadRaw, save, KEYS } from '../store.js';
 import { seg, wireSeg, icon, disc, fmtBB, esc } from './kit.js';
 import {
-  liveTable, actionBar, historyHtml, coachCard, sessionPanel, handRecap, reviewHtml, rangeViewHtml, playTabs,
+  liveTable, actionBar, historyHtml, coachCard, sessionPanel, handRecap, reviewHtml, bucketViewHtml, playTabs,
 } from './play/views.js';
 import { villainRange } from '../engine/hu/range.js';
-import { rangeView } from '../engine/hu/coach.js';
+import { bucketView } from '../engine/hu/coach.js';
 import { addHand, packHU } from '../engine/history.js';
 
 let sess = null;
@@ -237,16 +237,23 @@ function wire(container) {
   container.querySelectorAll('#controls [data-i]').forEach(b => b.addEventListener('click', () => choose(container, Number(b.dataset.i))));
   container.querySelector('#continue')?.addEventListener('click', () => { ui.paused = false; table(container); });
   const rv = container.querySelector('details[data-rangeview]');
-  rv?.addEventListener('toggle', () => {
-    if (!rv.open || rv.dataset.done) return;
+  const fill = () => {
+    if (!rv || !rv.open || rv.dataset.done) return;
     rv.dataset.done = '1';
+    const state = ui.lastState;
+    if (ui.rvFor === state) return; // already working on it
+    ui.rvFor = state;
     setTimeout(() => {
-      const v = rangeView(ui.lastState, sess.hero, sess.agent);
-      if (v) v.read = sess.agent.kind === 'thinker';
-      ui.rangeHtml = rangeViewHtml(v, ui.lastState.holes[sess.hero]);
-      rv.querySelector('.body').innerHTML = ui.rangeHtml;
-    }, 10);
-  });
+      if (!sess || ui.lastState !== state) return;
+      const bv = bucketView(state, sess.hero, sess.agent);
+      if (bv?.v) bv.v.read = sess.agent.kind === 'thinker';
+      ui.rangeHtml = bucketViewHtml(bv, state.holes[sess.hero]);
+      const el = container.querySelector('details[data-rangeview] .body');
+      if (el) el.innerHTML = ui.rangeHtml;
+    }, 30);
+  };
+  rv?.addEventListener('toggle', fill);
+  fill();
   container.querySelector('#next')?.addEventListener('click', () => nextHand(container));
   container.querySelector('#end')?.addEventListener('click', () => { ui.over = true; recordSession(); review(container); });
 }

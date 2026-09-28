@@ -11,11 +11,13 @@ import { pct } from '../engine/potmath.js';
 import { flopTexture, textureLabel, boardTags, randomSuitMap, remapCard, isCard } from '../engine/texture.js';
 import { pokerTable, icon, esc, verdict, disc, rangeGrid, fmtBB, lossKind } from './kit.js';
 import { puzzleTabs } from './puzzles/tabs.js';
+import { filters, filterPanel as sharedFilters, wireFilters, libraryOnly } from './puzzles/filters.js';
+import { planFromClasses, CLASS_AS_BUCKET } from '../engine/buckets.js';
+import { bucketPlanHtml } from './buckets.js';
 import { navigate } from '../router.js';
 
 let index = null;
 let stats = loadStats();
-let filters = { street: '', profile: '', decision: '', family: '', suits: '', connect: '', paired: '', height: '' };
 let mode = 'rated'; // rated | daily | review
 const cur = { rated: null, daily: null, review: null }; // { cand, record, puzzle, view, answered, gridTab }
 let current = null;
@@ -25,7 +27,15 @@ let keyHandler = null;
 export async function render(container, params = []) {
   const m = params[0] || '';
   if (m === 'ranges') return (await import('./puzzles/ranges.js')).render(container, params.slice(1));
-  if (m === 'flop' || m === 'multiway') return (await import('./puzzles/generated.js')).render(container, m);
+  if (m === 'buckets') return (await import('./puzzles/bucketdrill.js')).render(container, params.slice(1));
+  if (m === 'flop' || m === 'multiway') {
+    // the old Flop / Multiway tabs are filters on the rated puzzles now
+    filters.street = m === 'flop' ? 'flop' : '';
+    filters.players = m === 'multiway' ? 'multiway' : '';
+    cur.rated = null;
+    navigate('puzzles');
+    return undefined;
+  }
   mode = m === 'daily' || m === 'review' ? m : 'rated';
   stats = loadStats();
   container.innerHTML = `<div class="page text-ink-400">Loading puzzles…</div>`;
@@ -36,12 +46,13 @@ export async function render(container, params = []) {
     return undefined;
   }
   if (mode === 'daily') { if (!cur.daily || cur.daily.date !== today()) await next(); }
-  else if (!cur[mode] || cur[mode].answered || cur[mode].gen) await next();
+  else if (!cur[mode] || cur[mode].answered || (mode === 'review' && cur[mode].gen) || cur[mode].gen?.answered) await next();
   current = cur[mode];
   if (current?.gen) {
-    // a missed Flop / Multiway spot: that module shows it
-    const it = current.gen;
-    return (await import('./puzzles/generated.js')).render(container, it.id.slice(4), { review: it });
+    // a flop / multiway spot: that module shows it (rated, or a missed one in review)
+    const gm = await import('./puzzles/generated.js');
+    if (mode === 'review') return gm.render(container, current.gen.id.slice(4), { review: current.gen });
+    return gm.render(container, current.gen.kind, { rated: current.gen });
   }
   draw(container);
   keyHandler = (e) => {
@@ -79,31 +90,50 @@ async function next() {
     const it = pool.find(x => x.k !== skip) || pool[0];
     cur.review = !it ? null : it.id.startsWith('gen:') ? { gen: it, cand: { id: it.id, i: it.i } } : await load({ id: it.id, file: it.file, i: it.i, rating: it.rating });
   } else {
-    const cands = candidates(index, filters);
-    const cand = pickPuzzle(cands, stats.rating, new Set(stats.seen));
-    cur.rated = cand ? await load(cand) : null;
+    cur.rated = await nextRated();
   }
   current = cur[mode];
 }
 
+/**
+ * The next rated puzzle, from one of three sources: the solver library (turn and river, heads-up),
+ * flop spots and multiway spots (from the Play engine). With no filter the source is drawn
+ * 50 / 30 / 20 so the big library doesn't crowd out the others.
+ */
+async function nextRated() {
+  const seen = new Set(stats.seen);
+  const lib = () => {
+    if (filters.street === 'flop' || filters.players === 'multiway') return [];
+    return candidates(index, { ...filters, street: filters.street === 'flop' ? '' : filters.street });
+  };
+  const gm = await import('./puzzles/generated.js');
+  const gen = async (kind) => {
+    if (libraryOnly()) return [];
+    if (kind === 'flop' && (filters.players === 'multiway' || (filters.street && filters.street !== 'flop'))) return [];
+    if (kind === 'multiway' && filters.players === 'hu') return [];
+    const spots = await gm.loadSet(kind).catch(() => []);
+    const st = { flop: 1, turn: 2, river: 3 }[filters.street];
+    return spots.filter(x => (!st || x.street === st) && (!filters.decision || (filters.decision === 'facing') === x.toCall > 0))
+      .map(x => ({ gen: kind, id: x.id, i: 0, rating: x.rating, k: `gen:${kind}#${x.id}` }));
+  };
+  const pools = [['lib', lib(), 0.5], ['flop', await gen('flop'), 0.3], ['multiway', await gen('multiway'), 0.2]].filter(p => p[1].length);
+  if (!pools.length) return null;
+  let x = Math.random() * pools.reduce((a, p) => a + p[2], 0);
+  let pick = pools[0];
+  for (const p of pools) { x -= p[2]; if (x <= 0) { pick = p; break; } }
+  const [src, cands] = pick;
+  if (src === 'lib') {
+    const cand = pickPuzzle(cands, stats.rating, seen);
+    return cand ? load(cand) : null;
+  }
+  const fresh = cands.filter(c => !seen.has(c.k));
+  const c = pickPuzzle(fresh.length ? fresh : cands, stats.rating);
+  return { gen: { kind: src, id: c.id, answered: false }, cand: c };
+}
+
 // ------------------------------------------------------------------ pieces
 
-function filterPanel() {
-  const opt = (v, label, sel) => `<option value="${v}" ${sel === v ? 'selected' : ''}>${label}</option>`;
-  const active = Object.values(filters).filter(Boolean).length;
-  return disc(`Filters${active ? ` <span class="pill ml-2">${active} on</span>` : ''}`, `<div class="grid sm:grid-cols-2 gap-2">
-    <select data-f="profile">${opt('', 'All villain types', filters.profile)}
-      ${Object.entries(PROFILES).filter(([k]) => k !== 'gto').map(([k, v]) => opt(k, `vs ${v}`, filters.profile)).join('')}
-      ${opt('gto', 'vs GTO (baseline)', filters.profile)}${opt('all', 'Everything', filters.profile)}</select>
-    <select data-f="family">${opt('', 'All pot types', filters.family)}${families(index).map(f => opt(f.id, f.name, filters.family)).join('')}</select>
-    <select data-f="street">${opt('', 'Turn + river', filters.street)}${opt('turn', 'Turn', filters.street)}${opt('river', 'River', filters.street)}</select>
-    <select data-f="decision">${opt('', 'All spots', filters.decision)}${opt('facing', 'Facing a bet', filters.decision)}${opt('betting', 'Bet or check', filters.decision)}</select>
-    <select data-f="suits">${opt('', 'Flop: any suits', filters.suits)}${opt('rainbow', 'Rainbow', filters.suits)}${opt('two-tone', 'Two-tone', filters.suits)}${opt('monotone', 'Monotone', filters.suits)}</select>
-    <select data-f="connect">${opt('', 'Any connectedness', filters.connect)}${opt('connected', 'Connected', filters.connect)}${opt('semi', 'Semi-connected', filters.connect)}${opt('dry', 'Dry', filters.connect)}</select>
-    <select data-f="paired">${opt('', 'Paired or not', filters.paired)}${opt('unpaired', 'Unpaired', filters.paired)}${opt('paired', 'Paired', filters.paired)}</select>
-    <select data-f="height">${opt('', 'Any high card', filters.height)}${opt('ace', 'A-high', filters.height)}${opt('big', 'K/Q-high', filters.height)}${opt('mid', 'J–8-high', filters.height)}${opt('low', '7-high or lower', filters.height)}</select>
-  </div>`);
-}
+const filterPanel = () => sharedFilters(index);
 
 function tableHtml(r, view) {
   const potBefore = r.pot - r.to_call;
@@ -148,9 +178,20 @@ function feedback(r, p, g, choice) {
     ${head}
     ${evBarsFromLoss(opts, p, choice)}
     ${disc('Why', `<div class="space-y-2">${points}</div>`, g.verdict !== 'best')}
+    ${disc('Your range by bucket: a plan for each kind of hand', libraryPlan(r, p), true)}
     ${disc('Ranges', rangePanel(r, p))}
     ${nextButton()}
   </div>`;
+}
+
+/** The solver's plan for each class of hand in your range (the exploit against this villain). */
+function libraryPlan(r, p) {
+  const typeOf = (a) => (/^fold/i.test(a) ? 'fold' : /^check/i.test(a) ? 'check' : /^call/i.test(a) ? 'call' : /^all-in/i.test(a) ? 'allin' : /^raise/i.test(a) ? 'raise' : 'bet');
+  const options = r.actions.map((a, i) => ({ type: typeOf(a), label: r.actions_short[i].replace(/^\w/, c => c.toUpperCase()) }));
+  const hero = CLASS_AS_BUCKET[p.class]?.key;
+  return bucketPlanHtml({ rows: planFromClasses(r.classes), options, board: current.view.board.map(c => '23456789TJQKA'.indexOf(c[0]) * 4 + 'cdhs'.indexOf(c[1])) }, {
+    hero, note: `From the solve: the share of each class that plays each way against ${esc(r.villain.name)}.`,
+  });
 }
 
 function nextButton() {
@@ -260,11 +301,7 @@ function draw(container) {
 }
 
 function wire(container) {
-  container.querySelectorAll('select[data-f]').forEach(sel => sel.addEventListener('change', async () => {
-    filters[sel.dataset.f] = sel.value;
-    await next();
-    draw(container);
-  }));
+  wireFilters(container, () => { cur.rated = null; navigate('puzzles'); });
   container.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', () => answer(container, Number(btn.dataset.act))));
   container.querySelectorAll('[data-grid]').forEach(btn => btn.addEventListener('click', () => {
     current.gridTab = btn.dataset.grid;
@@ -272,10 +309,7 @@ function wire(container) {
     draw(container);
     container.querySelectorAll('details').forEach((d, i) => { if (open[i]) d.open = true; });
   }));
-  container.querySelector('#pz-next')?.addEventListener('click', async () => {
-    if (mode === 'review') { navigate('puzzles/review'); return; }
-    await next(); draw(container); window.scrollTo(0, 0);
-  });
+  container.querySelector('#pz-next')?.addEventListener('click', () => { navigate(mode === 'review' ? 'puzzles/review' : 'puzzles'); });
   container.querySelector('#practice-all')?.addEventListener('click', async () => { practiceAll = true; cur.review = null; navigate('puzzles/review'); });
 }
 

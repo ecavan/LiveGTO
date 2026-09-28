@@ -3,7 +3,7 @@
  *   #learn                     home
  *   #learn/course/<m>/<s>      course reader
  *   #learn/drill/<id>          a maths drill
- *   #learn/range               "who continues?" range drill
+ *   #learn/range               → Puzzles → Buckets (the range drill moved there)
  *   #learn/preflop             preflop trainer and charts
  *   #learn/formulas            formula sheet
  *   #learn/playbook            exploit playbook
@@ -17,7 +17,7 @@ export async function render(container, params = []) {
   const [sub, ...rest] = params;
   if (sub === 'course') return (await import('./learn/course.js')).render(container, rest);
   if (sub === 'drill') return (await import('./learn/drills.js')).render(container, rest);
-  if (sub === 'range') return (await import('./learn/range.js')).render(container, rest);
+  if (sub === 'range') { window.location.hash = 'puzzles/buckets'; return undefined; }
   if (sub === 'preflop') return (await import('./learn/preflop.js')).render(container, rest);
   if (sub === 'formulas') return (await import('./learn/formulas.js')).render(container, rest);
   if (sub === 'playbook') {
@@ -52,7 +52,7 @@ async function home(container) {
     <section class="space-y-3">
       <h2 class="text-lg font-semibold text-white">Ranges and preflop</h2>
       <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        ${tile('#learn/range', 'grid', 'Who continues?', 'A real spot and your whole range. Choose the play for each kind of hand.')}
+        ${tile('#puzzles/buckets', 'grid', 'Buckets', 'Your whole range after the flop: one plan for your monsters, pairs, draws and air. In Puzzles.')}
         ${tile('#learn/preflop', 'target', 'Preflop trainer', 'Raise, call or fold from every seat, live 9-handed charts.')}
         ${tile('#learn/formulas', 'learn', 'Formula sheet', 'Every number you use at the table, on one page.')}
         ${tile('#learn/playbook', 'flag', 'Exploit playbook', 'How each hand class plays against each villain type.')}

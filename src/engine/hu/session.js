@@ -97,6 +97,8 @@ export function heroAct(sess, idx) {
     equity: k.equity ?? null,
     need: k.need ?? null,
     range: k.range ?? null,
+    buckets: k.buckets ?? null,
+    heroBucket: k.heroBucket ?? null,
     preflop: !!k.preflop && !k.evGraded,
     chart: k.chart,
     notes: k.notes,

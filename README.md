@@ -8,18 +8,19 @@ Three modes:
 - **Learn**: the Boot Camp course (5 modules, 415 lessons and questions, with Feel / Formula / Proof
   depths, corrected against the textbooks), a timed bet-size feel drill in dollars, endless
   table-maths drills (pot odds, MDF, α, bluff-to-value, outs, combos, SPR, geometric sizing,
-  implied odds), a range drill ("who
-  continues?" on solved spots), the live preflop charts with a trainer, and cheat sheets.
+  implied odds), the live preflop charts with a trainer, and cheat sheets.
 - **Puzzles**: a solved spot with your real hole cards and one right answer, graded by EV against a
-  specific villain type (Station, Nit, Maniac, Whale) or GTO. Rated like chess puzzles. Plus a
-  daily puzzle (with a streak), a review queue that brings back every puzzle you miss (1, 3, 7
-  days), a range builder (paint a whole preflop range, graded against the chart), and flop and
-  multiway spots generated from the Play engines.
+  specific villain type (Station, Nit, Maniac, Whale) or GTO, plus flop and multiway spots from
+  the Play engines. Rated like chess puzzles. Every answer shows the plan for your whole range by
+  **hand bucket** (monsters, vulnerable monsters, pairs, flush draws, straight draws, air). Plus
+  a daily puzzle (with a streak), a review queue that brings back every puzzle you miss (1, 3, 7
+  days), a range builder (paint a whole preflop range), and the Buckets drill (one plan per kind
+  of hand after the flop).
 - **Play**:
   - *Heads-up* against seven rated bots, from Whale to Pro. Every bot learns your habits (the
     weak ones slowly) and remembers you. The coach grades every decision by EV against the bot's
-    real range; the review separates the EV you gave up from all-in luck and gives you a Play
-    rating.
+    real range, and shows your range by bucket with a plan for each; the review separates the
+    EV you gave up from all-in luck and gives you a Play rating.
   - *Live table*: 4–6 players drawn from a live $1/$2 pool, each a mix of styles, read from their
     stats; Easy / Medium / Hard; 100bb, 200bb or a live mix of stacks ($50 short stacks next to
     $600 deep ones, SPR shown). The coach grades you against everyone still in the hand.

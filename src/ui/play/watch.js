@@ -116,7 +116,7 @@ function draw(container) {
   const openState = [...container.querySelectorAll('details')].map(d => d.open);
   container.innerHTML = `<div class="page">
     <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
-      <div class="text-sm text-ink-300"><b class="text-white">${a.name}</b> vs <b class="text-white">${b.name}</b> · hand ${m.handNo}</div>
+      <div class="text-sm text-ink-300"><b class="text-white">${a.name}</b> vs <b class="text-white">${b.name}</b> · ${m.s.done ? `hand ${m.handNo} done` : `playing hand ${m.handNo}`}</div>
       <div class="flex items-center gap-2">${playTabs('watch')}<button id="w-new" class="btn btn-quiet text-sm">Change bots</button></div>
     </div>
     <div class="grid lg:grid-cols-[minmax(0,1fr)_400px] gap-5 lg:grid-flow-dense items-start">
@@ -134,8 +134,10 @@ function draw(container) {
         <div class="panel panel-pad space-y-3">
           <div class="grid grid-cols-2 gap-2">
             ${stat('Hands', sb.hands)}
-            ${stat(`${a.name} result`, `<span class="${tone(sb.netA)}">${fmtBB(sb.netA, { sign: true })}</span>`, `${sb.bb100 >= 0 ? '+' : ''}${sb.bb100} bb/100`)}
+            ${stat(`${a.name} result`, `<span class="${tone(sb.netA)}">${fmtBB(sb.netA, { sign: true })}</span>`,
+              sb.ci100 != null ? `${sb.bb100 >= 0 ? '+' : ''}${sb.bb100} ± ${sb.ci100} bb/100` : `win rate after 25 hands`)}
           </div>
+          ${sparkline(sb.curve, a.name)}
           ${sb.readAofB ? `<div class="text-xs text-ink-300">${a.name} reads ${b.name} as <b class="text-amber-200">${TYPE_NAME(sb.readAofB.type)}</b> (${pct(sb.readAofB.p)})</div>` : ''}
           ${sb.readBofA ? `<div class="text-xs text-ink-300">${b.name} reads ${a.name} as <b class="text-amber-200">${TYPE_NAME(sb.readBofA.type)}</b> (${pct(sb.readBofA.p)})</div>` : ''}
           ${summaryHtml()}
@@ -157,6 +159,24 @@ function draw(container) {
       draw(container);
     }, m.s.done ? SPEED[st.speed] * 1.6 : SPEED[st.speed]);
   }
+}
+
+/** Cumulative result of player 1, hand by hand (updates at the end of every hand). */
+function sparkline(curve, name) {
+  if (curve.length < 2) return '';
+  const W = 320, H = 64, pad = 4;
+  const lo = Math.min(0, ...curve), hi = Math.max(0, ...curve);
+  const x = (i) => pad + (i * (W - 2 * pad)) / (curve.length - 1);
+  const y = (v) => pad + ((hi - v) * (H - 2 * pad)) / Math.max(1e-9, hi - lo);
+  const pts = curve.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const last = curve.at(-1);
+  const col = last >= 0 ? '#34d399' : '#fb7185';
+  const hits = curve.map((v, i) => `<rect x="${(x(i) - (W - 2 * pad) / (2 * (curve.length - 1))).toFixed(1)}" y="0" width="${((W - 2 * pad) / (curve.length - 1)).toFixed(1)}" height="${H}" fill="transparent"><title>After hand ${i + 1}: ${v >= 0 ? '+' : ''}${Math.round(v * 10) / 10}bb</title></rect>`).join('');
+  return `<div><div class="flex justify-between text-[11px] text-ink-400 mb-1"><span>${esc(name)}'s result, hand by hand</span><span class="num">${curve.length} hands</span></div>
+    <svg viewBox="0 0 ${W} ${H}" class="w-full h-16" role="img" aria-label="${esc(name)} result over ${curve.length} hands: ${Math.round(last)}bb">
+      <line x1="${pad}" x2="${W - pad}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}" stroke="#3a4656" stroke-width="1" stroke-dasharray="3 3"/>
+      <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${x(curve.length - 1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="3" fill="${col}"/>${hits}</svg></div>`;
 }
 
 function summaryHtml() {

@@ -209,8 +209,10 @@ Known limits:
 
 ## 7c. More puzzle modes
 
-Puzzles has six modes: **Rated** (the library above), **Daily**, **Review**, **Ranges**, **Flop**,
-**Multiway**.
+Puzzles has five modes: **Rated**, **Daily**, **Review**, **Ranges** (preflop), **Buckets**
+(postflop). Rated draws from three sources: the solver library above (turn and river), flop spots
+and multiway spots (below), 50 / 30 / 20 unless a filter picks one (street: flop / turn / river;
+players: heads-up / multiway; villain type, pot type and texture filters apply to the library).
 
 - **Daily**: one library spot per date, fixed by a hash of the date (same spot and same suits for
   everyone). Unrated; it keeps a streak of consecutive days.
@@ -222,13 +224,45 @@ Puzzles has six modes: **Rated** (the library above), **Daily**, **Review**, **R
   an open. Graded cell by cell against The Course charts, weighted by combos: score = combos played
   right ÷ combos either of you plays (a 3-bet where the chart calls counts half). Too loose, too
   tight and wrong-action cells are coloured.
-- **Flop** and **Multiway** (`scripts/gen-spots.mjs` → `public/spots/*.json`): bots play hands,
+- **Buckets** (`public/spots/buckets.json`): a spot, your whole range split into buckets (§7d),
+  and one action to choose for each. Graded per bucket against the coach's best play for every
+  hand in it: right if it's the bucket's best play or the best play for 40%+ of its hands;
+  score weighted by each bucket's share of your range. Heads-up on every street and multiway.
+  (This replaces Learn's "Who continues?", which used the library's six classes.)
+- **Flop** and **Multiway** spots (`scripts/gen-spots.mjs` → `public/spots/*.json`): bots play hands,
   and at the puzzle decision the Play coach prices every option against the real ranges and
   strategies of the players still in. A spot is kept when the best option beats the next one by
   max(0.8bb, 7% of the pot). Flop: heads-up against each of six bots, 40–200bb deep. Multiway:
   three or more players at a live table (all levels, all stack settings). All-ins bigger than 3×
   the pot are dropped from these spots (the bot models treat any overbet alike, see §8). Ratings are
   a heuristic from the EV gap and how counter-intuitive the answer is; they share your puzzle rating.
+
+## 7d. Hand buckets
+
+After the flop players think in kinds of hand, not combos (`src/engine/buckets.js`). The buckets
+build on the live classes (the same `classify` the bots and the solver use), with two refinements:
+
+| Bucket | What's in it |
+|---|---|
+| Monsters | sets, two pair, straights, flushes, boats that nothing obvious beats |
+| Big but vulnerable | the same hands when the board can beat them: a flush possible (for sets, two pair, straights), a straight possible (for sets and two pair), a paired board (a full house beats two pair, trips, straights, flushes), or a non-nut flush on a four-flush board |
+| Strong pairs | overpairs, top pair good kicker, weaker two pair |
+| Medium pairs | top pair weak kicker, second pair |
+| Weak pairs | third pair, small pocket pairs |
+| Flush draws | four to a flush (with or without a straight draw) |
+| Straight draws | open-enders |
+| Air | gutshots, overcards, nothing |
+
+A **plan by bucket** is your range (as a solid player has it on this line, or as a thinking bot
+reads you) with the best play for each hand, summed per bucket: its share of your range, how its
+hands split across the options, and the bucket's play. Heads-up it's exact (the range view prices
+every combo); at a multiway table a few hands per bucket, spread across its strength, are priced
+with the coach and stand in for the bucket.
+
+Where it shows: the Play coach (heads-up and the live table) after each postflop decision ("You
+have Medium pairs. With these here: Bet 75%", then every bucket, then every hand's grid); his
+range by bucket in every coach card and puzzle; the plan in every puzzle's answer (the library's
+own class plans for solver spots); the Buckets drill.
 
 ## 7b. Board textures and suit relabelling
 
@@ -375,6 +409,9 @@ hand, and how far it has adjusted.
   counted as calling the bet a second time, which overvalued betting in position).
 - *At showdown*: one line per player who showed: value bet, bluff, or calling down, and (when
   styles are shown) the style that explains it.
+- *Watch scoreboard*: the result updates at the end of each hand, with a hand-by-hand curve; the
+  win rate (bb/100 ± a 95% interval) only shows after 25 hands (before that it swings by
+  hundreds of bb/100 and means nothing).
 - *Watch summary*: per-bot VPIP, PFR, c-bet, fold to a bet, share of river bets that are bluffs
   (every card is known, so every river bet counts, called or not), river calls that lose, and
   result with and without showdown, plus one sentence on how the winner is winning.
@@ -421,8 +458,7 @@ session per day) and count in the leak report.
 - **Table maths** (`src/engine/drills.js`): endless generated questions with exact answers. The
   wrong options are the classic wrong formulas (α for pot odds, B/P for MDF), so a miss tells you
   which mistake you made. Outs and combos questions use real cards.
-- **Range drill**: a solved spot, your whole range by hand class, one action per class, graded
-  against the exploit and compared with the solver.
+- **Buckets** (moved to Puzzles): your whole range by bucket, one action per bucket.
 - **Preflop trainer and charts**, **formula sheet**, **exploit playbook**.
 
 ## 10. Roadmap

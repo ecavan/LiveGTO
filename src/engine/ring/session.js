@@ -94,6 +94,7 @@ export function gradeDecision(s, k, idx, seat = HERO) {
     at: s.log.length, street: s.street, board: board(s), hole: s.holes[seat], pot: pot(s),
     toCall: legal(s).callAmount, options: k.options.map(o => ({ type: o.type, to: o.to, label: o.label, ev: o.ev, info: o.info })),
     best: k.best, fine: k.fine, chosen: idx, loss, verdict, equity: k.equity, need: k.need, range: k.range,
+    buckets: k.buckets ?? null, heroBucket: k.heroBucket ?? null,
     preflop: k.preflop, chart: k.chart, notes: k.notes, opponents: k.opponents,
   };
 }
