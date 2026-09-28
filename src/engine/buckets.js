@@ -80,7 +80,11 @@ export function vulnerability(hole, board) {
     // a flush that isn't the nut flush on a four-flush board
     const s = [0, 1, 2, 3].find(x => board.filter(c => suit(c) === x).length >= 4);
     const mine = Math.max(...hole.filter(c => suit(c) === s).map(rank), -1);
-    if (mine < 12) out.push('four to a flush');
+    // the nut card: the highest card of the suit that isn't on the board
+    const onBoard = new Set(board.filter(c => suit(c) === s).map(rank));
+    let nut = 12;
+    while (onBoard.has(nut)) nut--;
+    if (mine < nut) out.push('four to a flush');
   }
   if (cat < CAT.STRAIGHT && maxInWindow(board) >= 3) out.push('straight possible');
   if (cat < CAT.FULL_HOUSE && new Set(board.map(rank)).size < board.length) out.push('paired board');

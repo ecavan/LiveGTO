@@ -202,10 +202,11 @@ export function leakOf(d) {
   const c = d.options[d.chosen], b = d.options[d.best];
   const aggr = (o) => o.type === 'bet' || o.type === 'raise' || o.type === 'allin';
   if (d.street === 0) {
+    const passive = (o) => o.type === 'call' || o.type === 'check';
     if (c.type === 'fold') return 'pre-tight';
     if (b.type === 'fold') return 'pre-loose';
-    if (c.type === 'call' && aggr(b)) return 'pre-passive';
-    if (aggr(c) && b.type === 'call') return 'pre-overaggro';
+    if (passive(c) && aggr(b)) return 'pre-passive';
+    if (aggr(c) && passive(b)) return 'pre-overaggro';
     return 'pre-sizing';
   }
   const facing = d.toCall > 0.001;

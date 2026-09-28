@@ -146,7 +146,8 @@ export function toHistory(L, graded) {
   const { holes, runout } = placeholders(L);
   const day = new Date(L.createdAt); day.setHours(0, 0, 0, 0);
   const hidden = holes.map((_, i) => i).filter(i => i !== HERO && !L.shown[i]);
-  const known = !s.done || !s.result.showdown || s.folded.every((f, i) => f || i === HERO || !hidden.includes(i));
+  // the result is known unless you went to showdown against cards nobody entered
+  const known = !s.done || !s.result.showdown || s.folded[HERO] || s.folded.every((f, i) => f || i === HERO || !hidden.includes(i));
   const log = s.log.map(e => ({ seat: e.seat, street: e.street, type: e.type, ...(e.to != null ? { to: e.to } : {}), ...(e.amount != null ? { amount: e.amount } : {}), ...(e.callAllIn ? { callAllIn: true } : {}) }));
   return {
     id: `live-${L.createdAt.toString(36)}`, sid: day.getTime(), at: L.createdAt, kind: 'table', live: true, no: 0,

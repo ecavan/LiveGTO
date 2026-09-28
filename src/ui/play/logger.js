@@ -132,8 +132,8 @@ function setup(container) {
     <button id="lg-start" class="btn btn-primary btn-lg btn-block" ${d.hole.length === 2 ? '' : 'disabled'}>${icon('pen', 'w-5 h-5')} Enter the action</button>
   </div>`;
   wireSeg(container, (name, v) => { d[name] = v; draw(container); });
-  container.querySelector('#lg-stack').addEventListener('change', e => { d.stack = Math.max(1, Number(e.target.value) || 0); });
-  container.querySelector('#lg-others').addEventListener('change', e => { d.others = Math.max(1, Number(e.target.value) || 0); });
+  container.querySelector('#lg-stack').addEventListener('input', e => { d.stack = Math.max(1, Number(e.target.value) || 0); });
+  container.querySelector('#lg-others').addEventListener('input', e => { d.others = Math.max(1, Number(e.target.value) || 0); });
   container.querySelectorAll('#picker [data-card]').forEach(b => b.addEventListener('click', () => {
     const id = Number(b.dataset.card);
     d.hole = d.hole.includes(id) ? d.hole.filter(x => x !== id) : [...d.hole, id].slice(-2);

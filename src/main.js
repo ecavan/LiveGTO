@@ -37,4 +37,19 @@ function drawTabs(active) {
 onChange(drawTabs);
 window.addEventListener('livegto:ratings', () => renderRatings(document.getElementById('ratings')));
 
+// Range grids: the numbers behind a cell live in its tooltip, which a touch screen can't show.
+// Tapping a cell writes them under the grid instead.
+document.addEventListener('click', (e) => {
+  const cell = e.target.closest?.('.rg > div[title]');
+  if (!cell || cell.closest('#rb-grid')) return;
+  const grid = cell.parentElement;
+  let out = grid.nextElementSibling;
+  if (!out || !out.classList.contains('rg-readout')) {
+    out = document.createElement('div');
+    out.className = 'rg-readout';
+    grid.after(out);
+  }
+  out.textContent = cell.getAttribute('title');
+});
+
 start(document.getElementById('app'));

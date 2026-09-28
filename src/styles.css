@@ -221,6 +221,9 @@
 }
 
 /* review: move chips */
-.mv { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; line-height: 1.2; padding: 4px 8px; border-radius: 8px; border: 1px solid transparent; background: rgba(23, 30, 40, .6); }
+.mv { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; line-height: 1.2; min-height: 32px; padding: 4px 10px; border-radius: 8px; border: 1px solid transparent; background: rgba(23, 30, 40, .6); }
+@media (pointer: coarse) { .mv { min-height: 38px; padding: 6px 12px; } }
+.rg > div[title] { cursor: pointer; }
+.rg-readout { font-size: 12px; color: #cbd5e1; min-height: 18px; margin-top: 6px; }
 .mv:hover { border-color: #3a4656; }
 .mv.on { border-color: rgba(245, 158, 11, .7); background: rgba(245, 158, 11, .12); }

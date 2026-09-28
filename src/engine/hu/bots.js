@@ -200,7 +200,9 @@ export function postflopMix(profileId, s, seat, cls, hType) {
   let fraction = 0;
   if (L.facing) {
     const owe = L.callAmount;
-    fraction = owe / Math.max(0.01, pot(s) - owe);
+    // a bet bigger than his stack: only what he can call counts (the rest goes back)
+    const excess = Math.max(0, s.streetBet[1 - s.toAct] - s.streetBet[s.toAct] - owe);
+    fraction = owe / Math.max(0.01, pot(s) - owe - excess);
     base = { ...BASE_FACING[sizeBucket(fraction)][c] };
   } else {
     base = { ...BASE_OPEN[c] };

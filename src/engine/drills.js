@@ -83,13 +83,15 @@ function evCallQ(rand) {
   const P = nice(40 + rand() * 200);
   const C = nice(P * pick(rand, [0.5, 0.75, 1, 1.5]));
   const e = pick(rand, [0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.55]);
-  const ev = e * (P + C) - (1 - e) * C;
+  // you win the pot (his bet included) when ahead, lose your call when behind
+  const ev = e * P - (1 - e) * C;
   const f = (x) => `${x >= 0 ? '+' : '−'}$${Math.abs(Math.round(x))}`;
-  const r = mc(rand, f(ev), [f(e * P - C), f(e * (P + C)), f(e * (P + 2 * C) - (1 - e) * C), f(-ev)]);
+  const r = mc(rand, f(ev), [f(e * (P + C) - (1 - e) * C), f(e * P - C), f(e * (P + C)), f(-ev), f(ev + 0.1 * P)]);
   return {
     prompt: `The pot is <b>${money(P)}</b> including his all-in bet. You must call <b>${money(C)}</b> with <b>${pct(e)}</b> equity. EV of calling?`,
     ...r,
-    explain: `EV = eq × (what you win) − (1 − eq) × (what you risk) = ${pct(e)} × ${P} − ${pct(1 - e)} × ${C} = <b>${f(ev)}</b>.`,
+    explain: `EV = eq × (what you win) − (1 − eq) × (what you risk) = ${pct(e)} × ${P} − ${pct(1 - e)} × ${C} = <b>${f(ev)}</b>.
+      <div class="text-ink-400 text-xs mt-1">The pot already holds his bet; don't add your own call to what you win.</div>`,
   };
 }
 

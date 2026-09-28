@@ -45,7 +45,12 @@ export async function render(container, kind, { review = null, rated = null } = 
   index = await getIndex().catch(() => null);
   const id = review ? review.i : rated?.id;
   const spot = spots.find(x => x.id === id);
-  if (!spot) { navigate('puzzles'); return undefined; }
+  if (!spot) {
+    // the spot sets were rebuilt and this one is gone: drop it from the queue
+    if (review) { const st = loadStats(); st.queue = (st.queue || []).filter(x => x.k !== review.k); saveStats(st); }
+    navigate(review ? 'puzzles/review' : 'puzzles');
+    return undefined;
+  }
   const p = make(kind, spot, !!review);
   p.ref = rated;
   draw(container, p);

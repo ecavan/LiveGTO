@@ -293,8 +293,8 @@ function draw(container) {
   rv?.addEventListener('toggle', fill);
   fill();
   container.querySelectorAll('#controls [data-i]').forEach(b => b.addEventListener('click', () => choose(container, Number(b.dataset.i))));
-  container.querySelector('#continue')?.addEventListener('click', () => { ui.paused = false; draw(container); });
-  container.querySelector('#next')?.addEventListener('click', () => { ui.recap = null; ui.last = null; ui.lastState = null; ui.rangeHtml = null; startHand(t); draw(container); });
+  container.querySelector('#continue')?.addEventListener('click', () => { ui.guardAt = performance.now(); ui.paused = false; draw(container); });
+  container.querySelector('#next')?.addEventListener('click', () => { ui.guardAt = performance.now(); ui.recap = null; ui.last = null; ui.lastState = null; ui.rangeHtml = null; startHand(t); draw(container); });
   container.querySelector('#end')?.addEventListener('click', () => { ui.over = true; review(container); });
   container.querySelector('#reveal')?.addEventListener('click', () => { ui.reveal = !ui.reveal; draw(container); });
 
@@ -317,6 +317,8 @@ function after(container) {
 }
 
 function choose(container, i) {
+  // a double tap on Next / Continue must not also act on the buttons that appear in its place
+  if (performance.now() - (ui.guardAt || 0) < 400) return;
   if (!heroToAct(t) || ui.paused || !coachReady(t)) return;
   ui.lastState = t.s;
   ui.rangeHtml = null;
@@ -352,7 +354,7 @@ function review(container) {
         <span class="ml-auto text-rose-300 text-xs font-semibold pr-2">${d.preflop ? 'off chart · ' : ''}−${d.loss.toFixed(2)}bb</span></span>`, coachCard(d, { evNote: evNote(d) }))).join('') : '<p class="text-sm text-ink-400">None. Clean session.</p>'}
     </div>
   </div>`;
-  container.querySelector('#rv-again').addEventListener('click', () => { ui = { ...ui, over: false, recap: null, last: null }; t.hands = []; startHand(t); draw(container); });
+  container.querySelector('#rv-again').addEventListener('click', () => { ui = { ...ui, over: false, recap: null, last: null, lastState: null, rangeHtml: null }; t.hands = []; t.handNo = 0; t.startedAt = Date.now(); startHand(t); draw(container); });
   container.querySelector('#rv-new').addEventListener('click', () => { t = null; ui.over = false; setup(container); });
 }
 

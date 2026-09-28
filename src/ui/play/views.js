@@ -153,7 +153,7 @@ export function coachCard(d, { weights = null, botName = 'He', live = false, evN
   const best = d.options[d.best];
   let head;
   if (d.verdict === 'best') head = verdict('best', `Best move: ${esc(chosen.label)}`);
-  else if (d.verdict === 'fine') head = verdict('fine', `Good: ${esc(chosen.label)}`, `Best was ${esc(best.label)}, within ${fmtBB(Math.max(0.01, d.loss))}.`);
+  else if (d.verdict === 'fine') head = verdict('fine', `Good: ${esc(chosen.label)}`, d.preflop ? `On the chart too. The coach's pick: ${esc(best.label)}.` : d.loss >= 0.05 ? `Best was ${esc(best.label)}, within ${fmtBB(d.loss)}.` : `Best was ${esc(best.label)}; the difference is tiny.`);
   else if (d.preflop) head = verdict(d.verdict, `Off the chart: ${esc(chosen.label)}`, `Chart: <b>${d.chart}</b>. Counted as ${fmtBB(d.loss)} of EV.`);
   else head = verdict(d.verdict, `${d.verdict === 'blunder' ? 'Blunder' : 'Mistake'}: ${esc(chosen.label)} costs ${fmtBB(d.loss)}`, `Best: <b>${esc(best.label)}</b>.`);
   if (d.preflop) {

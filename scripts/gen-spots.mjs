@@ -27,6 +27,13 @@ const packPlan = (bv) => (bv ? {
 } : null);
 const r2 = (x) => Math.round(x * 100) / 100;
 const r3 = (x) => (x == null ? null : Math.round(x * 1000) / 1000);
+/** A stable id from the spot's cards and action (queued / seen puzzles survive a rebuild). */
+function sid(prefix, holes, runout, log) {
+  const str = JSON.stringify([holes, runout, log.map(e => [e.seat, e.type, e.to ?? 0])]);
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return prefix + (h >>> 0).toString(36);
+}
 const aggr = (o) => o.type === 'bet' || o.type === 'raise' || o.type === 'allin';
 
 /**
@@ -104,7 +111,7 @@ function genFlop(count) {
               perType[t] = (perType[t] || 0) + 1;
               took = true;
               out.push({
-                id: `f${out.length}`, kind: 'hu', opp, depth: d, hero, start: [...s.start], holes: s.holes.map(x => [...x]), runout: [...s.runout],
+                id: sid('f', s.holes, s.runout, s.log), kind: 'hu', opp, depth: d, hero, start: [...s.start], holes: s.holes.map(x => [...x]), runout: [...s.runout],
                 log: packLog(s.log), pot: r2(P), toCall: r2(HU.toCall(s, hero)), street: 1,
                 options: packOpts(k.options), best: k.best, fine: k.fine, equity: r3(k.equity), need: r3(k.need), range: packRange(k.range),
                 notes: k.notes || [], rating: j.rating, gap: j.gap,
@@ -149,7 +156,7 @@ function genMulti(count) {
             perType[ty] = (perType[ty] || 0) + 1;
             took = true;
             out.push({
-              id: `m${out.length}`, kind: 'table', level, n: s.n, btn: s.btn, hero: HERO, start: [...s.start], holes: s.holes.map(x => [...x]), runout: [...s.runout],
+              id: sid('m', s.holes, s.runout, s.log), kind: 'table', level, n: s.n, btn: s.btn, hero: HERO, start: [...s.start], holes: s.holes.map(x => [...x]), runout: [...s.runout],
               log: packLog(s.log), pot: r2(P), toCall: r2(Math.max(...s.streetBet) - s.streetBet[HERO]), street: s.street,
               names: t.players.map((p, i) => (i === HERO ? 'You' : p.name)), styles: t.players.map((p, i) => (i === HERO ? '' : styleLabel(p))),
               options: packOpts(k.options), best: k.best, fine: k.fine, equity: r3(k.equity), need: r3(k.need), range: packRange(k.range),
@@ -197,7 +204,7 @@ function genBuckets(count) {
         if (plan && drillable(plan)) {
           took = true;
           perStreet[s.street]++;
-          out.push({ id: `b${out.length}`, kind: 'hu', opp, depth: d, hero, start: [...s.start], holes: s.holes.map(x => [...x]), runout: [...s.runout], log: packLog(s.log), street: s.street, pot: r2(HU.pot(s)), toCall: r2(HU.toCall(s, hero)), plan });
+          out.push({ id: sid('b', s.holes, s.runout, s.log), kind: 'hu', opp, depth: d, hero, start: [...s.start], holes: s.holes.map(x => [...x]), runout: [...s.runout], log: packLog(s.log), street: s.street, pot: r2(HU.pot(s)), toCall: r2(HU.toCall(s, hero)), plan });
         }
       }
       s = HU.act(s, choose(s.toAct === hero ? hAgent : vAgent, s, rand));
@@ -219,7 +226,7 @@ function genBuckets(count) {
           if (plan && drillable(plan)) {
             took = true;
             out.push({
-              id: `b${out.length}`, kind: 'table', level, n: s.n, btn: s.btn, hero: HERO, start: [...s.start], holes: s.holes.map(x => [...x]), runout: [...s.runout],
+              id: sid('b', s.holes, s.runout, s.log), kind: 'table', level, n: s.n, btn: s.btn, hero: HERO, start: [...s.start], holes: s.holes.map(x => [...x]), runout: [...s.runout],
               log: packLog(s.log), street: s.street, pot: r2(s.invested.reduce((a, b) => a + b, 0)), toCall: r2(Math.max(...s.streetBet) - s.streetBet[HERO]),
               names: t.players.map((p, i) => (i === HERO ? 'You' : p.name)), styles: t.players.map((p, i) => (i === HERO ? '' : styleLabel(p))), plan,
             });

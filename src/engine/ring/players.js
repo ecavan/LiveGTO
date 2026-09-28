@@ -162,7 +162,9 @@ function postflopArch(a, s, seat, cls, ctx) {
   const c = street === 'river' && cls === 'draw' ? 'air' : cls;
   let fraction = 0, base;
   if (L.facing) {
-    fraction = L.callAmount / Math.max(0.01, pot(s) - L.callAmount);
+    // a bet bigger than his stack: only what he can call counts (the rest goes back)
+    const excess = Math.max(0, Math.max(...s.streetBet) - s.streetBet[seat] - L.callAmount);
+    fraction = L.callAmount / Math.max(0.01, pot(s) - L.callAmount - excess);
     base = { ...BASE_FACING[sizeBucket(fraction)][c] };
   } else base = { ...BASE_OPEN[c] };
   let mix = applyProfile(a.profile, base, { street, facing: L.facing, fraction, cls: c, handType: null });

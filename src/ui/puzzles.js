@@ -45,8 +45,12 @@ export async function render(container, params = []) {
     container.innerHTML = `<div class="page text-rose-300">${esc(e.message)}. Build it with <code>npm run library</code>.</div>`;
     return undefined;
   }
-  if (mode === 'daily') { if (!cur.daily || cur.daily.date !== today()) await next(); }
-  else if (!cur[mode] || cur[mode].answered || (mode === 'review' && cur[mode].gen) || cur[mode].gen?.answered) await next();
+  try {
+    if (mode === 'daily') { if (!cur.daily || cur.daily.date !== today()) await next(); }
+    else if (!cur[mode] || cur[mode].answered || (mode === 'review' && cur[mode].gen) || cur[mode].gen?.answered) await next();
+  } catch (e) {
+    return loadError(container, e);
+  }
   current = cur[mode];
   if (current?.gen) {
     // a flop / multiway spot: that module shows it (rated, or a missed one in review)
@@ -64,9 +68,38 @@ export async function render(container, params = []) {
   return () => window.removeEventListener('keydown', keyHandler);
 }
 
+/**
+ * A puzzle that won't load: offline with that part of the library not downloaded, or (in Review)
+ * a puzzle that no longer exists after a library rebuild. Say so, and offer a way on.
+ */
+function loadError(container, e) {
+  const missing = e?.message === 'missing';
+  const it = mode === 'review' ? reviewItem : null;
+  container.innerHTML = `<div class="page space-y-4">
+    <div><div class="h-sec">Puzzles</div><h1 class="h-title">${missing ? 'That puzzle is gone' : 'Couldn\'t load a puzzle'}</h1></div>
+    <div>${puzzleTabs(mode === 'rated' ? '' : mode)}</div>
+    <div class="panel panel-pad space-y-3">
+      <p class="text-sm text-ink-200">${missing ? 'It was in your review queue, but the puzzle library has changed since.' : 'You may be offline, with this part of the puzzle library not downloaded yet. Settings → "Download puzzle library" makes every puzzle work offline.'}</p>
+      <div class="flex gap-2 flex-wrap"><button id="pz-retry" class="btn btn-primary">Try again</button>
+        ${it ? '<button id="pz-drop" class="btn">Remove it from the queue</button>' : ''}
+        ${mode !== 'rated' ? '<a class="btn" href="#puzzles/buckets">Buckets drill (works offline)</a>' : ''}</div>
+    </div></div>`;
+  container.querySelector('#pz-retry').addEventListener('click', () => { cur[mode] = null; navigate(mode === 'rated' ? 'puzzles' : `puzzles/${mode}`); });
+  container.querySelector('#pz-drop')?.addEventListener('click', () => {
+    stats.queue = (stats.queue || []).filter(x => x.k !== it.k);
+    saveStats(stats);
+    cur.review = null;
+    navigate('puzzles/review');
+  });
+  return undefined;
+}
+
+let reviewItem = null;
+
 async function load(cand, rand = Math.random) {
   const record = await getRecord(cand);
-  const puzzle = record.puzzles[cand.i];
+  const puzzle = record?.puzzles?.[cand.i];
+  if (!puzzle) throw new Error('missing');
   const m = randomSuitMap(rand);
   const view = {
     board: record.board.map(c => remapCard(c, m)),
@@ -88,6 +121,7 @@ async function next() {
     const pool = due.length ? due : practiceAll ? [...(stats.queue || [])].sort((a, b) => a.due - b.due) : [];
     const skip = cur.review?.cand ? key(cur.review.cand) : null;
     const it = pool.find(x => x.k !== skip) || pool[0];
+    reviewItem = it || null;
     cur.review = !it ? null : it.id.startsWith('gen:') ? { gen: it, cand: { id: it.id, i: it.i } } : await load({ id: it.id, file: it.file, i: it.i, rating: it.rating });
   } else {
     cur.rated = await nextRated();

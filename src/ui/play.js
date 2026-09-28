@@ -28,7 +28,12 @@ export async function render(container, params = []) {
   if (params[0] === 'watch') return (await import('./play/watch.js')).render(container, params.slice(1));
   if (params[0] === 'table') return (await import('./play/table.js')).render(container, params.slice(1));
   if (params[0] === 'review') return (await import('./play/review.js')).render(container, params.slice(1));
-  if (params[0] === 'new') { sess = null; }
+  if (params[0] === 'new') {
+    // back to the opponents: bank the session you were in (rating, and the bot's memory of you)
+    if (sess && sess.hands.length) recordSession();
+    sess = null;
+    history.replaceState(null, '', '#play');
+  }
   const cleanup = () => {
     clearTimeout(timer);
     timer = null;
@@ -65,7 +70,10 @@ function recordSession() {
   const sum = summary(sess);
   if (!sum.hands) return;
   const store = playStore();
-  store.sessions.push({ at: sess.startedAt, bot: sess.botId, hands: sum.hands, net: sum.net, evLost: sum.evLost, rating: sum.rating });
+  // saved after every hand (closing the app mid-session loses nothing); one entry per session
+  const row = { at: sess.startedAt, bot: sess.botId, hands: sum.hands, net: sum.net, evLost: sum.evLost, rating: sum.rating };
+  const i = store.sessions.findIndex(x => x.at === sess.startedAt);
+  if (i >= 0) store.sessions[i] = row; else store.sessions.push(row);
   store.sessions = store.sessions.slice(-200);
   store.models = { ...(store.models || {}), [sess.botId]: sess.agent.model }; // every bot remembers you
   save(KEYS.play, store);
@@ -228,6 +236,7 @@ function afterAction(container) {
   if (sess.s.done) {
     ui.recap = endHand(sess);
     addHand(packHU(sess, ui.recap, AGENTS[sess.botId].name));
+    recordSession();
     ui.paused = false;
   }
   table(container);
@@ -235,7 +244,7 @@ function afterAction(container) {
 
 function wire(container) {
   container.querySelectorAll('#controls [data-i]').forEach(b => b.addEventListener('click', () => choose(container, Number(b.dataset.i))));
-  container.querySelector('#continue')?.addEventListener('click', () => { ui.paused = false; table(container); });
+  container.querySelector('#continue')?.addEventListener('click', () => { ui.guardAt = performance.now(); ui.paused = false; table(container); });
   const rv = container.querySelector('details[data-rangeview]');
   const fill = () => {
     if (!rv || !rv.open || rv.dataset.done) return;
@@ -254,11 +263,13 @@ function wire(container) {
   };
   rv?.addEventListener('toggle', fill);
   fill();
-  container.querySelector('#next')?.addEventListener('click', () => nextHand(container));
+  container.querySelector('#next')?.addEventListener('click', () => { ui.guardAt = performance.now(); nextHand(container); });
   container.querySelector('#end')?.addEventListener('click', () => { ui.over = true; recordSession(); review(container); });
 }
 
 function choose(container, i) {
+  // a double tap on Next / Continue must not also act on the buttons that appear in its place
+  if (performance.now() - (ui.guardAt || 0) < 400) return;
   if (!heroToAct(sess) || ui.paused || !coachReady(sess)) return;
   const s0 = sess.s;
   ui.lastState = s0;

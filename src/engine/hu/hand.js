@@ -103,6 +103,12 @@ export function classify(hole, board) {
   const pocket = r1 === r2;
   const boardPaired = boardRanks.length < board.length;
 
+  // quads on the board: only the kicker plays (an ace is as good as it gets)
+  if (category(vBoard) === CAT.QUADS) {
+    const quad = rank(board.find(c => board.filter(x => rank(x) === rank(c)).length === 4));
+    const topKicker = quad === 12 ? 11 : 12;
+    return Math.max(rank(h1), rank(h2)) === topKicker && vAll > vBoard ? 'strong' : 'air';
+  }
   if (cat >= CAT.STRAIGHT && vAll > vBoard) return 'monster';
   if (cat >= CAT.TRIPS) {
     if (pocket && boardCount(r1) >= 1) return 'monster';

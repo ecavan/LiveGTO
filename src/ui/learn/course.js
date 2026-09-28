@@ -51,7 +51,7 @@ export async function render(container, [mStr = '0', sStr = '0'] = []) {
     <article class="panel panel-pad lesson space-y-4">${body}</article>
     <div class="flex items-center justify-between gap-3">
       ${prevHref ? `<a href="${prevHref}" class="btn">${icon('back', 'w-4 h-4')} Back</a>` : '<span></span>'}
-      <a href="${nextHref}" id="next" class="btn btn-primary ${step.type === 'q' && !answered ? 'opacity-60' : ''}">${si === mod.steps.length - 1 ? 'Finish module' : 'Next'} ${icon('next', 'w-4 h-4')}</a>
+      <a href="${nextHref}" id="next" class="btn btn-primary ${step.type === 'q' && answered == null ? 'opacity-60' : ''}">${si === mod.steps.length - 1 ? 'Finish module' : 'Next'} ${icon('next', 'w-4 h-4')}</a>
     </div>
   </div>`;
 

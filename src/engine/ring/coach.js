@@ -144,20 +144,42 @@ export function ringCoach(s, hero, table, stats, extra = null, cache = null) {
       base.splice(at < 0 ? base.length : at, 0, opt);
     }
   }
+  // Pots. You can win at most what each player put in up to your own total (T). An opponent who is
+  // already all-in can't fold: the chips he matched (the main pot) go to showdown against his range
+  // whatever happens; fold equity only wins the rest (the side pot).
+  const T = s.invested[hero] + s.stacks[hero];
+  const allIn = opps.filter(j => s.stacks[j] <= 1e-9);
+  const active = opps.filter(j => s.stacks[j] > 1e-9);
+  // heroIn: what you have in the pot; heroMax: the most you can have in (others are capped at it)
+  const layers = (heroIn, heroMax) => {
+    const cap = allIn.length ? Math.max(...allIn.map(j => s.invested[j])) : 0;
+    let win = heroIn, main = allIn.length ? Math.min(heroIn, cap) : 0;
+    for (let i = 0; i < s.n; i++) {
+      if (i === hero) continue;
+      win += Math.min(s.invested[i], heroMax);
+      if (allIn.length) main += Math.min(s.invested[i], heroMax, cap);
+    }
+    return { win, main, side: win - main };
+  };
+  const eqAct = allIn.length && active.length ? equityMulti(s.holes[hero], active.map(j => ranges[j]), bd) : eq;
+  const eqAllIn = allIn.length ? equityMulti(s.holes[hero], allIn.map(j => ranges[j]), bd) : 0;
+  const now = layers(s.invested[hero], T);
   const options = base.map(m => {
     const info = {};
     let ev = 0;
     if (m.type === 'fold') ev = 0;
-    else if (m.type === 'check') ev = eq * P;
+    else if (m.type === 'check') ev = eq * now.main + (active.length ? eqAct : 1) * now.side;
     else if (m.type === 'call') {
-      // a bet bigger than your stack: the part you can't cover comes back to him
-      const top = Math.max(...s.streetBet);
-      const excess = Math.max(0, top - (s.streetBet[hero] + s.stacks[hero]));
-      const C = L.callAmount, Pe = P - excess;
-      ev = eq * (Pe + C) - C; info.eq = eq; info.need = requiredEquity(Pe, C);
-    }
-    else {
-      const x = m.to - s.streetBet[hero];
+      // what you can win once you've called (a bet bigger than your stack: the rest goes back to him)
+      const C = L.callAmount;
+      const after = layers(s.invested[hero] + C, s.invested[hero] + C);
+      ev = eq * after.main + eqAct * after.side - C;
+      info.eq = eq;
+      info.need = C / Math.max(1e-9, after.win);
+    } else {
+      // only what someone can match is really at risk: a bigger bet's excess comes back to you
+      const maxMatch = Math.max(...active.map(j => s.streetBet[j] + s.stacks[j]), s.streetBet[hero]);
+      const x = Math.max(0, Math.min(m.to, maxMatch) - s.streetBet[hero]);
       let st = act(s, m);
       let allFold = 1, added = 0;
       const cont = {};
@@ -179,11 +201,15 @@ export function ringCoach(s, hero, table, stats, extra = null, cache = null) {
         st = act(st, { type: legal(st).call ? 'call' : 'check' }); // as if he continued
       }
       const callers = Object.values(cont).filter(c => c.p > 0.02).map(c => c.w);
-      const eqc = callers.length ? equityMulti(s.holes[hero], callers, bd, 900) : eq;
-      ev = allFold * P + (1 - allFold) * (eqc * (P + x + added / Math.max(1e-9, 1 - allFold)) - x);
+      const allInW = allIn.map(j => ranges[j]);
+      const eqc = callers.length ? equityMulti(s.holes[hero], callers, bd, 900) : eqAct;
+      const eqcAll = allIn.length ? (callers.length ? equityMulti(s.holes[hero], [...allInW, ...callers], bd, 900) : eqAllIn) : eqc;
+      const addedIf = added / Math.max(1e-9, 1 - allFold);
+      ev = allFold * (eqAllIn * now.main + now.side)
+        + (1 - allFold) * (eqcAll * now.main + eqc * (now.side + x + addedIf) - x);
       info.fold = allFold;
       info.eqCalled = eqc;
-      info.breakEven = x / (P + x);
+      info.breakEven = x / Math.max(1e-9, now.side + x);
     }
     return { ...m, ev: round2(ev), info };
   });

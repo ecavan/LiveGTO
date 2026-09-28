@@ -407,6 +407,11 @@ hand, and how far it has adjusted.
   (first in, isolating limpers, facing an open), with these EVs sizing the mistake. A bet's
   responses stop at the end of the street (fixed: the first player on the next street used to be
   counted as calling the bet a second time, which overvalued betting in position).
+  Side pots: you can only win what each player put in up to your own stack; a player already
+  all-in can't fold, so the chips he matched go to showdown against his range whatever you do,
+  and fold equity only wins the side pot; a bet bigger than anyone behind can call risks only
+  what they can call (the excess comes back). Bots size their response to what they can actually
+  call, so a shove bigger than their stack reads as the big bet it is.
 - *At showdown*: one line per player who showed: value bet, bluff, or calling down, and (when
   styles are shown) the style that explains it.
 - *Watch scoreboard*: the result updates at the end of each hand, with a hand-by-hand curve; the
