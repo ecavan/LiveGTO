@@ -87,7 +87,7 @@ export function statesOf(h) {
   const G = h.kind === 'hu' ? HU : RING;
   let st = h.kind === 'hu'
     ? HU.newHand({ stacks: h.start, holes: h.holes, board: h.runout })
-    : RING.newHand({ n: h.n, btn: h.btn, stacks: h.start, holes: h.holes, board: h.runout });
+    : RING.newHand({ n: h.n, btn: h.btn, stacks: h.start, holes: h.holes, board: h.runout, smallBlind: h.sb ?? 0.5 });
   const out = [st];
   for (const e of h.log) {
     let a = toAction(e);
@@ -103,7 +103,7 @@ export function viewOf(h, s) {
   const n = h.kind === 'hu' ? 2 : s.n;
   const folded = h.kind === 'hu' ? [0, 1].map(i => s.folded === i) : s.folded;
   const bd = s.done ? s.runout.slice(0, s.result?.showdown ? 5 : [0, 3, 4, 5][s.street]) : s.runout.slice(0, [0, 3, 4, 5][s.street]);
-  const potNow = h.kind === 'hu' ? HU.pot(s) : RING.pot(s);
+  const potNow = h.kind === 'hu' ? HU.pot(s) : RING.potShown(s);
   const streetSum = s.streetBet.reduce((a, b) => a + b, 0);
   return {
     n, btn: h.kind === 'hu' ? HU.BTN : s.btn, stacks: s.stacks, streetBet: s.streetBet, folded, board: bd,

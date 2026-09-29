@@ -126,7 +126,7 @@ export function menu(s) {
     }
     for (let to of opts) {
       to = round2(Math.max(to, L.minTo));
-      if (to >= L.maxTo - EPS) continue;
+      if (to >= L.maxTo * 0.85 - EPS) continue; // leaving a sliver behind: just go all-in
       const verb = L.facing || s.street === 0 ? 'Raise to' : 'Bet';
       const pctLabel = s.street > 0 && !L.facing ? ` (${Math.round((100 * (to - s.streetBet[me])) / p)}%)` : '';
       if (!out.some(o => o.to === to)) out.push({ type: L.facing || s.street === 0 ? 'raise' : 'bet', to, label: `${verb} ${to}${pctLabel}` });

@@ -5,6 +5,9 @@ import './styles.css';
 import { register, start, onChange } from './router.js';
 import { icon } from './ui/kit.js';
 import { renderRatings } from './ui/ratings.js';
+import { applyTheme } from './theme.js';
+
+applyTheme();
 
 const TABS = [
   { id: 'learn', label: 'Learn', icon: 'learn' },

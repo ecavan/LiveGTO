@@ -9,7 +9,7 @@ import { puzzleTabs } from './tabs.js';
 import { pct } from '../../engine/potmath.js';
 
 const COMBOS = (k) => (k.length === 2 ? 6 : k.endsWith('s') ? 4 : 12);
-const COL = { raise: '#10b981', call: '#0ea5e9', fold: '#151b25' };
+const COL = { raise: '#10b981', call: '#0ea5e9', fold: 'rgb(var(--ink-800))' };
 const NAME = { UTG: 'under the gun', MP: 'middle position', CO: 'the cutoff', BTN: 'the button', SB: 'the small blind', BB: 'the big blind' };
 
 export const SPOTS = [

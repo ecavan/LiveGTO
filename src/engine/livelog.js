@@ -10,7 +10,7 @@
  *
  * Villains' cards you never saw are placeholders: never shown, never used by the coach.
  */
-import { newHand, act, legal, board, pot, posOf, positions, round2 } from './ring/game.js';
+import { newHand, act, legal, board, pot, potShown, posOf, positions, round2 } from './ring/game.js';
 import { ringCoach } from './ring/coach.js';
 import { gradeDecision } from './ring/session.js';
 import { newHeroStats, ARCHETYPES } from './ring/players.js';
@@ -31,6 +31,8 @@ export const VILLAIN_TYPES = {
 for (const [k, v] of Object.entries(VILLAIN_TYPES)) if (!v.blurb) v.blurb = ARCHETYPES[Object.keys(v.mix)[0]].blurb;
 
 export const STAKES = { '1/2': 2, '1/3': 3, '2/5': 5, '5/10': 10 };
+/** Small blinds in dollars (a $1/$3 game posts a $1 small blind, not $1.50). */
+export const SMALL = { '1/2': 1, '1/3': 1, '2/5': 2, '5/10': 5 };
 
 /** Button seat that puts you (seat 0) in position `pos` at a 6-handed table. */
 export function btnFor(pos) {
@@ -46,7 +48,7 @@ export function createLog({ stakes = '1/2', pos = 'CO', hole, stack = 200, other
   const bb = STAKES[stakes] || 2;
   const toBB = (d) => round2(d / bb);
   return {
-    stakes, bb, pos, btn: btnFor(pos), hole: [...hole],
+    stakes, bb, sb: (SMALL[stakes] || bb / 2) / bb, pos, btn: btnFor(pos), hole: [...hole],
     start: Array.from({ length: N }, (_, i) => (i === HERO ? toBB(stack) : toBB(others ?? stack))),
     types: Array(N).fill('unknown'),
     boardCards: [], // named so far
@@ -69,7 +71,7 @@ function placeholders(L) {
 /** Rebuild the engine state from the log. */
 export function stateOf(L) {
   const { holes, runout } = placeholders(L);
-  let s = newHand({ n: N, btn: L.btn, stacks: L.start, holes, board: runout });
+  let s = newHand({ n: N, btn: L.btn, stacks: L.start, holes, board: runout, smallBlind: L.sb ?? 0.5 });
   for (const a of L.actions) s = act(s, a);
   return s;
 }
@@ -122,7 +124,7 @@ function tableOf(L) {
  */
 export function gradeLog(L) {
   const { holes, runout } = placeholders(L);
-  let s = newHand({ n: N, btn: L.btn, stacks: L.start, holes, board: runout });
+  let s = newHand({ n: N, btn: L.btn, stacks: L.start, holes, board: runout, smallBlind: L.sb ?? 0.5 });
   const table = tableOf(L);
   const stats = newHeroStats();
   const out = [];
@@ -153,9 +155,9 @@ export function toHistory(L, graded) {
     id: `live-${L.createdAt.toString(36)}`, sid: day.getTime(), at: L.createdAt, kind: 'table', live: true, no: 0,
     n: N, btn: L.btn, hero: HERO, names: L.types.map((t, i) => (i === HERO ? 'You' : posOf(s, i))),
     styles: L.types.map((t, i) => (i === HERO ? '' : VILLAIN_TYPES[t].name)),
-    start: [...L.start], holes, runout, log, hidden, stakes: L.stakes,
+    start: [...L.start], holes, runout, log, hidden, stakes: L.stakes, sb: L.sb ?? 0.5,
     net: s.done && known ? round2(s.result.net[HERO]) : null,
-    evLost: round2(decisions.reduce((a, d) => a + d.loss, 0)), luck: 0, pot: round2(pot(s)), showdown: !!s.result?.showdown,
+    evLost: round2(decisions.reduce((a, d) => a + d.loss, 0)), luck: 0, pot: round2(potShown(s)), showdown: !!s.result?.showdown,
     level: 'live', decisions: decisions.map(packDecision),
   };
 }

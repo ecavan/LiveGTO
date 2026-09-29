@@ -1,7 +1,8 @@
 /**
- * Settings: offline download, data reset, about.
+ * Settings: appearance, offline download, data reset.
  */
 import { icon } from './kit.js';
+import { themePref, setTheme } from '../theme.js';
 
 const LIB_CACHE = 'puzzle-library';
 
@@ -44,6 +45,10 @@ function reset(kind) {
 export async function render(container) {
   container.innerHTML = `<div class="page max-w-2xl space-y-5 fade-up">
     <div><div class="h-sec">Settings</div><h1 class="h-title">LiveGTO</h1></div>
+    <div class="panel panel-pad flex items-center justify-between gap-3 flex-wrap">
+      <div><div class="font-semibold text-white">Appearance</div><p class="text-sm text-ink-300">Auto follows your device's light or dark setting.</p></div>
+      <div class="seg" id="theme-seg">${[['system', 'Auto'], ['light', 'Light'], ['dark', 'Dark']].map(([k, l]) => `<button data-theme-pick="${k}" class="${themePref() === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+    </div>
     <div class="panel panel-pad space-y-3">
       <div class="flex items-center gap-3">${icon('download', 'w-6 h-6 text-emerald-300')}<div class="font-semibold text-white">Offline</div></div>
       <p class="text-sm text-ink-300">Add LiveGTO to your home screen (Share → Add to Home Screen), then download the puzzle library once. After that everything works with no connection: Learn, Puzzles and Play.</p>
@@ -68,6 +73,10 @@ export async function render(container) {
     status.textContent = st.have >= st.files.length ? `Downloaded: all ${st.files.length} files are available offline.` : `${st.have} of ${st.files.length} files available offline.`;
     bar.style.width = `${(100 * st.have) / st.files.length}%`;
   };
+  container.querySelectorAll('[data-theme-pick]').forEach(b => b.addEventListener('click', () => {
+    setTheme(b.dataset.themePick);
+    container.querySelectorAll('[data-theme-pick]').forEach(x => x.classList.toggle('on', x === b));
+  }));
   container.querySelectorAll('[data-reset]').forEach(b => b.addEventListener('click', () => {
     const r = RESETS[b.dataset.reset];
     if (!window.confirm(`${r.label}? This clears ${r.what} on this device.`)) return;

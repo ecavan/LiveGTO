@@ -58,7 +58,7 @@ export function render(container) {
 function chartGrid(raise, call, me) {
   return rangeGrid(GRID.map(l => ({
     label: l, me: l === me,
-    bg: raise.has(l) ? 'rgba(16,185,129,.7)' : call.has(l) ? 'rgba(56,189,248,.55)' : '#121821',
+    bg: raise.has(l) ? 'rgba(16,185,129,.7)' : call.has(l) ? 'rgba(56,189,248,.55)' : 'rgb(var(--ink-800))',
   })));
 }
 

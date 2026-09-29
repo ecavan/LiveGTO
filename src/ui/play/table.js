@@ -5,7 +5,7 @@
 import {
   createTable, startHand, heroToAct, coachNow, coachReady, heroAct, botAct, endHand, summary, HERO,
 } from '../../engine/ring/session.js';
-import { board, pot, posOf, legal } from '../../engine/ring/game.js';
+import { board, pot, potShown, posOf, legal } from '../../engine/ring/game.js';
 import { styleLabel, ARCHETYPES, adjustment, LEVELS } from '../../engine/ring/players.js';
 import { settings, saveSettings } from '../../store.js';
 import { ringTable, fmtBB, seg, wireSeg, icon, esc, stat, handText, disc, verdict, sprOf } from '../kit.js';
@@ -85,6 +85,7 @@ function setup(container) {
   container.querySelector('#start').addEventListener('click', () => {
     const cur = settings();
     t = createTable({ n: cur.tableSize ?? 6, coachMode: cur.coach, level: cur.tableLevel ?? 'medium', stacks: cur.tableStacks ?? 'even' });
+    window.scrollTo(0, 0);
     ui = { last: null, paused: false, recap: null, over: false, reveal: !!cur.reveal };
     startHand(t);
     draw(container);
@@ -127,14 +128,14 @@ function tableHtml(thinking) {
       bet: s.done ? 0 : s.streetBet[i],
       acting: !s.done && s.toAct === i,
       hero,
-      tag: winner ? `Wins ${fmtBB(s.result.net[i] + s.invested[i])}` : a?.lab,
+      tag: winner ? `Wins ${fmtBB(s.result.won ? s.result.won[i] : s.result.net[i] + s.invested[i])}` : a?.lab,
       tagTone: winner ? 't-win' : a?.tone,
     };
   });
   const bd = s.done ? s.runout.slice(0, s.result.showdown ? 5 : board(s).length) : board(s);
   return ringTable({
     seats, board: bd,
-    pot: s.done ? pot(s) : pot(s) - s.streetBet.reduce((x, y) => x + y, 0),
+    pot: s.done ? potShown(s) : pot(s) - s.streetBet.reduce((x, y) => x + y, 0),
     spr: s.done || s.folded[HERO] ? null : sprOf({ street: s.street, stacks: s.stacks, streetBet: s.streetBet, pot: pot(s), live: s.holes.map((_, i) => i).filter(i => !s.folded[i]), seat: HERO }),
     note: thinking ? `${t.players[s.toAct].name} is thinking…` : '',
   });
@@ -220,8 +221,13 @@ function showdownWhy(s) {
     const calls = acts.filter(e => e.type === 'call' || (e.type === 'allin' && e.callAllIn));
     const weak = cls === 'air' || cls === 'weak' || cls === 'draw';
     const cards = handText(byRank(s.holes[i]).map(cardStr));
+    const pre = s.log.filter(e => e.seat === i && e.street === 0);
+    const preShove = pre.find(e => e.type === 'allin' && !e.callAllIn);
+    const preCallAllIn = pre.find(e => (e.type === 'allin' && e.callAllIn) || (e.type === 'call' && s.stacks[i] <= 1e-9 && !acts.length));
     let what;
-    if (aggr.length && weak) what = `bet ${aggr.length > 1 ? `${aggr.length} times` : ''} as a bluff with ${cards} (${made})`;
+    if (!acts.length && preShove) what = `moved all-in preflop with ${cards}`;
+    else if (!acts.length && preCallAllIn) what = `called an all-in preflop with ${cards}`;
+    else if (aggr.length && weak) what = `bet ${aggr.length > 1 ? `${aggr.length} times` : ''} as a bluff with ${cards} (${made})`;
     else if (aggr.length) what = `bet for value with ${cards} (${made})`;
     else if (calls.length >= 2 && (weak || cls === 'medium')) what = `called ${calls.length} bets with just ${cards} (${made})`;
     else if (calls.length) what = `called with ${cards} (${made})`;

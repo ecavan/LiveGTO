@@ -72,6 +72,14 @@ export function sprOf({ street, stacks, streetBet, pot, live, seat }) {
   return potStart > 0 ? Math.min(mine, other) / potStart : null;
 }
 
+/** An option label with its amount in units: "Raise to 9" → "Raise to 9bb" (fmt can give dollars). */
+export function optionLabel(label, fmt = fmtBB) {
+  let m;
+  if ((m = label.match(/^Bet ([\d.]+) \((\d+)%\)$/))) return `Bet ${fmt(Number(m[1]))} (${m[2]}%)`;
+  if ((m = label.match(/^(Raise to|Call|All-in) ([\d.]+)$/))) return `${m[1]} ${fmt(Number(m[2]))}`;
+  return label;
+}
+
 export function fmtBB(x, { sign = false } = {}) {
   const v = Math.round(x * 100) / 100;
   const s = Number.isInteger(v) ? String(v) : v.toFixed(Math.abs(v) >= 10 ? 1 : 2).replace(/\.?0+$/, '');
@@ -105,7 +113,7 @@ export function evBars(options, { best, fine = [], chosen = -1 }) {
     const col = i === best ? 'bg-emerald-400' : fine.includes(i) ? 'bg-sky-400' : 'bg-ink-400';
     const loss = mx - o.ev;
     return `<div class="evrow">
-      <div class="truncate ${i === chosen ? 'text-white font-semibold' : 'text-ink-300'}">${i === chosen ? '▸ ' : ''}${esc(o.label)}</div>
+      <div class="truncate ${i === chosen ? 'text-white font-semibold' : 'text-ink-300'}">${i === chosen ? '▸ ' : ''}${esc(optionLabel(o.label))}</div>
       <div class="evbar"><i class="${col}" style="width:${w}%"></i></div>
       <div class="text-right num text-xs ${i === best ? 'text-emerald-300 font-semibold' : 'text-ink-300'}">${i === best ? 'best' : `−${loss.toFixed(loss >= 10 ? 1 : 2)}`}</div>
     </div>`;

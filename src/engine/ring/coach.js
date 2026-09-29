@@ -32,7 +32,17 @@ export function rangeOf(s, seat, table, heroSeat, stats, { withHero = true } = {
   for (const { before, entry } of replay(s)) {
     if (entry.seat !== seat) continue;
     const pol = playerPolicyAll(p, before, seat, context(before, seat, p, heroSeat, stats));
-    const pr = probOfAction(pol, entry);
+    let pr = probOfAction(pol, entry);
+    let prior = 0, post = 0;
+    for (let i = 0; i < N; i++) if (w[i] > 0) { prior += w[i]; post += w[i] * pr[i]; }
+    if (prior > 0 && post < 1e-6 * prior) {
+      // his type (almost) never does this, e.g. a Station raising: read it as a solid player would mean it
+      const reg = { ...p, mix: { reg: 1 } };
+      pr = probOfAction(playerPolicyAll(reg, before, seat, context(before, seat, reg, heroSeat, stats)), entry);
+      post = 0;
+      for (let i = 0; i < N; i++) if (w[i] > 0) post += w[i] * pr[i];
+      if (post < 1e-6 * prior) pr = pr.map(x => x + 0.01); // still nothing: keep the range, don't empty it
+    }
     for (let i = 0; i < N; i++) if (w[i] > 0) w[i] *= pr[i];
   }
   return w;

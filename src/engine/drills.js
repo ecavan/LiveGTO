@@ -225,8 +225,9 @@ function combosQ(rand) {
 }
 
 function impliedQ(rand) {
-  const P = nice(20 + rand() * 80);
-  const C = nice(P * pick(rand, [0.5, 0.75, 1]));
+  const before = nice(20 + rand() * 80); // the pot before his bet
+  const C = nice(before * pick(rand, [0.5, 0.75, 1]));
+  const P = before + C; // the pot after his bet
   const outs = pick(rand, [4, 8, 9]);
   const e = outs / 46;
   const X = C / e - (P + C);

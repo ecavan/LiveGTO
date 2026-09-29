@@ -9,7 +9,7 @@ import {
 import { getIndex, getRecord } from '../engine/library.js';
 import { pct } from '../engine/potmath.js';
 import { flopTexture, textureLabel, boardTags, randomSuitMap, remapCard, isCard } from '../engine/texture.js';
-import { pokerTable, icon, esc, verdict, disc, rangeGrid, fmtBB, lossKind } from './kit.js';
+import { pokerTable, icon, esc, verdict, disc, rangeGrid, fmtBB, lossKind, optionLabel } from './kit.js';
 import { puzzleTabs } from './puzzles/tabs.js';
 import { filters, filterPanel as sharedFilters, wireFilters, libraryOnly } from './puzzles/filters.js';
 import { planFromClasses, CLASS_AS_BUCKET } from '../engine/buckets.js';
@@ -241,7 +241,7 @@ function evBarsFromLoss(opts, p, choice) {
     const loss = -p.ev[i];
     const w = Math.max(3, 100 * (1 - loss / maxLoss));
     const col = i === p.answer ? 'bg-emerald-400' : p.fine.includes(i) ? 'bg-sky-400' : 'bg-ink-400';
-    return `<div class="evrow"><div class="truncate ${i === choice ? 'text-white font-semibold' : 'text-ink-300'}">${i === choice ? '▸ ' : ''}${esc(o.label)}</div>
+    return `<div class="evrow"><div class="truncate ${i === choice ? 'text-white font-semibold' : 'text-ink-300'}">${i === choice ? '▸ ' : ''}${esc(optionLabel(o.label))}</div>
       <div class="evbar"><i class="${col}" style="width:${w}%"></i></div>
       <div class="text-right num text-xs ${loss < 0.005 ? 'text-emerald-300 font-semibold' : 'text-ink-300'}">${loss < 0.005 ? 'best' : `−${loss.toFixed(2)}`}</div></div>`;
   }).join('')}</div>`;
@@ -262,7 +262,7 @@ function rangePanel(r, p) {
     const hue = Math.round(120 * eq);
     return {
       label: cellLabel(i), me: t === 'hero' && i === heroCell,
-      bg: f > 0 ? `hsla(${hue}, 70%, 38%, ${0.25 + 0.75 * f})` : '#121821',
+      bg: f > 0 ? `hsla(${hue}, 70%, 38%, ${0.25 + 0.75 * f})` : 'rgb(var(--ink-800))',
       title: f > 0 ? `${cellLabel(i)}: ${pct(f)} in range, equity ${pct(eq)}` : cellLabel(i),
     };
   });
@@ -301,7 +301,7 @@ function draw(container) {
           <div class="text-lg font-semibold text-white">${q.length ? 'Nothing due right now' : 'No missed puzzles'}</div>
           <p class="text-sm text-ink-300 max-w-md mx-auto">${q.length ? `${q.length} puzzle${q.length > 1 ? 's' : ''} will come back over the next days.` : 'Every puzzle you miss comes back here the next day, then after 3 and 7 days, until you get it right.'}</p>
           ${q.length ? '<button id="practice-all" class="btn btn-primary">Practise them now anyway</button>' : '<a href="#puzzles" class="btn btn-primary">Rated puzzles</a>'}</div>`
-      : `<p class="text-ink-400 pt-6">No puzzles match these filters.</p>`;
+      : `<p class="text-ink-400 pt-6">No puzzles match these filters. The texture and villain filters only apply to turn and river spots, so try clearing one.</p>`;
     container.innerHTML = `<div class="page space-y-4">${header}${mode === 'rated' ? filterPanel() : ''}${empty}</div>`;
     wire(container);
     return;

@@ -16,7 +16,7 @@ import { getCourse } from './learn/course.js';
 export async function render(container, params = []) {
   const [sub, ...rest] = params;
   if (sub === 'course') return (await import('./learn/course.js')).render(container, rest);
-  if (sub === 'drill') return (await import('./learn/drills.js')).render(container, rest);
+  if (sub === 'drill') { if (rest[0] && !DRILLS[rest[0]]) { location.hash = '#learn'; return; } return (await import('./learn/drills.js')).render(container, rest); }
   if (sub === 'range') { window.location.hash = 'puzzles/buckets'; return undefined; }
   if (sub === 'preflop') return (await import('./learn/preflop.js')).render(container, rest);
   if (sub === 'formulas') return (await import('./learn/formulas.js')).render(container, rest);

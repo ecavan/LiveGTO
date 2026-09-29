@@ -12,7 +12,7 @@ import {
 import { AGENTS, eloOf } from '../../engine/hu/agents.js';
 import { LEVELS } from '../../engine/ring/players.js';
 import { cardStr, evaluate, category } from '../../engine/hu/hand.js';
-import { ringTable, fmtBB, icon, esc, stat, handText, seg, wireSeg, disc, sprOf } from '../kit.js';
+import { ringTable, fmtBB, icon, esc, stat, handText, seg, wireSeg, disc, sprOf, optionLabel } from '../kit.js';
 import { coachCard, actionBar, playTabs } from './views.js';
 import { settings, saveSettings } from '../../store.js';
 import { pct } from '../../engine/potmath.js';
@@ -99,7 +99,7 @@ function home(container) {
           const c = gradeCounts(x.hands);
           return `<a href="#play/review/s/${x.sid}" class="flex items-center gap-3 px-4 py-3 hover:bg-ink-850/60">
             <div class="min-w-0 flex-1"><div class="text-sm font-semibold text-white truncate">${sessionTitle(x)}</div>
-              <div class="text-xs text-ink-400">${new Date(x.sid).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · ${x.hands.length} hands · <span class="${tone(net)}">${fmtBB(net, { sign: true })}</span>${c.blunder ? ` · <span class="text-rose-300">${c.blunder} blunder${c.blunder > 1 ? 's' : ''}</span>` : ''}</div></div>
+              <div class="text-xs text-ink-400">${new Date(x.sid).toLocaleString([], x.level === 'live' || x.hands[0]?.live ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · ${x.hands.length} hand${x.hands.length === 1 ? '' : 's'} · <span class="${tone(net)}">${fmtBB(net, { sign: true })}</span>${c.blunder ? ` · <span class="text-rose-300">${c.blunder} blunder${c.blunder > 1 ? 's' : ''}</span>` : ''}</div></div>
             <div class="text-right"><div class="text-xl font-semibold num ${accTone(a)}">${a ?? '—'}</div><div class="text-[10px] uppercase tracking-wider text-ink-400">accuracy</div></div>
             ${icon('next', 'w-4 h-4 text-ink-400')}</a>`;
         }).join('')}</div>
@@ -245,7 +245,7 @@ function tableAt(h, k) {
       bet: s.done ? 0 : v.streetBet[i],
       acting: !s.done && v.toAct === i,
       hero,
-      tag: winner ? `Wins ${fmtBB(s.result.net[i] + s.invested[i])}` : tags[i]?.lab,
+      tag: winner ? `Wins ${fmtBB(s.result.won ? s.result.won[i] : s.result.net[i] + s.invested[i])}` : tags[i]?.lab,
       tagTone: winner ? 't-win' : tags[i]?.tone,
     };
   });
@@ -299,11 +299,11 @@ function guessPanel(d) {
 function guessResult(d, idx) {
   const o = d.options[idx], b = d.options[d.best];
   let head;
-  if (idx === d.best) head = `<div class="verdict v-best"><div class="font-semibold text-emerald-300 flex items-center gap-2">${icon('star', 'w-5 h-5')} You found the best move: ${esc(o.label)}</div></div>`;
-  else if (d.fine.includes(idx)) head = `<div class="verdict v-fine"><div class="font-semibold text-sky-300">Good: ${esc(o.label)}</div><div class="text-sm text-ink-200 mt-1">Best was ${esc(b.label)}, but it's close.</div></div>`;
+  if (idx === d.best) head = `<div class="verdict v-best"><div class="font-semibold text-emerald-300 flex items-center gap-2">${icon('star', 'w-5 h-5')} You found the best move: ${esc(optionLabel(o.label))}</div></div>`;
+  else if (d.fine.includes(idx)) head = `<div class="verdict v-fine"><div class="font-semibold text-sky-300">Good: ${esc(optionLabel(o.label))}</div><div class="text-sm text-ink-200 mt-1">Best was ${esc(optionLabel(b.label))}, but it's close.</div></div>`;
   else {
     const gap = o.ev != null && b.ev != null ? b.ev - o.ev : null;
-    head = `<div class="verdict v-mistake"><div class="font-semibold text-rose-300">Not quite: ${esc(o.label)}${gap != null && gap > 0.01 ? ` gives up ${fmtBB(gap)}` : ''}</div><div class="text-sm text-ink-200 mt-1">Best: <b>${esc(b.label)}</b>.</div></div>`;
+    head = `<div class="verdict v-mistake"><div class="font-semibold text-rose-300">Not quite: ${esc(optionLabel(o.label))}${gap != null && gap > 0.01 ? ` gives up ${fmtBB(gap)}` : ''}</div><div class="text-sm text-ink-200 mt-1">Best: <b>${esc(optionLabel(b.label))}</b>.</div></div>`;
   }
   const played = d.options[d.chosen];
   const same = idx === d.chosen;

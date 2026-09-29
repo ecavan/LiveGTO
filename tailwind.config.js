@@ -2,15 +2,15 @@
 export default {
   content: ['./index.html', './src/**/*.js'],
   safelist: [
-    { pattern: /(bg|border|text|ring)-(emerald|sky|red|amber|violet|rose|gray|ink)-(200|300|400|500|600|700|800|900|950)(\/(10|15|20|25|30|40|50|60))?/ },
+    { pattern: /(bg|border|text|ring)-(emerald|sky|red|amber|violet|rose|gray|ink)-(100|200|300|400|500|600|700|800|850|900|950)(\/(10|15|20|25|30|40|50|60|70|80|90))?/ },
   ],
   theme: {
     extend: {
       colors: {
-        ink: {
-          950: '#07090d', 900: '#0c1016', 850: '#10151d', 800: '#151b25', 700: '#1d2531',
-          600: '#2a3442', 500: '#3b4757', 400: '#5d6a7c', 300: '#8793a4', 200: '#b4bdc9', 100: '#dde3ea',
-        },
+        ink: Object.fromEntries(['950', '900', '850', '800', '700', '600', '500', '400', '300', '200', '100'].map(k => [k, `rgb(var(--ink-${k}) / <alpha-value>)`])),
+        white: 'rgb(var(--fg) / <alpha-value>)',
+        paper: '#ffffff',
+        night: '#07090d',
         felt: { DEFAULT: '#0f5a38', dark: '#0a4029', light: '#16774b' },
       },
       fontFamily: {

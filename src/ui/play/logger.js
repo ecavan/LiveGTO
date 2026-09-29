@@ -41,12 +41,13 @@ function picker(selected, used, max) {
     ${RANKS.split('').map(r => {
       const id = idOf(r, su);
       const on = selected.includes(id), off = used.has(id) && !on;
-      return `<button data-card="${id}" ${off ? 'disabled' : ''} class="rounded-md border text-[13px] font-bold py-1.5 transition ${on ? 'bg-amber-400 text-ink-950 border-amber-300' : off ? 'opacity-20 border-ink-700' : 'bg-ink-850 border-ink-600 hover:border-ink-400'}"><span>${r === 'T' ? '10' : r}</span><span class="${on ? '' : `ts-${su}`}">${SUIT_SYM[su]}</span></button>`;
+      return `<button data-card="${id}" ${off ? 'disabled' : ''} class="rounded-md border text-[13px] font-bold py-1.5 transition ${on ? 'bg-amber-400 text-night border-amber-300' : off ? 'opacity-20 border-ink-700' : 'bg-ink-850 border-ink-600 hover:border-ink-400'}"><span>${r === 'T' ? '10' : r}</span><span class="${on ? '' : `ts-${su}`}">${SUIT_SYM[su]}</span></button>`;
     }).join('')}</div>`).join('')}
     <div class="text-xs text-ink-400">${selected.length}/${max} picked</div></div>`;
 }
 
-const money = (bb) => `$${(Math.round(bb * lg.L.bb * 100) / 100).toString().replace(/\.0+$/, '')}`;
+// live games play in whole dollars: show them that way (cents only for small EV numbers)
+const money = (bb) => { const v = bb * lg.L.bb; return `$${Math.abs(v) >= 10 || Math.abs(v - Math.round(v)) < 0.02 ? Math.round(v) : v.toFixed(2)}`; };
 
 function tableHtml(s, L) {
   const order = Array.from({ length: N }, (_, j) => j);
@@ -77,7 +78,7 @@ function historyText(s, L) {
     const a = e.type === 'fold' ? 'fold' : e.type === 'check' ? 'check' : e.type === 'call' ? `call ${money(e.amount)}` : e.type === 'bet' ? `bet ${money(e.amount)}` : e.type === 'raise' ? `raise to ${money(e.to)}` : e.callAllIn ? 'call all-in' : `all-in ${money(e.to)}`;
     rows.at(-1).acts.push(`<span class="${e.seat === HERO ? 'text-ink-100' : 'text-amber-200/90'}">${who} ${a}</span>`);
   }
-  if (!rows.length) return `<div class="text-sm text-ink-400">Blinds posted ($${L.bb / 2 >= 1 ? L.bb / 2 : L.bb / 2}/$${L.bb}).</div>`;
+  if (!rows.length) return `<div class="text-sm text-ink-400">Blinds posted ($${L.stakes.replace('/', '/$')}).</div>`;
   return `<div class="space-y-1 text-sm">${rows.map(r => `<div class="flex gap-2 flex-wrap items-baseline"><span class="text-ink-400 w-14 shrink-0">${r.head}</span>${r.cards.length ? `<span class="mr-1">${handText(r.cards)}</span>` : ''}<span class="text-ink-300">${r.acts.join(', ')}</span></div>`).join('')}</div>`;
 }
 
@@ -129,17 +130,21 @@ function setup(container) {
       <div class="flex items-center justify-between"><div class="h-sec">Your cards</div><div class="text-lg">${d.hole.length ? handText(byRank(d.hole)) : '<span class="text-ink-500 text-sm">tap two cards</span>'}</div></div>
       ${picker(d.hole, used, 2)}
     </div>
+    ${lg.err ? `<div class="text-sm text-rose-300">${lg.err}</div>` : ''}
     <button id="lg-start" class="btn btn-primary btn-lg btn-block" ${d.hole.length === 2 ? '' : 'disabled'}>${icon('pen', 'w-5 h-5')} Enter the action</button>
   </div>`;
   wireSeg(container, (name, v) => { d[name] = v; draw(container); });
-  container.querySelector('#lg-stack').addEventListener('input', e => { d.stack = Math.max(1, Number(e.target.value) || 0); });
-  container.querySelector('#lg-others').addEventListener('input', e => { d.others = Math.max(1, Number(e.target.value) || 0); });
+  container.querySelector('#lg-stack').addEventListener('input', e => { d.stack = Number(e.target.value) || 0; });
+  container.querySelector('#lg-others').addEventListener('input', e => { d.others = Number(e.target.value) || 0; });
   container.querySelectorAll('#picker [data-card]').forEach(b => b.addEventListener('click', () => {
     const id = Number(b.dataset.card);
     d.hole = d.hole.includes(id) ? d.hole.filter(x => x !== id) : [...d.hole, id].slice(-2);
     draw(container);
   }));
   container.querySelector('#lg-start').addEventListener('click', () => {
+    const bbUSD = STAKES[d.stakes] || 2;
+    if (!(d.stack >= bbUSD * 2) || !(d.others >= bbUSD * 2)) { lg.err = `Stacks need to be at least $${bbUSD * 2} at $${d.stakes}.`; draw(container); return; }
+    lg.err = null;
     saveSettings({ ...settings(), logStakes: d.stakes, logPos: d.pos, logStack: d.stack, logOthers: d.others });
     lg.L = createLog({ stakes: d.stakes, pos: d.pos, hole: d.hole, stack: d.stack, others: d.others });
     lg.step = 'play';
@@ -193,6 +198,7 @@ function play(container) {
           <input id="lg-amt" type="number" inputmode="decimal" placeholder="${raiseWord === 'Bet' ? 'bet' : 'raise to'}" value="${lg.amount}" class="w-full !pl-7"></div>
           <button id="lg-raise" class="act act-aggr !py-2 !min-h-0 px-4" ${amt > 0 ? '' : 'disabled'}>${raiseWord}${amt > 0 ? ` $${amt}` : ''}</button></div>
         <div class="text-xs text-ink-400">${raiseWord === 'Bet' ? 'The amount he puts in.' : 'The total he raises to.'} Min ${money(lgl.minTo - (raiseWord === 'Bet' ? s.streetBet[me] : 0))}.</div>
+        ${lg.note ? `<div class="text-xs text-amber-300">${lg.note}</div>` : ''}
       </div>` : ''}
     </div>`;
   }
@@ -220,11 +226,11 @@ function play(container) {
   container.querySelector('#lg-shown')?.addEventListener('click', () => { L.shown[lg.shown] = [...lg.pick]; lg.shown = null; lg.pick = []; redraw(); });
   container.querySelector('#lg-foldto')?.addEventListener('click', () => { foldToHero(L); redraw(); });
   container.querySelectorAll('[data-type]').forEach(b => b.addEventListener('click', () => { L.types[s.toAct] = b.dataset.type; redraw(); }));
-  container.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => { logAction(L, { type: b.dataset.act }); lg.amount = ''; redraw(); }));
+  container.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => { logAction(L, { type: b.dataset.act }); lg.amount = ''; lg.note = null; redraw(); }));
   container.querySelectorAll('[data-size]').forEach(b => b.addEventListener('click', () => {
     const to = Number(b.dataset.size);
     logAction(L, { type: to >= legal(s).maxTo - 1e-9 ? 'allin' : 'raise', to });
-    lg.amount = '';
+    lg.amount = ''; lg.note = null;
     redraw();
   }));
   const amtEl = container.querySelector('#lg-amt');
@@ -240,7 +246,11 @@ function play(container) {
     if (!(v > 0)) return;
     const lgl = legal(s);
     const to = s.street > 0 && !lgl.facing ? s.streetBet[s.toAct] + v : v;
-    logAction(L, { type: to >= lgl.maxTo - 1e-9 ? 'allin' : 'raise', to });
+    const x = logAction(L, { type: to >= lgl.maxTo - 1e-9 ? 'allin' : 'raise', to });
+    // say so when the amount had to change
+    if (x.type === 'allin' && to > lgl.maxTo + 1e-9) lg.note = `That's more than the stack, so it's logged as all-in (${money(lgl.maxTo)}).`;
+    else if (x.type === 'raise' && x.to > to + 1e-9) lg.note = `The minimum here was ${money(lgl.minTo)}, so it's logged as that.`;
+    else lg.note = null;
     lg.amount = '';
     redraw();
   });
@@ -267,13 +277,13 @@ function graded(container) {
   const bad = ds.filter(d => d.verdict === 'mistake' || d.verdict === 'blunder');
   container.innerHTML = `<div class="page space-y-5 fade-up">
     <div class="flex items-end justify-between gap-3 flex-wrap">
-      <div><div class="h-sec">Live hand · $${L.stakes}</div><h1 class="h-title">${bad.length ? `${bad.length} decision${bad.length > 1 ? 's' : ''} to fix` : 'Well played'}</h1>
+      <div><div class="h-sec">Live hand · $${L.stakes}</div><h1 class="h-title">${bad.length ? `${bad.length} decision${bad.length > 1 ? 's' : ''} to fix` : ds.length ? 'Well played' : 'Nothing to decide'}</h1>
         <p class="muted mt-1 text-sm">${ds.length} decision${ds.length === 1 ? '' : 's'} graded against ${[...new Set(L.types.filter((t, i) => i !== HERO && h.log.some(e => e.seat === i && e.type !== 'fold')).map(t => VILLAIN_TYPES[t].name))].join(', ') || 'the table'}.
         ${h.evLost > 0.005 ? `<span class="text-rose-300">EV lost: ${fmtBB(h.evLost)} (${money(h.evLost)}).</span>` : '<span class="text-emerald-300">No EV lost.</span>'}</p></div>
       <div class="flex gap-2 flex-wrap"><a class="btn" href="#play/review/h/${h.id}">${icon('review', 'w-4 h-4')} Replay it</a><button id="lg-again" class="btn btn-primary">${icon('pen', 'w-4 h-4')} Log another hand</button></div>
     </div>
     <div class="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5 items-start">
-      <div class="space-y-2">${ds.length ? ds.map((d, i) => decisionRow(d, i, { evNote: `EV in bb against the players still in, read as the types you gave them.` })).join('') : '<p class="text-sm text-ink-400">You had no decision in this hand.</p>'}</div>
+      <div class="space-y-2">${ds.length ? ds.map((d, i) => decisionRow(d, i, { fmt: money, evNote: `EV against the players still in, read as the types you gave them.` })).join('') : '<p class="text-sm text-ink-400">You had no decision in this hand.</p>'}</div>
       <div class="panel panel-pad">${historyText(stateOf(L), L)}<p class="text-xs text-ink-400 mt-3">Saved to Review → "Your live hands". It counts in your leak report.</p></div>
     </div>
   </div>`;

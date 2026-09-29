@@ -82,3 +82,57 @@ describe('small fixes', () => {
     expect(h.net).toBe(-1);
   });
 });
+
+describe('uncalled chips come back, and are not a pot', () => {
+  it('a shove called by a shorter stack: the loser is not tagged a winner', async () => {
+    const { cardId } = await import('../src/engine/hu/hand.js');
+    const { potShown } = await import('../src/engine/ring/game.js');
+    const c = (x) => x.split(' ').map(cardId);
+    // seat 0 BTN (100bb) shoves 72o, seat 1 SB folds, seat 2 BB (30bb) calls with AA
+    let s = newHand({ n: 3, btn: 0, stacks: [100, 100, 30], holes: [c('7h 2c'), c('9d 8d'), c('As Ad')], board: c('Kc Qd 5s 4h 3c') });
+    s = act(s, { type: 'allin' });
+    s = act(s, { type: 'fold' });
+    s = act(s, { type: 'call' });
+    expect(s.done).toBe(true);
+    expect(s.result.winners).toEqual([2]);
+    expect(s.result.won[0]).toBe(0);
+    expect(s.result.refund[0]).toBeCloseTo(70, 5);
+    expect(s.result.won[2]).toBeCloseTo(60.5, 5);
+    expect(potShown(s)).toBeCloseTo(60.5, 5);
+    expect(s.stacks[0]).toBeCloseTo(70, 5);
+  });
+  it('everyone folds to a shove: the pot is the blinds plus the matched part', async () => {
+    const { potShown } = await import('../src/engine/ring/game.js');
+    let s = newHand({ n: 3, btn: 0, stacks: [100, 100, 100] });
+    s = act(s, { type: 'allin' });
+    s = act(s, { type: 'fold' });
+    s = act(s, { type: 'fold' });
+    expect(s.result.won[0]).toBeCloseTo(2.5, 5); // SB 0.5 + BB 1 + the 1bb of the shove the BB level matched
+    expect(potShown(s)).toBeCloseTo(2.5, 5);
+    expect(s.result.refund[0]).toBeCloseTo(99, 5);
+  });
+});
+
+describe('a type that "never" takes an action still gets a range', () => {
+  it('a Station who raises preflop is read as holding something, not nothing', async () => {
+    const { createLog, logAction, stateOf, legal, posOf, gradeLog } = await import('../src/engine/livelog.js');
+    const { cardId } = await import('../src/engine/hu/hand.js');
+    const L = createLog({ stakes: '1/3', pos: 'CO', hole: [cardId('Kd'), cardId('Qh')], stack: 400, others: 250 });
+    const UTG = [0, 1, 2, 3, 4, 5].find(i => posOf(stateOf(L), i) === 'UTG');
+    L.types[UTG] = 'station';
+    logAction(L, { type: 'raise', to: 4 }); logAction(L, { type: 'fold' }); logAction(L, { type: 'raise', to: 10 });
+    for (let k = 0; k < 3; k++) logAction(L, { type: 'fold' });
+    logAction(L, { type: 'call' });
+    L.boardCards.push(cardId('Ah'), cardId('7c'), cardId('2d'));
+    logAction(L, { type: 'check' }); logAction(L, { type: 'raise', to: 11 }); logAction(L, { type: 'call' });
+    L.boardCards.push(cardId('9s'));
+    logAction(L, { type: 'allin', to: legal(stateOf(L)).maxTo });
+    logAction(L, { type: 'call' });
+    const { decisions } = gradeLog(L);
+    const turn = decisions.find(d => d.street === 2);
+    const tot = Object.values(turn.range).reduce((a, b) => a + b, 0);
+    expect(tot).toBeGreaterThan(0.5);
+    expect(turn.equity).toBeLessThan(0.3);
+    expect(turn.options[turn.best].type).toBe('fold');
+  });
+});

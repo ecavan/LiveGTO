@@ -5,7 +5,7 @@
  * Players come and go now and then.
  * Every decision of yours is graded by the ring coach; the table learns your tendencies.
  */
-import { newHand, act, board, pot, live, posOf, menu, legal } from './game.js';
+import { newHand, act, board, pot, potShown, live, posOf, menu, legal } from './game.js';
 import { randomPlayer, playerPolicyAll, context, newHeroStats, keyedMenu, tableTiers } from './players.js';
 import { ringCoach } from './coach.js';
 import { comboIndex } from '../hu/equity.js';
@@ -169,7 +169,7 @@ export function endHand(t) {
     net,
     evLost: Math.round(t.decisions.reduce((a, d) => a + d.loss, 0) * 100) / 100,
     decisions: t.decisions,
-    pot: pot(s),
+    pot: potShown(s),
     winners: s.result.winners,
   };
   t.hands.push(h);

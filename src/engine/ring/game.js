@@ -31,7 +31,7 @@ function shuffled(rand) {
  * New hand. `n` players, button at seat `btn`, `stacks` (default 100bb each).
  * `holes`/`board` fix cards (tests).
  */
-export function newHand({ n = 6, btn = 0, stacks = null, rand = Math.random, holes = null, board = null } = {}) {
+export function newHand({ n = 6, btn = 0, stacks = null, rand = Math.random, holes = null, board = null, smallBlind = 0.5 } = {}) {
   const deck = shuffled(rand);
   const used = new Set([...(holes ? holes.flat() : []), ...(board || [])]);
   const rest = deck.filter(c => !used.has(c));
@@ -59,10 +59,11 @@ export function newHand({ n = 6, btn = 0, stacks = null, rand = Math.random, hol
   };
   const sb = n === 2 ? btn : (btn + 1) % n;
   const bb = n === 2 ? (btn + 1) % n : (btn + 2) % n;
-  post(s, sb, 0.5);
+  post(s, sb, smallBlind);
   post(s, bb, 1);
   s.sb = sb;
   s.bb = bb;
+  s.smallBlind = smallBlind;
   s.toAct = n === 2 ? btn : (bb + 1) % n;
   skipToActor(s);
   return s;
@@ -77,6 +78,8 @@ function post(s, seat, amt) {
 
 export const board = (s) => s.runout.slice(0, [0, 3, 4, 5][s.street]);
 export const pot = (s) => round2(s.invested.reduce((a, b) => a + b, 0));
+/** The pot as shown once the hand is over: without chips nobody called (they went back). */
+export const potShown = (s) => (s.done && s.result?.refund ? round2(pot(s) - s.result.refund.reduce((a, b) => a + b, 0)) : pot(s));
 export const live = (s) => s.holes.map((_, i) => i).filter(i => !s.folded[i]);
 const canAct = (s, i) => !s.folded[i] && s.stacks[i] > EPS;
 const maxBet = (s) => Math.max(...s.streetBet);
@@ -234,11 +237,15 @@ function settle(s, winners, vals = null) {
   const levels = [...new Set(s.invested.filter(x => x > EPS))].sort((a, b) => a - b);
   let prev = 0;
   const pots = [];
+  const refund = new Array(s.n).fill(0);
   for (const lv of levels) {
     const layer = s.invested.reduce((a, inv) => a + Math.max(0, Math.min(inv, lv) - prev), 0);
     const eligible = s.holes.map((_, i) => i).filter(i => !s.folded[i] && s.invested[i] >= lv - EPS);
+    const contributors = s.invested.map((inv, i) => i).filter(i => s.invested[i] > prev + EPS);
     prev = lv;
     if (layer <= EPS) continue;
+    // chips nobody matched are not a pot: they just go back to their owner
+    if (contributors.length === 1) { refund[contributors[0]] += layer; won[contributors[0]] += layer; continue; }
     let who;
     if (winners) who = eligible.length ? eligible.filter(i => winners.includes(i)) : winners;
     else {
@@ -257,6 +264,8 @@ function settle(s, winners, vals = null) {
   s.toAct = -1;
   s.result = {
     pots,
+    refund: refund.map(round2),
+    won: won.map((w, i) => round2(w - refund[i])),
     net: s.stacks.map((x, i) => round2(x - s.start[i])),
     showdown: !!s.showdown,
     winners: [...new Set(pots.flatMap(p => p.winners))],
@@ -266,7 +275,7 @@ function settle(s, winners, vals = null) {
 
 /** States before each logged action. */
 export function replay(s) {
-  let st = newHand({ n: s.n, btn: s.btn, stacks: s.start, holes: s.holes, board: s.runout });
+  let st = newHand({ n: s.n, btn: s.btn, stacks: s.start, holes: s.holes, board: s.runout, smallBlind: s.smallBlind ?? 0.5 });
   const steps = [];
   for (const e of s.log) {
     steps.push({ before: st, entry: e });

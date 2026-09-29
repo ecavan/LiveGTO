@@ -7,7 +7,7 @@ import { evaluate, category, cardStr, ALL_COMBOS, handType } from '../../engine/
 import { AGENTS, eloOf, readOfYou } from '../../engine/hu/agents.js';
 import { pct } from '../../engine/potmath.js';
 import { bucketPlanHtml, bucketBarsHtml, bucketName } from '../buckets.js';
-import {
+import { optionLabel,
   pokerTable, card, cards, fmtBB, evBars, disc, stat, verdict, icon, esc, rangeGrid, GRID, handText, sprOf,
 } from '../kit.js';
 
@@ -56,21 +56,25 @@ export function actionBar(options, disabled = false) {
     }).join('')}</div>`;
 }
 
+/** An option label with its amount in units: "Raise to 9" → "Raise to 9bb" (or dollars in the logger). */
+let LABEL_FMT = null;
+export const labelText = (label) => optionLabel(label, LABEL_FMT || fmtBB);
+
 function splitLabel(label) {
-  // "Bet 3.3 (33%)" → ["Bet 3.3", "33% pot"]; "Raise to 9" → ["Raise", "to 9"]
-  const m = label.match(/^(Bet [\d.]+) \((\d+)%\)$/);
-  if (m) return [m[1] + 'bb', `${m[2]}% pot`];
+  // "Bet 3.3 (33%)" → ["Bet 3.3bb", "33% pot"]; "Raise to 9" → ["Raise", "to 9bb"]
+  const m = label.match(/^Bet ([\d.]+) \((\d+)%\)$/);
+  if (m) return [`Bet ${fmtBB(Number(m[1]))}`, `${m[2]}% pot`];
   const r = label.match(/^Raise to ([\d.]+)$/);
-  if (r) return ['Raise', `to ${r[1]}bb`];
+  if (r) return ['Raise', `to ${fmtBB(Number(r[1]))}`];
   const c = label.match(/^Call ([\d.]+)$/);
-  if (c) return ['Call', `${c[1]}bb`];
+  if (c) return ['Call', fmtBB(Number(c[1]))];
   const a = label.match(/^All-in ([\d.]+)$/);
-  if (a) return ['All-in', `${a[1]}bb`];
+  if (a) return ['All-in', fmtBB(Number(a[1]))];
   return [label, ''];
 }
 
 /** "Preflop: You raise to 2.5, BB call · Flop K♥9♠4♦: BB check…" */
-export function historyHtml(s, hero, names = null) {
+export function historyHtml(s, hero, names = null, botName = null) {
   const lines = [];
   let street = -1;
   for (const e of s.log) {
@@ -79,7 +83,7 @@ export function historyHtml(s, hero, names = null) {
       const cs = street === 0 ? [] : street === 1 ? s.runout.slice(0, 3) : [s.runout[street + 1]];
       lines.push({ head: STREET[street], cards: cs, acts: [] });
     }
-    const who = names ? names[e.seat] : e.seat === hero ? 'You' : 'Bot';
+    const who = names ? names[e.seat] : e.seat === hero ? 'You' : (botName || 'Bot');
     let a = e.type;
     if (e.type === 'call') a = `call ${e.amount}`;
     if (e.type === 'raise') a = `raise to ${e.to}`;
@@ -104,7 +108,7 @@ export function whyLines(d) {
   const add = (i) => {
     const o = d.options[i];
     const f = o.info || {};
-    const lab = `<b class="text-white">${esc(o.label)}</b>`;
+    const lab = `<b class="text-white">${esc(labelText(o.label))}</b>`;
     if (o.type === 'fold') out.push(`${lab}: give up the ${fmtBB(d.pot)} pot. EV 0.`);
     else if (o.type === 'call') out.push(`${lab}: you need <b>${pct(f.need ?? d.need)}</b> equity and have <b>${pct(f.eq ?? d.equity)}</b> against his range.`);
     else if (o.type === 'check') {
@@ -143,14 +147,15 @@ export function weightGrid(w, heroHole = null) {
   const me = heroHole ? handType(heroHole) : null;
   return rangeGrid(GRID.map(label => {
     const v = (byKey.get(label) || 0) / (mx || 1);
-    return { label, me: label === me, bg: v > 0.01 ? `rgba(245, 158, 11, ${0.12 + 0.85 * v})` : '#121821', title: `${label}: ${pct(v)} of max weight` };
+    return { label, me: label === me, bg: v > 0.01 ? `rgba(245, 158, 11, ${0.12 + 0.85 * v})` : 'rgb(var(--ink-800))', title: `${label}: ${pct(v)} of max weight` };
   }));
 }
 
 /** The coach card after a decision. `weights` = his range (for the grid), if available. */
-export function coachCard(d, { weights = null, botName = 'He', live = false, evNote = null } = {}) {
-  const chosen = d.options[d.chosen];
-  const best = d.options[d.best];
+export function coachCard(d, { weights = null, botName = 'He', live = false, evNote = null, fmt = null } = {}) {
+  LABEL_FMT = fmt;
+  const chosen = { ...d.options[d.chosen], label: labelText(d.options[d.chosen].label) };
+  const best = { ...d.options[d.best], label: labelText(d.options[d.best].label) };
   let head;
   if (d.verdict === 'best') head = verdict('best', `Best move: ${esc(chosen.label)}`);
   else if (d.verdict === 'fine') head = verdict('fine', `Good: ${esc(chosen.label)}`, d.preflop ? `On the chart too. The coach's pick: ${esc(best.label)}.` : d.loss >= 0.05 ? `Best was ${esc(best.label)}, within ${fmtBB(d.loss)}.` : `Best was ${esc(best.label)}; the difference is tiny.`);
@@ -223,8 +228,9 @@ export function handRecap(sess, h, { showDecisions = true } = {}) {
 }
 
 export function decisionRow(d, i, opts = {}) {
+  LABEL_FMT = opts.fmt || null;
   const tone = { best: 'text-emerald-300', fine: 'text-sky-300', mistake: 'text-rose-300', blunder: 'text-red-300' }[d.verdict];
-  const title = `${STREET[d.street]}${d.board.length ? ' ' + handText(d.board.map(cardStr)) : ''} · ${esc(d.options[d.chosen].label)}`;
+  const title = `${STREET[d.street]}${d.board.length ? ' ' + handText(d.board.map(cardStr)) : ''} · ${esc(labelText(d.options[d.chosen].label))}`;
   const right = d.verdict === 'best' ? 'Best' : d.verdict === 'fine' ? 'Good' : `${d.preflop ? 'off chart · ' : ''}−${d.loss.toFixed(2)}bb`;
   return disc(`<span class="flex-1 flex items-center gap-2 min-w-0"><span class="truncate">${title}</span><span class="ml-auto ${tone} text-xs font-semibold pr-2">${right}</span></span>`,
     coachCard(d, opts), false, '');
@@ -253,7 +259,7 @@ export function reviewHtml(sess, sum, pastSessions) {
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       ${stat('Played like', sum.rating ?? '—', sum.rating ? `EV lost ${sum.lossPer100.toFixed(1)}bb/100` : 'play 5+ hands', 'text-amber-200')}
-      ${stat('Decisions', pct(sum.accuracy), `${sum.blunders} blunders · ${sum.mistakes} mistakes`)}
+      ${stat('Best or good', pct(sum.accuracy), `of your decisions · ${sum.blunders} blunders · ${sum.mistakes} mistakes`)}
       ${stat('Result', `<span class="${tone(sum.net)}">${fmtBB(sum.net, { sign: true })}</span>`, `${sum.hands} hands · ${sum.bbPer100.toFixed(0)}bb/100`)}
       ${stat('Luck', `<span class="${tone(sum.luck)}">${fmtBB(sum.luck, { sign: true })}</span>`, `all-in adjusted: ${fmtBB(sum.adjusted, { sign: true })}`)}
     </div>
@@ -313,7 +319,7 @@ export function rangeViewHtml(v, heroHole) {
   const me = handType(heroHole);
   const cells = GRID.map(label => {
     const e = byKey.get(label);
-    if (!e || e.w <= 0) return { label, bg: '#121821', me: label === me, title: `${label}: not in your range` };
+    if (!e || e.w <= 0) return { label, bg: 'rgb(var(--ink-800))', me: label === me, title: `${label}: not in your range` };
     let b = 0;
     for (let k = 1; k < e.per.length; k++) if (e.per[k] > e.per[b]) b = k;
     const a = 0.25 + 0.75 * Math.min(1, e.w / mx);
@@ -321,7 +327,7 @@ export function rangeViewHtml(v, heroHole) {
     const rgb = [1, 3, 5].map(j => parseInt(hex.slice(j, j + 2), 16)).join(',');
     return { label, me: label === me, bg: `rgba(${rgb},${a.toFixed(2)})`, title: `${label}: ${v.options[b].label}` };
   });
-  const legend = v.options.map((o, k) => share[k] > 0.005 * tot ? `<span class="inline-flex items-center gap-1.5 mr-3"><i class="inline-block w-3 h-3 rounded-sm" style="background:${col(o, k)}"></i>${esc(o.label)} <b class="text-white num">${pct(share[k] / tot)}</b></span>` : '').join('');
+  const legend = v.options.map((o, k) => share[k] > 0.005 * tot ? `<span class="inline-flex items-center gap-1.5 mr-3"><i class="inline-block w-3 h-3 rounded-sm" style="background:${col(o, k)}"></i>${esc(labelText(o.label))} <b class="text-white num">${pct(share[k] / tot)}</b></span>` : '').join('');
   return `<div class="space-y-2">
     <p class="text-ink-300">Every hand you could have here, as ${v.read ? 'he reads you' : 'a solid player would have it on this line'}, and its best play against him. Brighter = more of your range.</p>
     ${v.inRange ? '' : '<p class="text-amber-200">Your actual hand is not one you would normally have on this line.</p>'}

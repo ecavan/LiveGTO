@@ -123,7 +123,7 @@ function questionHtml(step, answered) {
 function gridHtml(tokens, label) {
   const set = expand(tokens.join(','));
   return `<div class="space-y-2">${label ? `<div class="text-sm font-semibold text-ink-200">${label}</div>` : ''}
-    ${rangeGrid(GRID.map(l => ({ label: l, bg: set.has(l) ? 'rgba(16,185,129,.55)' : '#121821' })))}</div>`;
+    ${rangeGrid(GRID.map(l => ({ label: l, bg: set.has(l) ? 'rgba(16,185,129,.55)' : 'rgb(var(--ink-800))' })))}</div>`;
 }
 
 function sceneHtml(step) {

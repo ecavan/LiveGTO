@@ -4,7 +4,7 @@
 import { createMatch, startHand, step, scoreboard, agentAt, AGENTS, TYPE_NAME, matchSummary } from '../../engine/hu/watch.js';
 import { AGENT_IDS, eloOf } from '../../engine/hu/agents.js';
 import { board, pot, BTN } from '../../engine/hu/game.js';
-import { pokerTable, fmtBB, seg, wireSeg, icon, esc, handText, stat, disc } from '../kit.js';
+import { pokerTable, fmtBB, seg, wireSeg, icon, esc, handText, stat, disc, optionLabel } from '../kit.js';
 import { pct } from '../../engine/potmath.js';
 import { historyHtml, playTabs } from './views.js';
 
@@ -85,7 +85,7 @@ function explain(d) {
   const rows = d.probs.slice().sort((a, b) => (b.ev ?? b.p) - (a.ev ?? a.p)).map(o => {
     const chosen = o.label === d.action;
     return `<div class="grid items-center gap-2 text-sm" style="grid-template-columns: minmax(90px,38%) 1fr 70px">
-      <span class="${chosen ? 'text-white font-semibold' : 'text-ink-300'} truncate">${chosen ? '▸ ' : ''}${esc(o.label)}</span>
+      <span class="${chosen ? 'text-white font-semibold' : 'text-ink-300'} truncate">${chosen ? '▸ ' : ''}${esc(optionLabel(o.label))}</span>
       <div class="evbar"><i class="${chosen ? 'bg-emerald-400' : 'bg-ink-400'}" style="width:${Math.max(2, 100 * o.p)}%"></i></div>
       <span class="text-right num text-xs text-ink-200">${o.ev != null ? `${o.ev >= 0 ? '+' : ''}${o.ev.toFixed(1)}bb` : pct(o.p)}</span></div>`;
   }).join('');

@@ -144,6 +144,7 @@ function start(container) {
   ui = { last: null, lastWeights: null, paused: false, recap: null, over: false };
   startHand(sess);
   table(container);
+  window.scrollTo(0, 0);
 }
 
 // ------------------------------------------------------------------ table
@@ -205,7 +206,7 @@ function table(container) {
         <div class="panel panel-pad" id="coach">${coachHtml}</div>
         ${sessionPanel(sess, sum)}
       </div>
-      <div class="panel panel-pad min-w-0">${historyHtml(s, sess.hero)}</div>
+      <div class="panel panel-pad min-w-0">${historyHtml(s, sess.hero, null, AGENTS[sess.botId].name)}</div>
     </div>
   </div>`;
 
@@ -295,6 +296,7 @@ function nextHand(container) {
   ui.lastState = null;
   startHand(sess);
   table(container);
+  window.scrollTo(0, 0);
 }
 
 function onKey(container, e) {

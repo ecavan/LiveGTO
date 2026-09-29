@@ -9,14 +9,23 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="LiveGTO">
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-180.png">
+  <script>
+    // theme before first paint, so a light-mode device never flashes dark
+    try {
+      var p = localStorage.getItem('livegto.theme') || 'system';
+      var light = p === 'light' || (p === 'system' && matchMedia('(prefers-color-scheme: light)').matches);
+      document.documentElement.dataset.theme = light ? 'light' : 'dark';
+      if (light) document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f4f6f9');
+    } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+  </script>
   <title>LiveGTO</title>
 </head>
 <body class="min-h-screen">
   <header class="sticky top-0 z-30 bg-ink-950/90 backdrop-blur border-b border-ink-800" style="padding-top: env(safe-area-inset-top)">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
       <a href="#home" class="flex items-center gap-2 font-bold tracking-tight text-white text-lg">
-        <span class="inline-flex w-7 h-7 rounded-lg bg-emerald-500 text-ink-950 items-center justify-center text-sm font-black">♠</span>LiveGTO
+        <img src="/icon.svg" alt="" class="w-8 h-8 rounded-[9px] shadow-card">LiveGTO
       </a>
       <nav id="tabs-top" class="tabbar-top mx-auto"></nav>
       <div id="ratings" class="ml-auto md:ml-0 flex items-center gap-2"></div>
