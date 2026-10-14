@@ -8,10 +8,14 @@ Three modes:
 - **Learn**: the Boot Camp course (5 modules, 415 lessons and questions, with Feel / Formula / Proof
   depths, corrected against the textbooks), a timed bet-size feel drill in dollars, endless
   table-maths drills (pot odds, MDF, α, bluff-to-value, outs, combos, SPR, geometric sizing,
-  implied odds), the live preflop charts with a trainer, and cheat sheets.
+  implied odds), the live preflop charts with a trainer, and cheat sheets. **Hand buckets**: how
+  to sort your hand after the flop (monsters, vulnerable monsters, strong / medium / weak pairs,
+  flush and straight draws, air with equity, dead air) with the plan for each, and an endless
+  *Bucket your hand* drill.
 - **Puzzles**: a solved spot with your real hole cards and one right answer, graded by EV against a
   specific villain type (Station, Nit, Maniac, Whale) or GTO, plus flop and multiway spots from
-  the Play engines. Rated like chess puzzles. Every answer shows the plan for your whole range by
+  the Play engines. Rated like chess puzzles. Every postflop puzzle first asks which bucket your
+  hand is in, then for the play. Every answer shows the plan for your whole range by
   **hand bucket** (monsters, vulnerable monsters, pairs, flush draws, straight draws, air). Plus
   a daily puzzle (with a streak), a review queue that brings back every puzzle you miss (1, 3, 7
   days), a range builder (paint a whole preflop range), and the Buckets drill (one plan per kind
@@ -31,6 +35,12 @@ Three modes:
     leak report across sessions. **Log a live hand** from the casino and the coach grades it too.
 
 Every answer is **one action**. There are no "call 55%" answers.
+
+The bots are calibrated against real hands: 8.9 million low-stakes online hands and Pluribus's
+10,000 hands against pros. Each archetype plays like the real players of its type (preflop ranges,
+c-betting, donk-betting, folding by street, river bluffs), the postflop baseline is what Pluribus
+did with each kind of hand, and the preflop charts and the solver are checked against Pluribus.
+See [docs/CALIBRATION.md](docs/CALIBRATION.md).
 
 ## Run it
 
@@ -58,7 +68,9 @@ src/ui/          home, learn (+ learn/*), puzzles (+ puzzles/*: ranges, generate
                  table, watch, review, logger, views), settings, kit.js (UI kit)
 public/          course.json (Boot Camp, built by scripts/build-course.mjs), library/ (solved spots),
                  spots/ (flop + multiway puzzles, built by scripts/gen-spots.mjs)
-solver/          Rust: postflop-solver + node-locked villain profiles + library builder
+solver/          Rust: postflop-solver + node-locked villain profiles + library builder;
+                 crates/ps-phh reads real hand histories (PHH) into player stats
+analysis/        calibration against real hands: stats by player type, fitting, checks vs Pluribus
 scripts/         match.mjs (bot vs bot, duplicate deals), ladder.mjs (Elo), calibrate.mjs (rating)
 docs/            DESIGN.md, THEORY.md, theory-audit.md
 ```

@@ -22,11 +22,11 @@ import LADDER from './ladder.json';
 export const AGENTS = {
   whale: {
     name: 'Whale', kind: 'profile', learn: { rate: 0.15, max: 0.2, ramp: 300 },
-    blurb: 'Plays half his hands, limps and calls, chases every draw, bets only when he hits. Notices you only very slowly.',
+    blurb: 'Plays half his hands, limps and calls, chases draws, and bets into you with all sorts. Notices you only very slowly.',
   },
   station: {
     name: 'Station', kind: 'profile', learn: { rate: 0.2, max: 0.25, ramp: 250 },
-    blurb: 'Calls far too much and rarely raises. When he bets, he has it. Value-bet him thin; never bluff.',
+    blurb: 'Calls too much, before the flop above all. When he bets the river he usually has it. Value-bet him thin.',
   },
   nit: {
     name: 'Nit', kind: 'profile', learn: { rate: 0.25, max: 0.35, ramp: 150 },

@@ -11,7 +11,7 @@ import { cardStr } from '../../engine/hu/hand.js';
 import { getIndex } from '../../engine/library.js';
 import { ringTable, fmtBB, icon, esc, handText, disc, sprOf } from '../kit.js';
 import { actionBar, coachCard } from '../play/views.js';
-import { bucketPlanHtml } from '../buckets.js';
+import { bucketPlanHtml, bucketStepHtml, gradeBucket, recordBucket } from '../buckets.js';
 import { puzzleTabs } from './tabs.js';
 import { filterPanel, wireFilters } from './filters.js';
 import { navigate } from '../../router.js';
@@ -56,7 +56,11 @@ export async function render(container, kind, { review = null, rated = null } = 
   draw(container, p);
   const onKey = (e) => {
     if (!container.isConnected) return;
-    if (/^[1-9]$/.test(e.key)) container.querySelector(`#gz-acts [data-i="${Number(e.key) - 1}"]`)?.click();
+    if (/^[1-9]$/.test(e.key)) {
+      const ask = container.querySelectorAll('#bk-ask [data-bk]');
+      if (ask.length) ask[Number(e.key) - 1]?.click();
+      else container.querySelector(`#gz-acts [data-i="${Number(e.key) - 1}"]`)?.click();
+    }
     if (e.key === 'Enter' || e.key === ' ') { const b = container.querySelector('#gz-next'); if (b) { e.preventDefault(); b.click(); } }
   };
   window.addEventListener('keydown', onKey);
@@ -164,7 +168,8 @@ function draw(container, p) {
       <div class="space-y-4 min-w-0">
         ${tableHtml(p)}
         <div class="text-center text-ink-200">You have ${handText(byRank(h.holes[h.hero]).map(cardStr))}${h.toCall > 0 ? `, facing ${fmtBB(h.toCall)} into ${fmtBB(h.pot - h.toCall)}` : ''}. What's your play?</div>
-        ${d ? '' : `<div id="gz-acts">${actionBar(h.options)}</div>`}
+        ${bucketStepHtml(p.bk, { multiway: h.kind === 'table' && h.opponents > 1, stats })}
+        ${d || !p.bk ? '' : `<div id="gz-acts">${actionBar(h.options)}</div>`}
       </div>
       <div class="space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
         ${feedback}
@@ -177,6 +182,13 @@ function draw(container, p) {
     </div>
   </div>`;
   container.querySelectorAll('#gz-acts [data-i]').forEach(b => b.addEventListener('click', () => answer(container, p, Number(b.dataset.i))));
+  container.querySelectorAll('#bk-ask [data-bk]').forEach(b => b.addEventListener('click', () => {
+    p.bk = gradeBucket(h.holes[h.hero], h.runout.slice(0, [0, 3, 4, 5][h.street]), b.dataset.bk);
+    const st = loadStats();
+    recordBucket(st, p.bk);
+    saveStats(st);
+    draw(container, p);
+  }));
   container.querySelector('#gz-next')?.addEventListener('click', () => { navigate(p.review ? 'puzzles/review' : 'puzzles'); window.scrollTo(0, 0); });
   wireFilters(container, () => { if (p.ref) p.ref.answered = true; navigate('puzzles'); });
 }

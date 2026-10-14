@@ -4,6 +4,7 @@
  * Distractors are the classic wrong formulas, so a wrong pick tells you *which* mistake you made.
  */
 import { evaluate, category, CAT, ALL_COMBOS, handType, cardStr, rank, suit } from './hu/hand.js';
+import { BUCKETS, BUCKET, BUCKET_PLAN, bucketsOn, bucketWhy } from './buckets.js';
 
 const pct = (x, d = 0) => `${(100 * x).toFixed(d)}%`;
 const pick = (rand, arr) => arr[Math.floor(rand() * arr.length)];
@@ -287,7 +288,39 @@ function feelQ(rand) {
   };
 }
 
+/** The buckets people mix up, for distractors. */
+const NEAR = {
+  nutted: ['vulnerable', 'strong', 'fdraw'], vulnerable: ['nutted', 'strong', 'medium'], strong: ['vulnerable', 'medium', 'nutted'],
+  medium: ['strong', 'weak', 'eqair'], weak: ['medium', 'eqair', 'air'], fdraw: ['sdraw', 'eqair', 'vulnerable'],
+  sdraw: ['eqair', 'fdraw', 'weak'], eqair: ['air', 'sdraw', 'weak'], air: ['eqair', 'weak', 'medium'],
+};
+
+/** Name the bucket of a real hand on a real flop or turn. */
+function bucketQ(rand) {
+  const turn = rand() < 0.35;
+  const bd = deal(rand, turn ? 4 : 3);
+  const b = bucketsOn(bd);
+  // pick a bucket first (so draws and equity air come up as often as pairs), then a hand in it
+  const present = BUCKETS.map((B, k) => k).filter(k => b.some(x => x === k));
+  const k = pick(rand, present);
+  const idx = [];
+  for (let i = 0; i < b.length; i++) if (b[i] === k) idx.push(i);
+  const hole = ALL_COMBOS[pick(rand, idx)];
+  const key = BUCKETS[k].key;
+  const r = mc(rand, BUCKET[key].name, NEAR[key].map(x => BUCKET[x].name));
+  const plan = BUCKET_PLAN[key];
+  return {
+    prompt: `What kind of hand is this on the ${turn ? 'turn' : 'flop'}?`,
+    hole, board: bd,
+    ...r,
+    explain: `<b>${BUCKET[key].name}</b>: ${bucketWhy(hole, bd)}.
+      <div class="mt-2"><span class="text-ink-400">Heads-up:</span> ${plan.hu}</div>
+      <div><span class="text-ink-400">Multiway:</span> ${plan.mw}</div>`,
+  };
+}
+
 export const DRILLS = {
+  bucket: { name: 'Bucket your hand', blurb: 'Monster, pair, draw, or air? Name it, then see the plan.', gen: bucketQ, group: 'Hand reading' },
   feel: { name: 'Bet-size feel', blurb: 'Dollar bets at table speed: size and price in 8 seconds.', gen: feelQ, group: 'Speed', timed: 8 },
   potodds: { name: 'Pot odds', blurb: 'Equity you need to call a bet.', gen: potOdds, group: 'Price' },
   ev: { name: 'EV of a call', blurb: 'Win × equity − risk × (1 − equity).', gen: evCallQ, group: 'Price' },

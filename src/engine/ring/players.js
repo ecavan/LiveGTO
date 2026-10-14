@@ -9,29 +9,38 @@
  */
 import { PREFLOP_RANK } from '../hu/preflopRank.js';
 import { ALL_COMBOS, handType, CLASSES } from '../hu/hand.js';
-import { BASE_OPEN, BASE_FACING, sizeBucket, applyProfile } from '../hu/bots.js';
+import { BASE_OPEN, BASE_FACING, sizeBucket, applyProfile, streetRole } from '../hu/bots.js';
 import { classesOn, HT } from '../hu/policy.js';
 import { N } from '../hu/equity.js';
 import { menu, legal, board, pot, posOf, live } from './game.js';
+import PREFLOP from './preflop.json';
 
 const PCT = Object.fromEntries(PREFLOP_RANK.map(([h, , cum]) => [h, cum]));
 const PCT_OF = Float64Array.from(HT, k => PCT[k]);
 
 /**
- * Preflop style: top share of hands that raise / continue, by situation.
- *   first: first in from the button (scaled by position), limp: limp/overlimp top,
- *   vs1: facing an open, vs2: facing a 3-bet, vs3: facing a 4-bet or a big shove.
+ * The archetypes. Their preflop play (`pre`) is fitted to real players of each type in
+ * preflop.json (analysis/fit_preflop.py): every number is the top share of all hands that does
+ * something, so the frequencies come out right when everyone is dealt a random hand.
+ *   open[pos]      raise first in            openLimp[pos]  limp first in (the next hands down)
+ *   behind         [isolate, limp behind] with limpers in front
+ *   bbIso          big blind raises limpers
+ *   vs1 / bb       [3-bet, continue] facing one raise (cold / in the big blind)
+ *   vsIso          [re-raise, continue] after limping and facing a raise: shares of his limp range
+ *   vs2 / vs3      [raise, continue] facing a 3-bet / a 4-bet or a big shove: shares of the
+ *                  range he came in with (the opener's opening range, the 3-bettor's 3-bets)
+ *   noise          recreational randomness: a slice of the hands he'd fold he plays anyway
  */
-export const ARCHETYPES = {
-  whale: { name: 'Whale', profile: 'whale', learn: 0.2, first: 0.08, limp: 0.6, vs1: [0.03, 0.55], vs2: [0.02, 0.3], vs3: [0.02, 0.12], noise: 0.06, blurb: 'plays half his hands, limps and calls, chases draws' },
-  station: { name: 'Station', profile: 'station', learn: 0.25, first: 0.08, limp: 0.45, vs1: [0.02, 0.4], vs2: [0.015, 0.15], vs3: [0.015, 0.06], noise: 0.03, blurb: 'calls too much, rarely raises; his bets are value' },
-  nit: { name: 'Nit', profile: 'nit', learn: 0.35, first: 0.22, limp: 0.22, vs1: [0.03, 0.1], vs2: [0.02, 0.04], vs3: [0.015, 0.02], noise: 0, blurb: 'tight and scared; folds to pressure; big bets are the nuts' },
-  maniac: { name: 'Maniac', profile: 'maniac', learn: 0.3, first: 0.7, limp: 0.7, vs1: [0.3, 0.5], vs2: [0.15, 0.35], vs3: [0.08, 0.15], noise: 0.04, blurb: 'raises and bluffs relentlessly' },
-  reg: { name: 'Reg', profile: 'gto', learn: 0.5, first: 0.45, limp: 0.45, vs1: [0.07, 0.18], vs2: [0.03, 0.08], vs3: [0.02, 0.03], noise: 0, blurb: 'solid, sensible ranges' },
-  shark: { name: 'Shark', profile: 'tag', learn: 0.7, ramp: 60, first: 0.5, limp: 0.5, vs1: [0.09, 0.16], vs2: [0.04, 0.08], vs3: [0.025, 0.035], noise: 0, blurb: 'tight-aggressive, adjusts to you quickly' },
-  pro: { name: 'Pro', profile: 'tag', learn: 1, ramp: 30, first: 0.55, limp: 0.55, vs1: [0.1, 0.18], vs2: [0.045, 0.085], vs3: [0.025, 0.035], noise: 0, blurb: 'a strong regular: disciplined ranges, reads you fast and exploits it' },
+const ARCH = {
+  whale: { name: 'Whale', profile: 'whale', learn: 0.2, ramp: 200, blurb: 'plays half his hands, limps and calls, chases draws' },
+  station: { name: 'Station', profile: 'station', learn: 0.25, ramp: 180, blurb: 'plays too many hands and calls a lot; his river bets are mostly value' },
+  nit: { name: 'Nit', profile: 'nit', learn: 0.35, ramp: 140, blurb: 'tight and scared; folds to pressure; big bets are the nuts' },
+  maniac: { name: 'Maniac', profile: 'maniac', learn: 0.3, ramp: 160, blurb: 'raises and bluffs relentlessly' },
+  reg: { name: 'Reg', profile: 'reg', learn: 0.5, ramp: 90, blurb: 'solid, sensible ranges; c-bets a lot and gives up when called' },
+  shark: { name: 'Shark', profile: 'gto', learn: 0.7, ramp: 60, blurb: 'tight-aggressive, adjusts to you quickly' },
+  pro: { name: 'Pro', profile: 'gto', learn: 1, ramp: 30, blurb: 'a strong regular: disciplined ranges, reads you fast and exploits it' },
 };
-ARCHETYPES.whale.ramp = 200; ARCHETYPES.station.ramp = 180; ARCHETYPES.maniac.ramp = 160; ARCHETYPES.nit.ramp = 140; ARCHETYPES.reg.ramp = 90;
+export const ARCHETYPES = Object.fromEntries(Object.entries(ARCH).map(([k, a]) => [k, { ...a, pre: PREFLOP[k] }]));
 
 /**
  * Table difficulty: which kinds of players fill the seats.
@@ -58,7 +67,6 @@ export function tableTiers(level, n, rand = Math.random) {
 }
 /** A live $1/$2 pool. */
 const POOL = { station: 0.28, whale: 0.14, nit: 0.2, reg: 0.2, maniac: 0.06, shark: 0.12 };
-const POS_MULT = { UTG: 0.42, HJ: 0.55, CO: 0.75, BTN: 1, SB: 0.7, BB: 1 };
 const NAMES = ['Mike', 'Tony', 'Sal', 'Dave', 'Rick', 'Linda', 'Joe', 'Frank', 'Vinny', 'Steve', 'Carl', 'Rosa', 'Eddie', 'Bobby', 'Gus', 'Nate', 'Maria', 'Jin', 'Omar', 'Pete', 'Hank', 'Dee', 'Marco', 'Lou'];
 
 function pick(rand, weights) {
@@ -114,30 +122,81 @@ export const adjustment = (p, stats) => p.learn * Math.min(1, stats.hands / (p.r
 
 const raisesBefore = (s) => s.log.filter(e => e.street === 0 && (e.type === 'raise' || (e.type === 'allin' && !e.callAllIn))).length;
 
+/** His last preflop action and what he faced when he took it (null if he hasn't acted). */
+function lastPreflop(s, seat) {
+  let raises = 0, limpers = 0, last = null;
+  for (const e of s.log) {
+    if (e.street !== 0) continue;
+    const aggr = e.type === 'raise' || (e.type === 'allin' && !e.callAllIn);
+    const call = e.type === 'call' || (e.type === 'allin' && e.callAllIn);
+    if (e.seat === seat) last = { aggr, call, raises, limpers };
+    if (aggr) raises++;
+    else if (call && raises === 0) limpers++;
+  }
+  return last;
+}
+
+/**
+ * The hands his preflop play so far is consistent with, as [low, high] top shares: he raised
+ * first in → [0, open]; he limped → (open, open + limp]; and so on.
+ */
+function rangeSoFar(a, pos, last) {
+  const bb = pos === 'BB';
+  if (!last) return [0, bb ? a.bb[1] : a.vs1[1]]; // hasn't acted: what he'd have called with
+  if (last.raises === 0) {
+    if (last.aggr) return [0, bb ? a.bbIso : last.limpers ? a.behind[0] : a.open[pos] ?? a.open.BTN];
+    const lo = last.limpers ? a.behind[0] : a.open[pos] ?? a.open.BTN;
+    return [lo, Math.min(1, lo + (last.limpers ? a.behind[1] : a.openLimp[pos] ?? a.openLimp.BTN))];
+  }
+  if (last.raises === 1) return [0, (bb ? a.bb : a.vs1)[last.aggr ? 0 : 1]];
+  return [0, (last.aggr ? a.vs2[0] : a.vs2[1]) * 0.1];
+}
+
 /** Preflop: P(raise), P(call/limp/check), P(fold) for every combo, for one archetype. */
-function preflopArch(a, s, seat, ctx) {
+function preflopArch(arch, s, seat, ctx) {
+  const a = arch.pre;
   const L = legal(s);
   const raises = raisesBefore(s);
   const owe = L.callAmount;
   const pos = posOf(s, seat);
+  const limpers = s.log.filter(e => e.street === 0 && e.type === 'call').length;
+  const last = lastPreflop(s, seat);
   let lvl = raises;
   if (owe >= 25) lvl = Math.max(lvl, 3);
   let rT, cT;
   if (lvl === 0) {
-    const limpers = s.log.filter(e => e.street === 0 && e.type === 'call').length;
-    let m = POS_MULT[pos] ?? 1;
-    // adjusting to you: steal more when you're a tight blind
-    if (ctx.heroInBlinds && ctx.heroTight) m *= 1 + 0.6 * ctx.adj;
-    rT = a.first * m * (limpers ? 0.75 : 1);
-    cT = Math.max(rT, a.limp * (pos === 'SB' ? 1.2 : 1));
-    if (pos === 'BB' && !L.facing) cT = 1; // free check
+    if (pos === 'BB') {
+      rT = limpers ? a.bbIso : 0;
+      cT = 1; // free check
+    } else if (!limpers) {
+      // adjusting to you: steal more when you're a tight blind
+      const m = ctx.heroInBlinds && ctx.heroTight ? 1 + 0.6 * ctx.adj : 1;
+      rT = Math.min(1, (a.open[pos] ?? a.open.BTN) * m);
+      cT = Math.min(1, rT + (a.openLimp[pos] ?? a.openLimp.BTN));
+    } else {
+      rT = a.behind[0];
+      cT = Math.min(1, rT + a.behind[1]);
+    }
   } else {
-    const [r, c] = lvl === 1 ? a.vs1 : lvl === 2 ? a.vs2 : a.vs3;
-    const shrink = owe >= 10 && lvl === 1 ? 0.6 : 1;
     // against an aggressive raiser (you), continue wider as they learn
     const widen = ctx.vsHero && ctx.heroAggro ? 1 + 0.5 * ctx.adj : 1;
-    rT = r * shrink * widen;
-    cT = c * shrink * widen * (pos === 'BB' ? 1.25 : 1);
+    if (lvl === 1 && last?.call) {
+      // limped, now raised: re-raise / continue with the top of his limping range
+      const [lo, hi] = rangeSoFar(a, pos, last);
+      rT = lo + a.vsIso[0] * (hi - lo);
+      cT = lo + Math.min(1, a.vsIso[1] * widen) * (hi - lo);
+    } else if (lvl === 1) {
+      const [r, c] = pos === 'BB' ? a.bb : a.vs1;
+      const shrink = owe >= 10 ? 0.6 : 1;
+      rT = r * shrink * widen;
+      cT = c * shrink * widen;
+    } else {
+      // re-raised: the top shares of the range he came in with
+      const [, hi] = rangeSoFar(a, pos, last);
+      const [r, c] = lvl === 2 ? a.vs2 : a.vs3;
+      rT = r * hi;
+      cT = Math.min(1, c * widen) * hi;
+    }
   }
   const R = new Float64Array(N), C = new Float64Array(N), F = new Float64Array(N);
   for (let i = 0; i < N; i++) {
@@ -166,8 +225,10 @@ function postflopArch(a, s, seat, cls, ctx) {
     const excess = Math.max(0, Math.max(...s.streetBet) - s.streetBet[seat] - L.callAmount);
     fraction = L.callAmount / Math.max(0.01, pot(s) - L.callAmount - excess);
     base = { ...BASE_FACING[sizeBucket(fraction)][c] };
-  } else base = { ...BASE_OPEN[c] };
-  let mix = applyProfile(a.profile, base, { street, facing: L.facing, fraction, cls: c, handType: null });
+  }
+  const role = L.facing ? null : streetRole(s, seat);
+  if (!L.facing) base = { ...BASE_OPEN[role][c] };
+  let mix = applyProfile(a.profile, base, { street, facing: L.facing, fraction, cls: c, handType: null, role });
   // multiway: bluff less, give up weak hands more
   const opps = live(s).length - 1;
   if (opps >= 2) {

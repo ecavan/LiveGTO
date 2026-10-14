@@ -4,7 +4,7 @@
  */
 import { esc } from './kit.js';
 import { pct } from '../engine/potmath.js';
-import { BUCKET, boardLine } from '../engine/buckets.js';
+import { BUCKET, BUCKETS, BUCKET_PLAN, boardLine, bucketOf, bucketWhy } from '../engine/buckets.js';
 
 export const ACT_COL = { fold: '#64748b', check: '#38bdf8', call: '#0ea5e9', bet: '#10b981', raise: '#f59e0b', allin: '#f43f5e' };
 
@@ -63,7 +63,7 @@ export function bucketPlanHtml(view, { hero = view.hero, note = '' } = {}) {
     ${note ? `<div class="text-[11px] text-ink-400">${note}</div>` : ''}</div>`;
 }
 
-const BCOL = { nutted: '#f43f5e', vulnerable: '#fb923c', strong: '#f59e0b', medium: '#eab308', weak: '#84cc16', fdraw: '#38bdf8', sdraw: '#818cf8', draw: '#38bdf8', air: '#64748b' };
+const BCOL = { nutted: '#f43f5e', vulnerable: '#fb923c', strong: '#f59e0b', medium: '#eab308', weak: '#84cc16', fdraw: '#38bdf8', sdraw: '#818cf8', draw: '#38bdf8', eqair: '#a78bfa', air: '#64748b' };
 
 /** His range by bucket, as bars with examples. */
 export function bucketBarsHtml(rows) {
@@ -78,3 +78,40 @@ export function bucketBarsHtml(rows) {
 
 /** "Medium pairs" for a bucket key. */
 export const bucketName = (key) => BUCKET[key]?.name ?? key;
+
+// ------------------------------------------------------------------ "name your bucket first"
+
+/** Grade a bucket pick for `hole` on `board` (card ids). pick = a bucket key, or 'skip'. */
+export function gradeBucket(hole, board, pick) {
+  const key = bucketOf(hole, board);
+  return { pick, key, right: pick === key, skipped: pick === 'skip', why: bucketWhy(hole, board) };
+}
+
+/** Count bucket picks in the puzzle stats (skips don't count). */
+export function recordBucket(stats, g) {
+  if (g.skipped) return;
+  stats.buckets = stats.buckets || { n: 0, right: 0 };
+  stats.buckets.n += 1;
+  if (g.right) stats.buckets.right += 1;
+}
+
+/** Step 1 of a postflop puzzle: the bucket buttons (keys 1–9), or the result once picked. */
+export function bucketStepHtml(g, { multiway = false, stats = null } = {}) {
+  if (!g) {
+    return `<div id="bk-ask" class="panel panel-pad space-y-2.5">
+      <div class="text-sm text-ink-100"><b class="text-white">First: what kind of hand is this?</b> <span class="text-ink-400">Then pick your play.</span></div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">${BUCKETS.map((B, i) => `<button data-bk="${B.key}" class="rounded-lg border border-ink-600 bg-ink-800 hover:bg-ink-700 px-2.5 py-2 text-left text-sm transition">
+        <span class="text-ink-500 num text-xs mr-1">${i + 1}</span><i class="inline-block w-2 h-2 rounded-sm mr-1" style="background:${BCOL[B.key]}"></i><span class="font-semibold text-white">${esc(B.name)}</span></button>`).join('')}</div>
+      <div class="flex justify-between items-center text-xs text-ink-400"><a href="#learn/buckets" class="underline-offset-2 hover:underline">What are the buckets?</a><button data-bk="skip" class="hover:text-ink-200">Skip this step</button></div>
+    </div>`;
+  }
+  const B = BUCKET[g.key];
+  const plan = BUCKET_PLAN[g.key][multiway ? 'mw' : 'hu'];
+  const acc = stats?.buckets?.n ? ` · ${stats.buckets.right}/${stats.buckets.n} buckets right` : '';
+  const head = g.skipped ? `<span class="text-ink-300">Your hand:</span>`
+    : g.right ? `<span class="text-emerald-300 font-semibold">Right.</span>`
+      : `<span class="text-rose-300 font-semibold">You said ${esc(BUCKET[g.pick]?.name ?? g.pick)}.</span> <span class="text-ink-300">It's</span>`;
+  return `<div class="rounded-lg px-3 py-2 text-sm ${g.right ? 'bg-emerald-500/10 border border-emerald-500/30' : g.skipped ? 'bg-ink-850 border border-ink-700' : 'bg-rose-500/10 border border-rose-500/30'}">
+    ${head} <b style="color:${BCOL[g.key]}">${esc(B.name)}</b>: <span class="text-ink-200">${esc(g.why)}</span>.
+    <div class="text-xs text-ink-400 mt-1">Default plan${multiway ? ' multiway' : ''}: ${esc(plan)}${acc}</div></div>`;
+}

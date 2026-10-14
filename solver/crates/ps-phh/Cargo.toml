@@ -1,0 +1,12 @@
+[package]
+name = "ps-phh"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Reads poker hand histories (PHH) and measures how players play: HUD stats, showdown hands by line"
+
+[dependencies]
+ps-core = { path = "../ps-core" }
+rayon = "1"
+serde_json.workspace = true
+anyhow.workspace = true

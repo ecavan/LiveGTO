@@ -4,17 +4,59 @@ Loose-aggressive to a fault. Bets and raises far too often, especially with air 
 and folds too little. Call him down lighter; let him bluff."""
 
 [[rules]]
-note = "bets whenever checked to"
-facing = "none"
-scale = { aggressive = 2.5 }
-
-[[rules]]
 note = "bluffs big with nothing"
 facing = "none"
 hands = ["weak", "draw", "air"]
-scale = { bet_large = 2.0, allin = 2.0 }
+scale = { bet_large = 1.5 }
 
 [[rules]]
-note = "raises too much"
+note = "folds to flop bets less than most players"
+streets = ["flop"]
 facing = "bet"
-scale = { raise = 2.5, fold = 0.6 }
+scale = { fold = 0.836 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["turn"]
+facing = "bet"
+scale = { fold = 0.912 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["river"]
+facing = "bet"
+scale = { fold = 1.16 }
+
+[[rules]]
+# calibration (fitted to real players)
+facing = "bet"
+scale = { raise = 2.049 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["flop"]
+role = ["aggr"]
+scale = { aggressive = 1.22 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["turn", "river"]
+role = ["aggr"]
+scale = { aggressive = 1.061 }
+
+[[rules]]
+note = "bets into the preflop raiser more than anyone (more than 1 flop in 4)"
+role = ["donk"]
+scale = { aggressive = 10.22 }
+
+[[rules]]
+note = "bets most times he is checked to"
+role = ["free"]
+scale = { aggressive = 1.19 }
+
+[[rules]]
+note = "a quarter of his called river bets are bluffs"
+streets = ["river"]
+facing = "none"
+hands = ["weak", "air"]
+scale = { aggressive = 0.623 }

@@ -73,6 +73,10 @@ pub struct Spot {
     /// (smallest / closest to 75% pot), `r` raise, `a` all-in, or a card like `Qh` for a new street.
     #[serde(default)]
     pub line: Vec<String>,
+    /// Who made the last bet or raise on the street before this one (the preflop raiser, for a
+    /// flop spot); None if it was checked through. Decides whose street it is (profile `role`).
+    #[serde(default)]
+    pub entry_aggressor: Option<Seat>,
     #[serde(default)]
     pub sizes: Sizes,
     /// Per-player overrides of `sizes` (e.g. a half-street game where OOP may not bet: `bet = ""`).

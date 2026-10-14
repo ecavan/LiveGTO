@@ -10,10 +10,11 @@ import { getIndex, getRecord } from '../engine/library.js';
 import { pct } from '../engine/potmath.js';
 import { flopTexture, textureLabel, boardTags, randomSuitMap, remapCard, isCard } from '../engine/texture.js';
 import { pokerTable, icon, esc, verdict, disc, rangeGrid, fmtBB, lossKind, optionLabel } from './kit.js';
+import { ids } from '../engine/hu/hand.js';
 import { puzzleTabs } from './puzzles/tabs.js';
 import { filters, filterPanel as sharedFilters, wireFilters, libraryOnly } from './puzzles/filters.js';
 import { planFromClasses, CLASS_AS_BUCKET } from '../engine/buckets.js';
-import { bucketPlanHtml } from './buckets.js';
+import { bucketPlanHtml, bucketStepHtml, gradeBucket, recordBucket } from './buckets.js';
 import { navigate } from '../router.js';
 
 let index = null;
@@ -61,7 +62,11 @@ export async function render(container, params = []) {
   draw(container);
   keyHandler = (e) => {
     if (!container.isConnected) return;
-    if (/^[1-9]$/.test(e.key)) container.querySelector(`[data-act="${Number(e.key) - 1}"]`)?.click();
+    if (/^[1-9]$/.test(e.key)) {
+      const ask = container.querySelectorAll('#bk-ask [data-bk]');
+      if (ask.length) ask[Number(e.key) - 1]?.click();
+      else container.querySelector(`[data-act="${Number(e.key) - 1}"]`)?.click();
+    }
     if (e.key === 'Enter' || e.key === ' ') { const b = container.querySelector('#pz-next'); if (b) { e.preventDefault(); b.click(); } }
   };
   window.addEventListener('keydown', keyHandler);
@@ -319,7 +324,8 @@ function draw(container) {
       <div class="space-y-4 min-w-0">
         ${tableHtml(r, current.view)}
         <div class="text-center text-ink-200">You have <b class="text-white">${esc(p.hand)}</b>. What's your play?</div>
-        ${answered ? '' : actionButtons(r)}
+        ${bucketStepHtml(current.bk, { stats })}
+        ${answered || !current.bk ? '' : actionButtons(r)}
       </div>
       <div class="space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
         ${answered ? `<div class="panel panel-pad">${feedback(r, p, answered.g, answered.choice)}</div>` : ''}
@@ -337,6 +343,13 @@ function draw(container) {
 function wire(container) {
   wireFilters(container, () => { cur.rated = null; navigate('puzzles'); });
   container.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', () => answer(container, Number(btn.dataset.act))));
+  container.querySelectorAll('#bk-ask [data-bk]').forEach(btn => btn.addEventListener('click', () => {
+    if (!current) return;
+    current.bk = gradeBucket(ids(current.puzzle.cards.match(/../g)), ids(current.record.board), btn.dataset.bk);
+    recordBucket(stats, current.bk);
+    saveStats(stats);
+    draw(container);
+  }));
   container.querySelectorAll('[data-grid]').forEach(btn => btn.addEventListener('click', () => {
     current.gridTab = btn.dataset.grid;
     const open = [...container.querySelectorAll('details')].map(d => d.open);

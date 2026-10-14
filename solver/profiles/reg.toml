@@ -1,0 +1,56 @@
+name = "Reg"
+description = """
+A typical online regular (tight-aggressive): c-bets a lot, gives up when called, folds
+when he is beaten. Solid, but more predictable than an expert."""
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["flop"]
+facing = "bet"
+scale = { fold = 1.171 }
+
+[[rules]]
+note = "folds to turn and river bets more than most players"
+streets = ["turn"]
+facing = "bet"
+scale = { fold = 1.532 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["river"]
+facing = "bet"
+scale = { fold = 1.958 }
+
+[[rules]]
+# calibration (fitted to real players)
+facing = "bet"
+scale = { raise = 2.505 }
+
+[[rules]]
+note = "c-bets the flop two times in three"
+streets = ["flop"]
+role = ["aggr"]
+scale = { aggressive = 1.389 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["turn", "river"]
+role = ["aggr"]
+scale = { aggressive = 0.887 }
+
+[[rules]]
+# calibration (fitted to real players)
+role = ["donk"]
+scale = { aggressive = 2.914 }
+
+[[rules]]
+# calibration (fitted to real players)
+role = ["free"]
+scale = { aggressive = 0.811 }
+
+[[rules]]
+note = "bluffs the river rarely: about 1 in 10 called river bets"
+streets = ["river"]
+facing = "none"
+hands = ["weak", "air"]
+scale = { aggressive = 0.522 }

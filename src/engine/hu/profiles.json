@@ -9,13 +9,6 @@
   "description": "Loose-aggressive to a fault. Bets and raises far too often, especially with air and draws,\nand folds too little. Call him down lighter; let him bluff.",
   "rules": [
    {
-    "note": "bets whenever checked to",
-    "facing": "none",
-    "scale": {
-     "aggressive": 2.5
-    }
-   },
-   {
     "note": "bluffs big with nothing",
     "facing": "none",
     "hands": [
@@ -24,26 +17,106 @@
      "air"
     ],
     "scale": {
-     "bet_large": 2,
-     "allin": 2
+     "bet_large": 1.5
     }
    },
    {
-    "note": "raises too much",
+    "note": "folds to flop bets less than most players",
+    "streets": [
+     "flop"
+    ],
     "facing": "bet",
     "scale": {
-     "raise": 2.5,
-     "fold": 0.6
+     "fold": 0.836
+    }
+   },
+   {
+    "streets": [
+     "turn"
+    ],
+    "facing": "bet",
+    "scale": {
+     "fold": 0.912
+    }
+   },
+   {
+    "streets": [
+     "river"
+    ],
+    "facing": "bet",
+    "scale": {
+     "fold": 1.16
+    }
+   },
+   {
+    "facing": "bet",
+    "scale": {
+     "raise": 2.049
+    }
+   },
+   {
+    "streets": [
+     "flop"
+    ],
+    "role": [
+     "aggr"
+    ],
+    "scale": {
+     "aggressive": 1.22
+    }
+   },
+   {
+    "streets": [
+     "turn",
+     "river"
+    ],
+    "role": [
+     "aggr"
+    ],
+    "scale": {
+     "aggressive": 1.061
+    }
+   },
+   {
+    "note": "bets into the preflop raiser more than anyone (more than 1 flop in 4)",
+    "role": [
+     "donk"
+    ],
+    "scale": {
+     "aggressive": 10.22
+    }
+   },
+   {
+    "note": "bets most times he is checked to",
+    "role": [
+     "free"
+    ],
+    "scale": {
+     "aggressive": 1.19
+    }
+   },
+   {
+    "note": "a quarter of his called river bets are bluffs",
+    "streets": [
+     "river"
+    ],
+    "facing": "none",
+    "hands": [
+     "weak",
+     "air"
+    ],
+    "scale": {
+     "aggressive": 0.623
     }
    }
   ]
  },
  "nit": {
   "name": "Nit",
-  "description": "Tight-passive. Folds too much to pressure, only raises the nuts, and his big bets and raises\nare almost never bluffs. Respect his aggression, attack his checks.",
+  "description": "Tight and scared. Folds to pressure more than anyone, rarely bets when checked to, and his\nriver bets are almost never bluffs. Respect his aggression, attack his checks.",
   "rules": [
    {
-    "note": "folds too much when he isn't strong",
+    "note": "folds his weaker hands to pressure",
     "facing": "bet",
     "hands": [
      "medium",
@@ -52,33 +125,7 @@
      "air"
     ],
     "scale": {
-     "fold": 2.5
-    }
-   },
-   {
-    "note": "only raises the nuts",
-    "facing": "bet",
-    "hands": [
-     "strong",
-     "medium",
-     "weak",
-     "draw",
-     "air"
-    ],
-    "scale": {
-     "raise": 0.15
-    }
-   },
-   {
-    "note": "never bluffs",
-    "facing": "none",
-    "hands": [
-     "weak",
-     "draw",
-     "air"
-    ],
-    "scale": {
-     "aggressive": 0.1
+     "fold": 1.5
     }
    },
    {
@@ -88,17 +135,199 @@
      "medium"
     ],
     "scale": {
-     "aggressive": 0.4
+     "aggressive": 0.6
+    }
+   },
+   {
+    "note": "folds to bets more than anyone: 7 flop bets in 10",
+    "streets": [
+     "flop"
+    ],
+    "facing": "bet",
+    "scale": {
+     "fold": 1.219
+    }
+   },
+   {
+    "streets": [
+     "turn"
+    ],
+    "facing": "bet",
+    "scale": {
+     "fold": 1.52
+    }
+   },
+   {
+    "streets": [
+     "river"
+    ],
+    "facing": "bet",
+    "scale": {
+     "fold": 1.861
+    }
+   },
+   {
+    "facing": "bet",
+    "scale": {
+     "raise": 2.443
+    }
+   },
+   {
+    "streets": [
+     "flop"
+    ],
+    "role": [
+     "aggr"
+    ],
+    "scale": {
+     "aggressive": 1.483
+    }
+   },
+   {
+    "streets": [
+     "turn",
+     "river"
+    ],
+    "role": [
+     "aggr"
+    ],
+    "scale": {
+     "aggressive": 1.037
+    }
+   },
+   {
+    "role": [
+     "donk"
+    ],
+    "scale": {
+     "aggressive": 3.045
+    }
+   },
+   {
+    "note": "rarely bets when checked to",
+    "role": [
+     "free"
+    ],
+    "scale": {
+     "aggressive": 0.61
+    }
+   },
+   {
+    "note": "almost never bluffs the river: about 1 in 20 called river bets",
+    "streets": [
+     "river"
+    ],
+    "facing": "none",
+    "hands": [
+     "weak",
+     "air"
+    ],
+    "scale": {
+     "aggressive": 0.19
+    }
+   }
+  ]
+ },
+ "reg": {
+  "name": "Reg",
+  "description": "A typical online regular (tight-aggressive): c-bets a lot, gives up when called, folds\nwhen he is beaten. Solid, but more predictable than an expert.",
+  "rules": [
+   {
+    "streets": [
+     "flop"
+    ],
+    "facing": "bet",
+    "scale": {
+     "fold": 1.171
+    }
+   },
+   {
+    "note": "folds to turn and river bets more than most players",
+    "streets": [
+     "turn"
+    ],
+    "facing": "bet",
+    "scale": {
+     "fold": 1.532
+    }
+   },
+   {
+    "streets": [
+     "river"
+    ],
+    "facing": "bet",
+    "scale": {
+     "fold": 1.958
+    }
+   },
+   {
+    "facing": "bet",
+    "scale": {
+     "raise": 2.505
+    }
+   },
+   {
+    "note": "c-bets the flop two times in three",
+    "streets": [
+     "flop"
+    ],
+    "role": [
+     "aggr"
+    ],
+    "scale": {
+     "aggressive": 1.389
+    }
+   },
+   {
+    "streets": [
+     "turn",
+     "river"
+    ],
+    "role": [
+     "aggr"
+    ],
+    "scale": {
+     "aggressive": 0.887
+    }
+   },
+   {
+    "role": [
+     "donk"
+    ],
+    "scale": {
+     "aggressive": 2.914
+    }
+   },
+   {
+    "role": [
+     "free"
+    ],
+    "scale": {
+     "aggressive": 0.811
+    }
+   },
+   {
+    "note": "bluffs the river rarely: about 1 in 10 called river bets",
+    "streets": [
+     "river"
+    ],
+    "facing": "none",
+    "hands": [
+     "weak",
+     "air"
+    ],
+    "scale": {
+     "aggressive": 0.522
     }
    }
   ]
  },
  "station": {
   "name": "Station",
-  "description": "Loose-passive calling station. Calls far too much, rarely raises, almost never bluffs, and\nchecks a lot of hands he should bet. When he does bet, he has it.\nThe most common profitable opponent at $1/$2.",
+  "description": "Loose-passive calling station. Plays too many hands and calls a lot before the flop; after it he\nfolds a little less than most and checks hands he should bet. When he bets the river he usually\nhas it. The most common profitable opponent at $1/$2.",
   "rules": [
    {
-    "note": "never folds a pair to a normal bet",
+    "note": "hates folding a pair to a normal bet",
     "facing_size": [
      "small",
      "large"
@@ -109,69 +338,7 @@
      "weak"
     ],
     "scale": {
-     "fold": 0.25
-    }
-   },
-   {
-    "note": "calls off top pair against an overbet or shove",
-    "facing_size": [
-     "overbet"
-    ],
-    "hands": [
-     "strong"
-    ],
-    "scale": {
      "fold": 0.5
-    }
-   },
-   {
-    "note": "but usually lets go of weaker pairs when the bet is huge",
-    "facing_size": [
-     "overbet"
-    ],
-    "hands": [
-     "medium",
-     "weak"
-    ],
-    "scale": {
-     "fold": 0.85
-    }
-   },
-   {
-    "note": "floats too much with nothing, but does give up eventually",
-    "facing": "bet",
-    "hands": [
-     "draw",
-     "air"
-    ],
-    "scale": {
-     "fold": 0.8
-    }
-   },
-   {
-    "note": "calls instead of raising, except with the nuts",
-    "facing": "bet",
-    "hands": [
-     "strong",
-     "medium",
-     "weak",
-     "draw",
-     "air"
-    ],
-    "scale": {
-     "raise": 0.3
-    }
-   },
-   {
-    "note": "doesn't bluff",
-    "facing": "none",
-    "hands": [
-     "weak",
-     "draw",
-     "air"
-    ],
-    "scale": {
-     "aggressive": 0.15
     }
    },
    {
@@ -193,6 +360,94 @@
     ],
     "scale": {
      "bet_small": 1.5
+    }
+   },
+   {
+    "streets": [
+     "flop"
+    ],
+    "facing": "bet",
+    "scale": {
+     "fold": 1.008
+    }
+   },
+   {
+    "note": "folds to bets a little less than most players",
+    "streets": [
+     "turn"
+    ],
+    "facing": "bet",
+    "scale": {
+     "fold": 1.433
+    }
+   },
+   {
+    "streets": [
+     "river"
+    ],
+    "facing": "bet",
+    "scale": {
+     "fold": 2.602
+    }
+   },
+   {
+    "facing": "bet",
+    "scale": {
+     "raise": 1.735
+    }
+   },
+   {
+    "streets": [
+     "flop"
+    ],
+    "role": [
+     "aggr"
+    ],
+    "scale": {
+     "aggressive": 1.429
+    }
+   },
+   {
+    "streets": [
+     "turn",
+     "river"
+    ],
+    "role": [
+     "aggr"
+    ],
+    "scale": {
+     "aggressive": 1.229
+    }
+   },
+   {
+    "note": "bets into the preflop raiser more than most (about 1 flop in 6)",
+    "role": [
+     "donk"
+    ],
+    "scale": {
+     "aggressive": 5.346
+    }
+   },
+   {
+    "role": [
+     "free"
+    ],
+    "scale": {
+     "aggressive": 1.161
+    }
+   },
+   {
+    "note": "does bluff the river sometimes: about 1 in 7 of his called river bets",
+    "streets": [
+     "river"
+    ],
+    "facing": "none",
+    "hands": [
+     "weak",
+     "air"
+    ],
+    "scale": {
+     "aggressive": 0.585
     }
    }
   ]
@@ -237,22 +492,15 @@
  },
  "whale": {
   "name": "Whale",
-  "description": "The recreational player who is there to gamble. Calls almost anything, raises every draw,\nand sizes his bets by hand strength (big = strong, small = not).",
+  "description": "The recreational player who is there to gamble. Calls far too much, raises his draws, bets\ninto the raiser, and sizes his bets by hand strength (big = strong, small = not).",
   "rules": [
    {
-    "note": "almost never folds",
-    "facing": "bet",
-    "scale": {
-     "fold": 0.15
-    }
-   },
-   {
-    "note": "raises his draws every time",
-    "facing": "bet",
+    "note": "raises his draws",
     "streets": [
      "flop",
      "turn"
     ],
+    "facing": "bet",
     "hands": [
      "draw"
     ],
@@ -298,6 +546,94 @@
     "scale": {
      "bet_large": 0.2,
      "bet_small": 1.5
+    }
+   },
+   {
+    "note": "calls flop and turn bets more than most players",
+    "streets": [
+     "flop"
+    ],
+    "facing": "bet",
+    "scale": {
+     "fold": 0.758
+    }
+   },
+   {
+    "streets": [
+     "turn"
+    ],
+    "facing": "bet",
+    "scale": {
+     "fold": 0.766
+    }
+   },
+   {
+    "streets": [
+     "river"
+    ],
+    "facing": "bet",
+    "scale": {
+     "fold": 1.022
+    }
+   },
+   {
+    "facing": "bet",
+    "scale": {
+     "raise": 1.539
+    }
+   },
+   {
+    "streets": [
+     "flop"
+    ],
+    "role": [
+     "aggr"
+    ],
+    "scale": {
+     "aggressive": 2.673
+    }
+   },
+   {
+    "streets": [
+     "turn",
+     "river"
+    ],
+    "role": [
+     "aggr"
+    ],
+    "scale": {
+     "aggressive": 2.279
+    }
+   },
+   {
+    "note": "bets into the preflop raiser often (about 1 flop in 5)",
+    "role": [
+     "donk"
+    ],
+    "scale": {
+     "aggressive": 6.289
+    }
+   },
+   {
+    "role": [
+     "free"
+    ],
+    "scale": {
+     "aggressive": 1.89
+    }
+   },
+   {
+    "note": "about 1 in 5 of his called river bets is a bluff",
+    "streets": [
+     "river"
+    ],
+    "facing": "none",
+    "hands": [
+     "weak",
+     "air"
+    ],
+    "scale": {
+     "aggressive": 0.863
     }
    }
   ]

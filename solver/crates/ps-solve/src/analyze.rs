@@ -24,7 +24,7 @@
 //! converges to it, and `compute_mes_ev` gives its value directly, so the two can be checked
 //! against each other.
 
-use crate::profile::{NodeCtx, Profile, Street};
+use crate::profile::{NodeCtx, Profile, Role, Street};
 use crate::spot::{action_label, pot_at, Spot, CHIPS_PER_BB};
 use anyhow::Result;
 use postflop_solver::*;
@@ -209,6 +209,51 @@ pub fn for_each_decision_node(
     }
 }
 
+/// Like `for_each_decision_node`, also telling `f` whose street it is for the player to act
+/// (profile `role`): `entry` made the last bet or raise before the tree's first street.
+pub fn for_each_decision_node_with_role(
+    game: &mut PostFlopGame,
+    entry: Option<usize>,
+    mut f: impl FnMut(&mut PostFlopGame, &[usize], Role),
+) {
+    // (history, aggressor of the previous street, aggressor of this street, acted this street)
+    type St = (History, Option<usize>, Option<usize>, [bool; 2]);
+    let mut stack: Vec<St> = vec![(vec![], entry, None, [false; 2])];
+    while let Some((h, prev, cur, acted)) = stack.pop() {
+        game.apply_history(&h);
+        if game.is_terminal_node() {
+            continue;
+        }
+        if game.is_chance_node() {
+            let mut m = game.possible_cards();
+            while m != 0 {
+                let c = m.trailing_zeros() as usize;
+                m &= m - 1;
+                let mut k = h.clone();
+                k.push(c);
+                stack.push((k, cur, None, [false; 2]));
+            }
+            continue;
+        }
+        let me = game.current_player();
+        let role = match prev {
+            Some(a) if a == me => Role::Aggr,
+            Some(a) if !acted[a] => Role::Donk,
+            _ => Role::Free,
+        };
+        let actions = game.available_actions();
+        f(game, &h, role);
+        for (i, a) in actions.iter().enumerate() {
+            let mut k = h.clone();
+            k.push(i);
+            let mut ac = acted;
+            ac[me] = true;
+            let aggr = matches!(a, Action::Bet(_) | Action::Raise(_) | Action::AllIn(_));
+            stack.push((k, prev, if aggr { Some(me) } else { cur }, ac));
+        }
+    }
+}
+
 /// Hand classes of a player's private hands on a board, cached per board.
 struct ClassCache {
     hands: [Vec<(u8, u8)>; 2],
@@ -247,6 +292,7 @@ fn distorted_strategy(
     profile: &Profile,
     classes: &[HandClass],
     intensity: f64,
+    role: Role,
 ) -> Vec<f32> {
     let actions = game.available_actions();
     let facing = facing_bet(&actions);
@@ -260,6 +306,7 @@ fn distorted_strategy(
         facing_fraction,
         actions: &actions,
         pot,
+        role: (!facing).then_some(role),
     };
     let strat = game.strategy();
     let n_act = actions.len();
@@ -425,12 +472,12 @@ fn analyze_against(
     let mut b = allocated(spot)?;
     let mut c = allocated(spot)?;
     let mut q = if opts.worst_case { Some(allocated(spot)?) } else { None };
-    for_each_decision_node(a, |g, h| {
+    for_each_decision_node_with_role(a, spot.entry_aggressor.map(|s| s.player()), |g, h, role| {
         let player = g.current_player();
         if player == villain {
             let board = g.current_board();
             let cls = classes.get(&board, villain).to_vec();
-            let s = distorted_strategy(g, profile, &cls, opts.intensity);
+            let s = distorted_strategy(g, profile, &cls, opts.intensity, role);
             lock_at(&mut b, h, &s);
             lock_at(&mut c, h, &s);
         } else {

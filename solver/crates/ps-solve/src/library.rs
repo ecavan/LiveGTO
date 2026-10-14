@@ -189,7 +189,8 @@ fn flop_game(fam: &Family, flop: &str) -> Result<PostFlopGame> {
     PostFlopGame::with_config(card_config, ActionTree::new(tree).map_err(|e| anyhow!(e))?).map_err(|e| anyhow!(e))
 }
 
-fn spot_from(_fam: &Family, board: &str, c: &Continuation, hero: Seat, line: &[&str], name: &str) -> Spot {
+/// `entry`: who bet last on the street before (the c-bettor), None if it was checked through.
+fn spot_from(_fam: &Family, board: &str, c: &Continuation, hero: Seat, line: &[&str], name: &str, entry: Option<Seat>) -> Spot {
     Spot {
         name: name.to_string(),
         description: String::new(),
@@ -200,6 +201,7 @@ fn spot_from(_fam: &Family, board: &str, c: &Continuation, hero: Seat, line: &[&
         stack: c.stack,
         hero,
         line: line.iter().map(|s| s.to_string()).collect(),
+        entry_aggressor: entry,
         sizes: Sizes::default(),
         sizes_oop: None,
         sizes_ip: None,
@@ -472,6 +474,9 @@ pub fn build(
             solve(&mut fg, 600, pot_chips * 0.005, false);
             let mut records = Vec::new();
             let (street_lines, turn_lines, decisions) = plan(&fam.aggressor);
+            // the preflop raiser bets every "…_called" line in the plan; "checked" lines have no aggressor
+            let aggr_seat = if fam.aggressor == "oop" { Seat::Oop } else { Seat::Ip };
+            let entry_of = |line_id: &str| (line_id != "checked").then_some(aggr_seat);
             for (fl_id, fl_line) in street_lines {
                 let cont = match continue_after(&mut fg, fl_line, pos) {
                     Ok(c) => c,
@@ -486,7 +491,7 @@ pub fn build(
                     prior_t.push(ps_core::card_to_string(turn));
                     for (dec, hero, line, desc) in decisions {
                         let id = format!("{}/{}/{}/{}", fam.id, tboard, fl_id, dec);
-                        let spot = spot_from(fam, &tboard, &cont, *hero, line, &id);
+                        let spot = spot_from(fam, &tboard, &cont, *hero, line, &id, entry_of(fl_id));
                         match analyze_many(&spot, &profs, &opts) {
                             Ok(rs) => {
                                 for ((pf, prof), r) in profiles.iter().zip(&rs) {
@@ -498,7 +503,7 @@ pub fn build(
                         log(&format!("  {id} ({:.0}s)", t0.elapsed().as_secs_f64()));
                     }
                     // River: GTO turn solve for river ranges.
-                    let tspot = spot_from(fam, &tboard, &cont, Seat::Ip, &[], "turn");
+                    let tspot = spot_from(fam, &tboard, &cont, Seat::Ip, &[], "turn", entry_of(fl_id));
                     let mut tg = tspot.build_game()?;
                     tg.allocate_memory(false);
                     solve(&mut tg, 1000, (cont.pot * CHIPS_PER_BB * 0.002) as f32, false);
@@ -517,7 +522,7 @@ pub fn build(
                             prior_r.push(ps_core::card_to_string(river));
                             for (dec, hero, line, desc) in decisions {
                                 let id = format!("{}/{}/{}-{}/{}", fam.id, rboard, fl_id, tl_id, dec);
-                                let spot = spot_from(fam, &rboard, &rc, *hero, line, &id);
+                                let spot = spot_from(fam, &rboard, &rc, *hero, line, &id, entry_of(tl_id));
                                 match analyze_many(&spot, &profs, &opts) {
                                     Ok(rs) => {
                                         for ((pf, prof), r) in profiles.iter().zip(&rs) {

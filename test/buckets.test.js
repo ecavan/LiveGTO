@@ -15,7 +15,11 @@ describe('hand buckets', () => {
     expect(bucketOf(c('AhAd'), c('9dTc2s'))).toBe('strong');
     expect(bucketOf(c('AhKh'), c('9h5h2s'))).toBe('fdraw');
     expect(bucketOf(c('8c7d'), c('9hTs2d'))).toBe('sdraw');
-    expect(bucketOf(c('AcKd'), c('9h5h2s'))).toBe('air');
+    expect(bucketOf(c('AcKd'), c('9h5h2s'))).toBe('eqair'); // two overcards
+    expect(bucketOf(c('7h6h'), c('AsKd2c'))).toBe('air'); // nothing to improve to
+    expect(bucketOf(c('JsTs'), c('As7h2d'))).toBe('eqair'); // backdoor flush and straight draws
+    expect(bucketOf(c('Qs9s'), c('Jh8d2c'))).toBe('eqair'); // gutshot
+    expect(bucketOf(c('AcKd'), c('9h5h2sJcQd'))).toBe('air'); // on the river air is just air
     expect(boardDangers(c('9hKh2h'))).toContain('flush possible');
     expect(boardDangers(c('As2d3c'))).toContain('straight possible'); // the wheel
     expect(boardDangers(c('Ks8d2c'))).toEqual([]);

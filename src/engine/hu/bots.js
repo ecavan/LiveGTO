@@ -12,7 +12,7 @@ import { classify, handType } from './hand.js';
 import { menu, legal, board, pot, BTN, BB } from './game.js';
 
 export const BOT_TYPES = {
-  reg: { name: 'Reg', profile: 'gto', desc: 'A solid regular: sensible ranges, balanced-ish betting, folds when beat.' },
+  reg: { name: 'Reg', profile: 'reg' },
   station: { name: 'Station', profile: 'station' },
   nit: { name: 'Nit', profile: 'nit' },
   maniac: { name: 'Maniac', profile: 'maniac' },
@@ -99,43 +99,80 @@ export function preflopDistKey(botId, s, seat, key) {
 
 const STREETS = ['preflop', 'flop', 'turn', 'river'];
 
-/** Baseline "Reg" frequencies by hand class. Not facing a bet: check / small / big / allin. */
+/**
+ * Baseline ("Reg") frequencies by hand class, from what Pluribus did with each class in its
+ * 10,000 hands against pros (analysis/fit_base.py; thin cells shrunk towards the pros' play).
+ *
+ * Not facing a bet it depends on whose street it is (streetRole):
+ *   aggr  he made the last bet or raise on the previous street (the c-bettor)
+ *   donk  the previous street's aggressor is still to act behind him
+ *   free  the aggressor checked to him, or nobody bet the previous street
+ * Bets: small < ½ pot, big ½ pot or more.
+ */
 export const BASE_OPEN = {
-  monster: { check: 0.25, small: 0.25, big: 0.45, allin: 0.05 },
-  strong: { check: 0.35, small: 0.35, big: 0.28, allin: 0.02 },
-  medium: { check: 0.65, small: 0.3, big: 0.05, allin: 0 },
-  weak: { check: 0.85, small: 0.12, big: 0.03, allin: 0 },
-  draw: { check: 0.5, small: 0.2, big: 0.3, allin: 0 },
-  air: { check: 0.72, small: 0.13, big: 0.15, allin: 0 },
+  aggr: {
+    monster: { check: 0.267, small: 0.083, big: 0.618, allin: 0.031 },
+    strong: { check: 0.375, small: 0.082, big: 0.519, allin: 0.024 },
+    medium: { check: 0.575, small: 0.097, big: 0.328, allin: 0.001 },
+    weak: { check: 0.673, small: 0.044, big: 0.281, allin: 0.002 },
+    draw: { check: 0.403, small: 0.082, big: 0.504, allin: 0.01 },
+    air: { check: 0.522, small: 0.047, big: 0.425, allin: 0.006 },
+  },
+  donk: {
+    monster: { check: 0.896, small: 0.046, big: 0.043, allin: 0.016 },
+    strong: { check: 0.938, small: 0.038, big: 0.023, allin: 0.001 },
+    medium: { check: 0.988, small: 0.011, big: 0.0, allin: 0.0 },
+    weak: { check: 0.974, small: 0.014, big: 0.012, allin: 0.0 },
+    draw: { check: 0.972, small: 0.017, big: 0.011, allin: 0.0 },
+    air: { check: 0.97, small: 0.021, big: 0.009, allin: 0.0 },
+  },
+  free: {
+    monster: { check: 0.382, small: 0.133, big: 0.464, allin: 0.021 },
+    strong: { check: 0.449, small: 0.08, big: 0.465, allin: 0.006 },
+    medium: { check: 0.634, small: 0.093, big: 0.273, allin: 0.0 },
+    weak: { check: 0.802, small: 0.055, big: 0.143, allin: 0.0 },
+    draw: { check: 0.451, small: 0.108, big: 0.442, allin: 0.0 },
+    air: { check: 0.688, small: 0.057, big: 0.252, allin: 0.004 },
+  },
 };
-/** Facing a bet, by size faced: fold / call / raise / allin. */
+/** Facing a bet, by its size against the pot before it: fold / call / raise / all-in. */
 export const BASE_FACING = {
-  // defends roughly the minimum-defence frequency: ~75% vs a third-pot bet, ~57% vs 75% pot
   small: {
-    monster: { fold: 0, call: 0.6, raise: 0.3, allin: 0.1 },
-    strong: { fold: 0.02, call: 0.83, raise: 0.15, allin: 0 },
-    medium: { fold: 0.12, call: 0.85, raise: 0.03, allin: 0 },
-    weak: { fold: 0.4, call: 0.6, raise: 0, allin: 0 },
-    draw: { fold: 0.15, call: 0.7, raise: 0.15, allin: 0 },
-    air: { fold: 0.7, call: 0.15, raise: 0.15, allin: 0 },
+    monster: { fold: 0.023, call: 0.572, raise: 0.349, allin: 0.056 },
+    strong: { fold: 0.035, call: 0.775, raise: 0.181, allin: 0.009 },
+    medium: { fold: 0.161, call: 0.739, raise: 0.091, allin: 0.009 },
+    weak: { fold: 0.538, call: 0.43, raise: 0.032, allin: 0.0 },
+    draw: { fold: 0.102, call: 0.665, raise: 0.194, allin: 0.039 },
+    air: { fold: 0.698, call: 0.243, raise: 0.059, allin: 0.0 },
   },
   large: {
-    monster: { fold: 0, call: 0.65, raise: 0.25, allin: 0.1 },
-    strong: { fold: 0.06, call: 0.84, raise: 0.1, allin: 0 },
-    medium: { fold: 0.3, call: 0.7, raise: 0, allin: 0 },
-    weak: { fold: 0.6, call: 0.4, raise: 0, allin: 0 },
-    draw: { fold: 0.35, call: 0.55, raise: 0.1, allin: 0 },
-    air: { fold: 0.85, call: 0.05, raise: 0.1, allin: 0 },
+    monster: { fold: 0.076, call: 0.582, raise: 0.287, allin: 0.055 },
+    strong: { fold: 0.142, call: 0.705, raise: 0.124, allin: 0.029 },
+    medium: { fold: 0.228, call: 0.719, raise: 0.052, allin: 0.001 },
+    weak: { fold: 0.606, call: 0.356, raise: 0.038, allin: 0.0 },
+    draw: { fold: 0.249, call: 0.589, raise: 0.147, allin: 0.014 },
+    air: { fold: 0.852, call: 0.12, raise: 0.028, allin: 0.0 },
   },
   overbet: {
-    monster: { fold: 0, call: 0.75, raise: 0, allin: 0.25 },
-    strong: { fold: 0.2, call: 0.75, raise: 0, allin: 0.05 },
-    medium: { fold: 0.6, call: 0.4, raise: 0, allin: 0 },
-    weak: { fold: 0.85, call: 0.15, raise: 0, allin: 0 },
-    draw: { fold: 0.6, call: 0.4, raise: 0, allin: 0 },
-    air: { fold: 0.95, call: 0, raise: 0, allin: 0.05 },
+    monster: { fold: 0.217, call: 0.639, raise: 0.039, allin: 0.104 },
+    strong: { fold: 0.358, call: 0.588, raise: 0.004, allin: 0.049 },
+    medium: { fold: 0.647, call: 0.349, raise: 0.0, allin: 0.004 },
+    weak: { fold: 0.832, call: 0.168, raise: 0.0, allin: 0.0 },
+    draw: { fold: 0.545, call: 0.336, raise: 0.094, allin: 0.024 },
+    air: { fold: 0.925, call: 0.048, raise: 0.024, allin: 0.003 },
   },
 };
+
+/** Whose street it is for `seat` (see BASE_OPEN). Works for the heads-up and the ring engine. */
+export function streetRole(s, seat) {
+  const aggressive = (e) => e.type === 'bet' || e.type === 'raise' || (e.type === 'allin' && !e.callAllIn);
+  const prev = s.log.filter(e => e.street === s.street - 1 && aggressive(e)).pop();
+  if (!prev) return 'free';
+  if (prev.seat === seat) return 'aggr';
+  const folded = Array.isArray(s.folded) ? s.folded[prev.seat] : s.folded === prev.seat;
+  const acted = s.log.some(e => e.street === s.street && e.seat === prev.seat);
+  return !folded && !acted && s.stacks[prev.seat] > 1e-9 ? 'donk' : 'free';
+}
 
 export const sizeBucket = (f) => (f < 0.5 ? 'small' : f <= 1.05 ? 'large' : 'overbet');
 
@@ -161,6 +198,7 @@ export function applyProfile(profileId, dist, ctx) {
     if (r.streets && !r.streets.includes(ctx.street)) continue;
     if ((r.facing === 'none' && ctx.facing) || (r.facing === 'bet' && !ctx.facing)) continue;
     if (r.facing_size && (!ctx.facing || !r.facing_size.includes(sizeBucket(ctx.fraction)))) continue;
+    if (r.role && (ctx.facing || !r.role.includes(ctx.role))) continue;
     if (r.hands && !r.hands.includes(ctx.cls)) continue;
     if (r.hand_types && !r.hand_types.includes(ctx.handType)) continue;
     for (const [key, m] of Object.entries(r.scale || {})) {
@@ -205,9 +243,9 @@ export function postflopMix(profileId, s, seat, cls, hType) {
     fraction = owe / Math.max(0.01, pot(s) - owe - excess);
     base = { ...BASE_FACING[sizeBucket(fraction)][c] };
   } else {
-    base = { ...BASE_OPEN[c] };
+    base = { ...BASE_OPEN[streetRole(s, seat)][c] };
   }
-  return applyProfile(profileId, base, { street, facing: L.facing, fraction, cls: c, handType: hType });
+  return applyProfile(profileId, base, { street, facing: L.facing, fraction, cls: c, handType: hType, role: L.facing ? null : streetRole(s, seat) });
 }
 
 /** Map an abstract mix onto the concrete menu (missing sizes fall through to the nearest one). */

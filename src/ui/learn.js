@@ -7,6 +7,7 @@
  *   #learn/preflop             preflop trainer and charts
  *   #learn/formulas            formula sheet
  *   #learn/playbook            exploit playbook
+ *   #learn/buckets             hand buckets: sort your hand after the flop
  */
 import { icon } from './kit.js';
 import { DRILLS } from '../engine/drills.js';
@@ -19,6 +20,7 @@ export async function render(container, params = []) {
   if (sub === 'drill') { if (rest[0] && !DRILLS[rest[0]]) { location.hash = '#learn'; return; } return (await import('./learn/drills.js')).render(container, rest); }
   if (sub === 'range') { window.location.hash = 'puzzles/buckets'; return undefined; }
   if (sub === 'preflop') return (await import('./learn/preflop.js')).render(container, rest);
+  if (sub === 'buckets') return (await import('./learn/buckets.js')).render(container, rest);
   if (sub === 'formulas') return (await import('./learn/formulas.js')).render(container, rest);
   if (sub === 'playbook') {
     container.innerHTML = `<div class="page max-w-4xl space-y-4"><a href="#learn" class="btn btn-quiet text-sm">${icon('back', 'w-4 h-4')} Learn</a><div id="pb"></div></div>`;
@@ -50,9 +52,10 @@ async function home(container) {
       </div>
     </section>
     <section class="space-y-3">
-      <h2 class="text-lg font-semibold text-white">Ranges and preflop</h2>
+      <h2 class="text-lg font-semibold text-white">Hand reading, ranges and preflop</h2>
       <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        ${tile('#puzzles/buckets', 'grid', 'Buckets', 'Your whole range after the flop: one plan for your monsters, pairs, draws and air. In Puzzles.')}
+        ${tile('#learn/buckets', 'grid', 'Hand buckets', 'Sort your hand after the flop: monster, pair, draw, air with equity or dead air, and the plan for each.')}
+        ${tile('#puzzles/buckets', 'grid', 'Range buckets', 'Your whole range in a real spot: one plan for your monsters, pairs, draws and air. In Puzzles.')}
         ${tile('#learn/preflop', 'target', 'Preflop trainer', 'Raise, call or fold from every seat, live 9-handed charts.')}
         ${tile('#learn/formulas', 'learn', 'Formula sheet', 'Every number you use at the table, on one page.')}
         ${tile('#learn/playbook', 'flag', 'Exploit playbook', 'How each hand class plays against each villain type.')}

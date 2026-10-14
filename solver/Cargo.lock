@@ -298,6 +298,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ps-phh"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ps-core",
+ "rayon",
+ "serde_json",
+]
+
+[[package]]
 name = "ps-solve"
 version = "0.1.0"
 dependencies = [

@@ -1,28 +1,68 @@
 name = "Nit"
 description = """
-Tight-passive. Folds too much to pressure, only raises the nuts, and his big bets and raises
-are almost never bluffs. Respect his aggression, attack his checks."""
+Tight and scared. Folds to pressure more than anyone, rarely bets when checked to, and his
+river bets are almost never bluffs. Respect his aggression, attack his checks."""
 
 [[rules]]
-note = "folds too much when he isn't strong"
+note = "folds his weaker hands to pressure"
 facing = "bet"
 hands = ["medium", "weak", "draw", "air"]
-scale = { fold = 2.5 }
-
-[[rules]]
-note = "only raises the nuts"
-facing = "bet"
-hands = ["strong", "medium", "weak", "draw", "air"]
-scale = { raise = 0.15 }
-
-[[rules]]
-note = "never bluffs"
-facing = "none"
-hands = ["weak", "draw", "air"]
-scale = { aggressive = 0.1 }
+scale = { fold = 1.5 }
 
 [[rules]]
 note = "checks his medium hands"
 facing = "none"
 hands = ["medium"]
-scale = { aggressive = 0.4 }
+scale = { aggressive = 0.6 }
+
+[[rules]]
+note = "folds to bets more than anyone: 7 flop bets in 10"
+streets = ["flop"]
+facing = "bet"
+scale = { fold = 1.219 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["turn"]
+facing = "bet"
+scale = { fold = 1.52 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["river"]
+facing = "bet"
+scale = { fold = 1.861 }
+
+[[rules]]
+# calibration (fitted to real players)
+facing = "bet"
+scale = { raise = 2.443 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["flop"]
+role = ["aggr"]
+scale = { aggressive = 1.483 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["turn", "river"]
+role = ["aggr"]
+scale = { aggressive = 1.037 }
+
+[[rules]]
+# calibration (fitted to real players)
+role = ["donk"]
+scale = { aggressive = 3.045 }
+
+[[rules]]
+note = "rarely bets when checked to"
+role = ["free"]
+scale = { aggressive = 0.61 }
+
+[[rules]]
+note = "almost never bluffs the river: about 1 in 20 called river bets"
+streets = ["river"]
+facing = "none"
+hands = ["weak", "air"]
+scale = { aggressive = 0.19 }

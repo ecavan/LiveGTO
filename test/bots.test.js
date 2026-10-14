@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { newHand, act, legal, rng, BTN, BB, board } from '../src/engine/hu/game.js';
 import { policy, chooseAction, applyProfile, BOT_TYPES } from '../src/engine/hu/bots.js';
+import PROFILES from '../src/engine/hu/profiles.json';
 import { villainRange, rangeByClass } from '../src/engine/hu/range.js';
 import { coach } from '../src/engine/hu/coach.js';
 import { ids, ALL_COMBOS, handType } from '../src/engine/hu/hand.js';
@@ -25,16 +26,31 @@ describe('bots', () => {
     }
   });
   it('profiles bend the baseline exactly like the solver does', () => {
-    // Station, facing a normal-size bet with a medium hand: folds a quarter as often
+    // the same rule semantics as ps-solve::profile (test profiles, not the fitted ones)
+    PROFILES.__st = { rules: [{ facing_size: ['small', 'large'], hands: ['strong', 'medium', 'weak'], scale: { fold: 0.25 } }] };
+    PROFILES.__nit = { rules: [
+      { facing: 'bet', hands: ['medium', 'weak', 'draw', 'air'], scale: { fold: 2.5 } },
+      { facing: 'bet', hands: ['strong', 'medium', 'weak', 'draw', 'air'], scale: { raise: 0.15 } },
+    ] };
+    // facing a normal-size bet with a medium hand: folds a quarter as often
     const base = { fold: 0.5, call: 0.5, raise: 0, allin: 0 };
-    const st = applyProfile('station', base, { street: 'river', facing: true, fraction: 0.75, cls: 'medium', handType: 'K8s' });
+    const st = applyProfile('__st', base, { street: 'river', facing: true, fraction: 0.75, cls: 'medium', handType: 'K8s' });
     expect(st.fold).toBeCloseTo(0.125);
     expect(st.call).toBeCloseTo(0.875);
-    // Nit, facing a bet with air: folds 2.5× as often (0.3 → 0.75), then "only raises the nuts"
-    // cuts raises to 15% and hands the difference back pro rata: fold 0.75 · 0.99464 / 0.96429
-    const nit = applyProfile('nit', { fold: 0.3, call: 0.6, raise: 0.1, allin: 0 }, { street: 'turn', facing: true, fraction: 0.75, cls: 'air', handType: '72o' });
+    // facing a bet with air: folds 2.5× as often (0.3 → 0.75), then raises cut to 15% with the
+    // difference handed back pro rata: fold 0.75 · 0.99464 / 0.96429
+    const nit = applyProfile('__nit', { fold: 0.3, call: 0.6, raise: 0.1, allin: 0 }, { street: 'turn', facing: true, fraction: 0.75, cls: 'air', handType: '72o' });
+    delete PROFILES.__st;
+    delete PROFILES.__nit;
     expect(nit.fold).toBeCloseTo(0.7736, 3);
     expect(nit.raise).toBeCloseTo(0.1 * (0.25 / 0.7) * 0.15, 4);
+  });
+  it('the fitted profiles keep their character', () => {
+    const facing = (id, cls, street = 'flop') => applyProfile(id, { fold: 0.4, call: 0.5, raise: 0.1, allin: 0 }, { street, facing: true, fraction: 0.75, cls, handType: null });
+    const donk = (id) => { const m = applyProfile(id, { check: 0.95, small: 0.03, big: 0.02, allin: 0 }, { street: 'flop', facing: false, role: 'donk', cls: 'air', handType: null }); return m.small + m.big; };
+    expect(facing('nit', 'air').fold).toBeGreaterThan(facing('whale', 'air').fold);
+    expect(donk('maniac')).toBeGreaterThan(donk('nit'));
+    expect(donk('whale')).toBeGreaterThan(donk('reg'));
   });
 });
 

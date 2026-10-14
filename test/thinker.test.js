@@ -41,9 +41,10 @@ describe('agents', () => {
       }
       handEnded(pro, s, BB);
     }
-    // limps every hand and calls down, then shoves rivers: a whale who goes wild
+    // limps every hand and calls down, then shoves rivers: a loose player, never a reg. (Real
+    // whales fold to half the flop bets they face, so a never-folder reads partly as a station.)
     expect(pro.model.pi.reg).toBeLessThan(0.1);
-    expect(pro.model.pi.random + pro.model.pi.whale + pro.model.pi.maniac).toBeGreaterThan(0.6);
+    expect(pro.model.pi.random + pro.model.pi.whale + pro.model.pi.maniac + pro.model.pi.station).toBeGreaterThan(0.6);
   });
   it('the coach works against a thinking bot', () => {
     const pro = createAgent('pro');

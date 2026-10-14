@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/ps-core", "crates/ps-solve", "crates/ps-cli"]
+members = ["crates/ps-core", "crates/ps-solve", "crates/ps-cli", "crates/ps-phh"]
 
 [workspace.package]
 edition = "2021"
