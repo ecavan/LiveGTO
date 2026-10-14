@@ -321,7 +321,9 @@ hand the charts open is one Pluribus clearly folds, apart from 22 and a few smal
 
 ### The solver
 
-BTN opens, the BB calls (the library's `srp_btn_bb` family, 2.5bb opens like Pluribus's).
+BTN opens, the BB calls (the library's `srp_btn_bb` family, 2.5bb opens like Pluribus's). The
+puzzle library was rebuilt with the fitted profiles; its GTO answers don't depend on them and
+came out the same.
 
 **Checked to on the BTN: how often each class bets**
 : how often each class bets
