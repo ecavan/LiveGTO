@@ -12,7 +12,9 @@ import { classify, handType } from './hand.js';
 import { menu, legal, board, pot, BTN, BB } from './game.js';
 
 export const BOT_TYPES = {
-  reg: { name: 'Reg', profile: 'reg' },
+  // heads-up the Reg plays the Pluribus baseline: the fitted 'reg' profile is a 6-max online regular,
+  // who folds far too much for heads-up (the Pro beat him by ~110bb/100)
+  reg: { name: 'Reg', profile: 'gto', desc: 'A solid regular: sensible ranges, balanced-ish betting, folds when beat.' },
   station: { name: 'Station', profile: 'station' },
   nit: { name: 'Nit', profile: 'nit' },
   maniac: { name: 'Maniac', profile: 'maniac' },

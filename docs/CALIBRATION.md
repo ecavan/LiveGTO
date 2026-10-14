@@ -261,6 +261,25 @@ Ring bots, 6-handed, 80,000 hands each run, measured with the same code as the r
 The Shark and the Pro fold more to flop bets than Pluribus: the baseline matches Pluribus by hand
 class, but at a live table they face bets from looser players, multiway, with weaker hands.
 
+## Heads-up ratings
+
+The heads-up bots share the postflop baseline and profiles, so the Elo ladder was played again
+(`scripts/ladder.mjs`: the Pro against each bot, 6,000 duplicate hands; ±45–90bb/100 at 95%):
+
+| Bot | Before | After |
+|---|---|---|
+| Whale | 860 | 1100 |
+| Maniac | 920 | 1410 |
+| Station | 1380 | 1490 |
+| Nit | 1560 | 1550 |
+| Reg | 1690 | 1600 |
+| Shark | 1660 | 1780 |
+| Pro | 2000 | 2000 |
+
+The fish are less wild than they were, so they lose less. The heads-up Reg keeps the Pluribus
+baseline: the fitted Reg profile is a 6-max online regular, who folds far too much heads-up (the
+Pro beat him by about 110bb/100). He plays at the live table, where he belongs.
+
 ## Checks against Pluribus
 
 ### The preflop charts
