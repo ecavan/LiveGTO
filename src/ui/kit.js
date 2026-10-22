@@ -213,7 +213,9 @@ export function ringTable({ seats, board = [], pot = null, note = '', spr = null
     const tag = p.tag ? `<div class="ring-tag ${p.tagTone || ''}">${esc(p.tag)}</div>` : '';
     const body = hero ? `<div class="flex items-center gap-2"><div class="pod-cards">${cs}</div>${plate}</div>${tag}`
       : `${tag}<div class="pod-cards justify-center">${cs}</div>${plate}`;
-    const bx = x + (center[0] - x) * 0.42, by = y + (center[1] - y) * 0.42;
+    // a seat along the top edge has its cards and plate below its anchor: its bet goes further in
+    const f = y < 20 ? 0.55 : 0.42;
+    const bx = x + (center[0] - x) * f, by = y + (center[1] - y) * f;
     const bet = p.bet > 0 ? `<div class="ring-bet" style="left:${bx}%;top:${by}%"><span class="chipstack"></span><b>${fmt(p.bet)}</b></div>` : '';
     return `<div class="ring-seat ${p.acting ? 'acting' : ''} ${p.folded ? 'folded' : ''} ${hero ? 'hero' : ''}" style="left:${x}%;top:${y}%">${body}</div>${bet}`;
   }).join('');

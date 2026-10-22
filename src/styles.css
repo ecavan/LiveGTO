@@ -179,7 +179,8 @@
 .dealer { width: 22px; height: 22px; border-radius: 999px; background: #f8fafc; color: #0b0e13; font-size: 11px; font-weight: 900;
   display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,.5); }
 .bet { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; z-index: 4; }
-.bet.top { top: 27%; } .bet.bottom { bottom: 29%; }
+/* his bet sits beside the pot line, not on it: on a narrow table they share a row */
+.bet.top { top: 27%; left: calc(50% - 84px); transform: translateX(-100%); } .bet.bottom { bottom: 29%; }
 .chipstack { width: 18px; height: 18px; border-radius: 999px; background: radial-gradient(circle at 50% 50%, #fef3c7 0 28%, #d97706 30% 60%, #fef3c7 62% 70%, #b45309 72%); box-shadow: 0 2px 0 #7c2d12, 0 3px 6px rgba(0,0,0,.5); }
 .bet b { font-size: 12px; font-weight: 800; color: #fde68a; background: rgba(0,0,0,.45); padding: 2px 8px; border-radius: 999px; font-variant-numeric: tabular-nums; }
 
@@ -217,7 +218,7 @@
 
 /* ------------------------------------------------------------------ 6-max table */
 .rtable, .tbl { -webkit-user-select: none; user-select: none; outline: none; }
-.rtable { position: relative; width: 100%; aspect-ratio: 16 / 10.5; max-width: 820px; margin: 0 auto; }
+.rtable { position: relative; width: 100%; aspect-ratio: 16 / 10.5; max-width: 820px; margin: 32px auto 0; }
 .rtable .tbl-rail { inset: 12% 6% 14% 6%; }
 .rtable .tbl-felt { inset: calc(12% + 12px) calc(6% + 12px) calc(14% + 12px) calc(6% + 12px); }
 .ring-seat { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 5; }
