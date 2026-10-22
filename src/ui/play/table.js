@@ -302,9 +302,9 @@ function draw(container) {
   rv?.addEventListener('toggle', fill);
   fill();
   container.querySelectorAll('#controls [data-i]').forEach(b => b.addEventListener('click', () => choose(container, Number(b.dataset.i))));
-  container.querySelector('#continue')?.addEventListener('click', () => { ui.guardAt = performance.now(); ui.paused = false; draw(container); });
-  container.querySelector('#next')?.addEventListener('click', () => { ui.guardAt = performance.now(); ui.recap = null; ui.last = null; ui.lastState = null; ui.rangeHtml = null; startHand(t); draw(container); });
-  container.querySelector('#end')?.addEventListener('click', () => { ui.over = true; review(container); });
+  container.querySelector('#continue')?.addEventListener('click', guarded(() => { ui.paused = false; draw(container); }));
+  container.querySelector('#next')?.addEventListener('click', guarded(() => { ui.recap = null; ui.last = null; ui.lastState = null; ui.rangeHtml = null; startHand(t); draw(container); }));
+  container.querySelector('#end')?.addEventListener('click', guarded(() => { ui.over = true; review(container); }));
   container.querySelector('#reveal')?.addEventListener('click', () => { ui.reveal = !ui.reveal; draw(container); });
 
   if (botTurn) {
@@ -325,10 +325,17 @@ function after(container) {
   draw(container);
 }
 
+/**
+ * A double tap must not act twice: the second tap lands on whatever replaced the button (an
+ * action after Next / Continue, or Continue / Leave table after an action).
+ */
+const tooSoon = () => performance.now() - (ui.guardAt || 0) < 400;
+const guarded = (fn) => () => { if (tooSoon()) return; ui.guardAt = performance.now(); fn(); };
+
 function choose(container, i) {
-  // a double tap on Next / Continue must not also act on the buttons that appear in its place
-  if (performance.now() - (ui.guardAt || 0) < 400) return;
+  if (tooSoon()) return;
   if (!heroToAct(t) || ui.paused || !coachReady(t)) return;
+  ui.guardAt = performance.now();
   ui.lastState = t.s;
   ui.rangeHtml = null;
   const d = heroAct(t, i);

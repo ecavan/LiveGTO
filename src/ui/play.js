@@ -251,7 +251,7 @@ function afterAction(container) {
 
 function wire(container) {
   container.querySelectorAll('#controls [data-i]').forEach(b => b.addEventListener('click', () => choose(container, Number(b.dataset.i))));
-  container.querySelector('#continue')?.addEventListener('click', () => { ui.guardAt = performance.now(); ui.paused = false; table(container); });
+  container.querySelector('#continue')?.addEventListener('click', guarded(() => { ui.paused = false; table(container); }));
   const rv = container.querySelector('details[data-rangeview]');
   const fill = () => {
     if (!rv || !rv.open || rv.dataset.done) return;
@@ -270,14 +270,21 @@ function wire(container) {
   };
   rv?.addEventListener('toggle', fill);
   fill();
-  container.querySelector('#next')?.addEventListener('click', () => { ui.guardAt = performance.now(); nextHand(container); });
-  container.querySelector('#end')?.addEventListener('click', () => { ui.over = true; recordSession(); review(container); });
+  container.querySelector('#next')?.addEventListener('click', guarded(() => nextHand(container)));
+  container.querySelector('#end')?.addEventListener('click', guarded(() => { ui.over = true; recordSession(); review(container); }));
 }
 
+/**
+ * A double tap must not act twice: the second tap lands on whatever replaced the button (an
+ * action after Next / Continue, or Continue / End session / your next action after an action).
+ */
+const tooSoon = () => performance.now() - (ui.guardAt || 0) < 400;
+const guarded = (fn) => () => { if (tooSoon()) return; ui.guardAt = performance.now(); fn(); };
+
 function choose(container, i) {
-  // a double tap on Next / Continue must not also act on the buttons that appear in its place
-  if (performance.now() - (ui.guardAt || 0) < 400) return;
+  if (tooSoon()) return;
   if (!heroToAct(sess) || ui.paused || !coachReady(sess)) return;
+  ui.guardAt = performance.now();
   const s0 = sess.s;
   ui.lastState = s0;
   ui.rangeHtml = null;
