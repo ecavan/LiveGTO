@@ -335,4 +335,4 @@ export function planFromClasses(classes) {
 }
 
 /** One-line reading of the board for bucket views ("flush possible · straight possible"). */
-export const boardLine = (board) => { const t = boardTags(board.map(cardStr)); return t.length ? t.join(' · ') : 'dry: no flush or straight draws, unpaired'; };
+export const boardLine = (board) => { const t = boardTags(board.map(cardStr)); return t.length ? t.join(' · ') : 'unpaired, no flush or straight possible'; };

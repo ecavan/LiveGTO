@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bucketOf, composition, plan, boardDangers, bucketsOn, boardKind, BUCKET_KEYS } from '../src/engine/buckets.js';
+import { bucketOf, composition, plan, boardDangers, bucketsOn, boardKind, boardLine, BUCKET_KEYS } from '../src/engine/buckets.js';
 import { planFor, planOn } from '../src/engine/plans.js';
 import { ids } from '../src/engine/hu/hand.js';
 import { N } from '../src/engine/hu/equity.js';
@@ -70,5 +70,11 @@ describe('hand buckets', () => {
     expect(p.find(r => r.key === 'nuts').best).toBe(1);
     expect(p.find(r => r.key === 'air').best).toBe(0);
     for (const r of p) expect(r.mix.reduce((a, x) => a + x, 0)).toBeCloseTo(1, 6);
+  });
+
+  it('the board line never calls a board with open-ender draws draw-free', () => {
+    // J-T-6 rainbow: no tag (no flush draw, no three to a straight), but Q9 and 98 are open-enders
+    expect(boardLine(c('JsTc6d'))).not.toMatch(/draws/);
+    expect(boardLine(c('Ks7h2d'))).toBe('unpaired, no flush or straight possible');
   });
 });
