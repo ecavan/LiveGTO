@@ -258,8 +258,11 @@ function play(container) {
   container.querySelector('#lg-undo')?.addEventListener('click', () => { undo(L); lg.pick = []; redraw(); });
   container.querySelector('#lg-cancel')?.addEventListener('click', () => { reset(); redraw(); });
   container.querySelector('#lg-grade')?.addEventListener('click', () => {
+    if (lg.grading) return; // a double tap must not store the hand twice
+    lg.grading = true;
     container.querySelector('#lg-grade').textContent = 'Grading…';
     setTimeout(() => {
+      lg.grading = false;
       lg.graded = gradeLog(L, getLevel());
       const h = toHistory(L, lg.graded);
       h.no = loadHands().filter(x => x.sid === h.sid).length + 1;
@@ -284,7 +287,7 @@ function graded(container) {
       <div class="flex gap-2 flex-wrap"><a class="btn" href="#play/review/h/${h.id}">${icon('review', 'w-4 h-4')} Replay it</a><button id="lg-again" class="btn btn-primary">${icon('pen', 'w-4 h-4')} Log another hand</button></div>
     </div>
     <div class="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5 items-start">
-      <div class="space-y-2">${ds.length ? ds.map((d, i) => decisionRow(d, i, { fmt: money, evNote: `EV against the players still in, read as the types you gave them.` })).join('') : '<p class="text-sm text-ink-400">You had no decision in this hand.</p>'}</div>
+      <div class="space-y-2">${ds.length ? ds.map((d, i) => decisionRow(d, i, { fmt: money, evNote: d.level === 1 ? 'Level 1: EV as if the players still in played solid, whatever types you gave them.' : 'EV against the players still in, read as the types you gave them.' })).join('') : '<p class="text-sm text-ink-400">You had no decision in this hand.</p>'}</div>
       <div class="panel panel-pad">${historyText(stateOf(L), L)}<p class="text-xs text-ink-400 mt-3">Saved to Review → "Your live hands". It counts in your leak report.</p></div>
     </div>
   </div>`;
