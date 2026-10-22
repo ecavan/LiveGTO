@@ -166,8 +166,19 @@ export function otherLevelHtml(d) {
   return `<div class="text-sm rounded-lg bg-ink-850 border border-ink-700 px-3 py-2"><span class="text-ink-400">${name}:</span> <b class="${ok ? 'text-sky-200' : 'text-amber-200'}">${lab}</b> <span class="text-ink-400">· ${tail}${!same && o.level === 1 ? ' (against a solid player)' : !same ? ' (against these players)' : ''}</span></div>`;
 }
 
+/**
+ * What the EVs on a decision are priced against, at the level it was graded at (d.level): Level 1
+ * as if the villain(s) played solid, Level 2 against their real ranges. `table`: a multiway hand.
+ */
+export function evNoteFor(d, { table = false, botName = null } = {}) {
+  const ahead = table ? (d.opponents > 1 ? '; multiway: Monte Carlo, one street ahead' : '') : `. ${d.street === 3 ? 'Exact on the river.' : 'One street ahead, equity treated as realised.'}`;
+  if (d.level === 1) return `Level 1: EV in bb as if ${table ? 'everyone still in' : botName ? esc(botName) : 'he'} played solid (the baseline), not ${table ? 'their' : 'his'} real range${ahead}${table ? '.' : ''}`;
+  return table ? `EV in bb against every opponent still in the hand (their ranges and strategies)${ahead}.`
+    : `EV in bb vs ${botName ? `${esc(botName)}'s` : 'his'} actual range and strategy${ahead}`;
+}
+
 /** The coach card after a decision. `weights` = his range (for the grid), if available. */
-export function coachCard(d, { weights = null, botName = 'He', live = false, evNote = null, fmt = null } = {}) {
+export function coachCard(d, { weights = null, botName = null, live = false, evNote = null, fmt = null } = {}) {
   LABEL_FMT = fmt;
   const chosen = { ...d.options[d.chosen], label: labelText(d.options[d.chosen].label) };
   const best = { ...d.options[d.best], label: labelText(d.options[d.best].label) };
@@ -187,7 +198,7 @@ export function coachCard(d, { weights = null, botName = 'He', live = false, evN
     ${other}
     ${d.heroBucket ? `<div class="text-sm text-ink-300">Your hand: <b class="text-amber-200">${esc(bucketName(d.heroBucket))}</b>${d.board?.length ? ` on ${handText(d.board.map(cardStr))}` : ''}</div>` : ''}
     ${evBars(d.options, { best: d.best, fine: d.fine, chosen: d.chosen })}
-    <div class="text-xs text-ink-400">${evNote ?? `EV in bb vs ${esc(botName)}'s actual range and strategy. ${d.street === 3 ? 'Exact on the river.' : 'One street ahead, equity treated as realised.'}`}</div>
+    <div class="text-xs text-ink-400">${evNote ?? evNoteFor(d, { botName })}</div>
     ${live ? `<details class="disc" data-rangeview open><summary>Your range by bucket: a plan for each kind of hand</summary><div class="body"><div class="text-ink-400 text-sm">Working it out…</div></div></details>` : ''}
     ${disc('Why', `<div class="space-y-1.5">${why}</div>`)}
     ${his ? disc(`His range${d.buckets?.length ? ' by bucket' : ''} · you have ${pct(d.equity)} against it`, his + (weights ? `<div class="pt-2">${weightGrid(weights, d.hole)}</div>` : '')) : ''}
@@ -229,14 +240,14 @@ export function handRecap(sess, h, { showDecisions = true } = {}) {
   if (h.showdown) {
     line = `You: ${handName(s.holes[sess.hero], s.runout)} · ${AGENTS[sess.botId].name}: ${handName(s.holes[1 - sess.hero], s.runout)} ${handText(h.holes[1 - sess.hero])}`;
   } else line = s.folded === sess.hero ? 'You folded.' : 'He folded.';
-  const decisions = showDecisions && h.decisions.length ? `<div class="space-y-2">${h.decisions.map((d, i) => decisionRow(d, i)).join('')}</div>` : '';
+  const decisions = showDecisions && h.decisions.length ? `<div class="space-y-2">${h.decisions.map((d, i) => decisionRow(d, i, { botName: AGENTS[sess.botId].name })).join('')}</div>` : '';
   const quality = h.evLost > 0.005
     ? `<span class="text-rose-300">Your decisions cost ${fmtBB(h.evLost)} of EV.</span>`
     : `<span class="text-emerald-300">No EV lost: every decision was best or fine.</span>`;
   const luck = Math.abs(h.luck) >= 0.05 ? ` All-in luck: <b class="${h.luck > 0 ? 'text-emerald-300' : 'text-rose-300'}">${fmtBB(h.luck, { sign: true })}</b> (you had ${pct(h.allinEq)} when the money went in).` : '';
   return `<div class="space-y-3 fade-up">
     <div class="verdict ${won ? 'v-best' : lost ? 'v-mistake' : 'v-fine'}">
-      <div class="text-lg font-semibold ${won ? 'text-emerald-300' : lost ? 'text-rose-300' : 'text-sky-300'}">${won ? 'You won' : lost ? 'You lost' : 'Split'} ${fmtBB(Math.abs(h.net))}</div>
+      <div class="text-lg font-semibold ${won ? 'text-emerald-300' : lost ? 'text-rose-300' : 'text-sky-300'}">${won ? `You won ${fmtBB(h.net)}` : lost ? `You lost ${fmtBB(-h.net)}` : h.showdown ? 'Split pot' : 'No chips changed hands'}</div>
       <div class="text-sm text-ink-200 mt-1">${line}</div>
       <div class="text-sm mt-1">${quality}${luck}</div>
     </div>
@@ -268,7 +279,7 @@ export function reviewHtml(sess, sum, pastSessions) {
   });
   const row = (d) => disc(`<span class="flex-1 flex items-center gap-2 min-w-0"><span class="text-ink-400 text-xs w-14">Hand ${d.hand}</span>
       <span class="truncate">${handText(byRank(d.hole).map(cardStr))} ${d.board.length ? 'on ' + handText(d.board.map(cardStr)) : ''}</span>
-      <span class="ml-auto text-rose-300 text-xs font-semibold pr-2">${d.preflop ? 'off chart · ' : ''}−${d.loss.toFixed(2)}bb</span></span>`, coachCard(d));
+      <span class="ml-auto text-rose-300 text-xs font-semibold pr-2">${d.preflop ? 'off chart · ' : ''}−${d.loss.toFixed(2)}bb</span></span>`, coachCard(d, { botName: AGENTS[sess.botId].name }));
   return `<div class="space-y-5 fade-up">
     <div class="flex items-end justify-between gap-3 flex-wrap">
       <div><div class="h-sec">Session review</div><h1 class="h-title">vs ${AGENTS[sess.botId].name} <span class="text-ink-400 text-lg font-medium">${eloOf(sess.botId)}</span></h1></div>

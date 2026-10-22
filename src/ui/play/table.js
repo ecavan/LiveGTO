@@ -10,7 +10,7 @@ import { board, pot, potShown, posOf, legal } from '../../engine/ring/game.js';
 import { styleLabel, ARCHETYPES, adjustment, LEVELS } from '../../engine/ring/players.js';
 import { settings, saveSettings } from '../../store.js';
 import { ringTable, fmtBB, seg, wireSeg, icon, esc, stat, handText, disc, verdict, sprOf, levelSwitch, wireLevel } from '../kit.js';
-import { actionBar, coachCard, decisionRow, playTabs, bucketViewHtml } from './views.js';
+import { actionBar, coachCard, decisionRow, playTabs, bucketViewHtml, evNoteFor } from './views.js';
 import { ringBucketView } from '../../engine/ring/coach.js';
 import { pct } from '../../engine/potmath.js';
 import { cardStr, evaluate, category, classify } from '../../engine/hu/hand.js';
@@ -241,7 +241,7 @@ function showdownWhy(s) {
   return out;
 }
 
-const evNote = (d) => `EV in bb against every opponent still in the hand (their ranges and strategies)${d.opponents > 1 ? '; multiway: Monte Carlo, one street ahead' : ''}.`;
+const evNote = (d) => evNoteFor(d, { table: true });
 
 function draw(container) {
   clearTimeout(timer);

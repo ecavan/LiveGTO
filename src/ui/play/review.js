@@ -13,7 +13,7 @@ import { AGENTS, eloOf } from '../../engine/hu/agents.js';
 import { LEVELS } from '../../engine/ring/players.js';
 import { cardStr, evaluate, category } from '../../engine/hu/hand.js';
 import { ringTable, fmtBB, icon, esc, stat, handText, seg, wireSeg, disc, sprOf, optionLabel } from '../kit.js';
-import { coachCard, actionBar, playTabs } from './views.js';
+import { coachCard, actionBar, playTabs, evNoteFor } from './views.js';
 import { settings, saveSettings } from '../../store.js';
 import { pct } from '../../engine/potmath.js';
 
@@ -332,9 +332,7 @@ function resultPanel(h) {
   </div>`;
 }
 
-const evNote = (h, d) => (h.kind === 'table'
-  ? `EV in bb against every opponent still in the hand${d.opponents > 1 ? '; multiway: Monte Carlo, one street ahead' : ''}.`
-  : null);
+const evNote = (h, d) => (h.kind === 'table' ? evNoteFor(d, { table: true }) : null);
 
 function draw(container) {
   const h = rv.hand;
