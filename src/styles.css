@@ -253,7 +253,7 @@
 /* ------------------------------------------------------------------ light theme: accents that were tuned for a dark page */
 :root[data-theme='light'] :is(.text-rose-300, .text-rose-200, .text-rose-100, .text-red-300, .text-red-400):not(:is(.tbl, .rtable) *) { color: #be123c; }
 :root[data-theme='light'] :is(.text-emerald-400, .text-emerald-300, .text-emerald-200, .text-emerald-100, .text-emerald-50):not(:is(.tbl, .rtable) *) { color: #047857; }
-:root[data-theme='light'] :is(.text-sky-300, .text-sky-200, .text-sky-100):not(:is(.tbl, .rtable) *) { color: #0369a1; }
+:root[data-theme='light'] :is(.text-sky-300, .text-sky-200, .text-sky-200\/90, .text-sky-100):not(:is(.tbl, .rtable) *) { color: #0369a1; }
 :root[data-theme='light'] :is(.text-amber-300, .text-amber-200, .text-amber-200\/90, .text-amber-200\/80, .text-amber-50, .text-yellow-300, .text-orange-300):not(:is(.tbl, .rtable) *) { color: #b45309; }
 :root[data-theme='light'] .text-violet-200:not(:is(.tbl, .rtable) *) { color: #6d28d9; }
 :root[data-theme='light'] :is(.bg-emerald-950\/60, .bg-emerald-950\/70) { background-color: #ecfdf5; }
