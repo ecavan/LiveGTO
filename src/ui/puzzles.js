@@ -125,7 +125,11 @@ async function next() {
     const cand = dailyPick(index, date);
     cur.daily = cand ? { ...(await load(cand, dayRand(date))), date } : null;
     const done = stats.daily?.[date];
-    if (cur.daily && done) cur.daily.answered = { g: grade(cur.daily.puzzle, cur.daily.record, done.choice), choice: done.choice };
+    if (cur.daily && done) {
+      // already played today (e.g. after a reload): show the result, not the bucket question again
+      cur.daily.answered = { g: grade(cur.daily.puzzle, cur.daily.record, done.choice), choice: done.choice };
+      cur.daily.bk = gradeBucket(ids(cur.daily.puzzle.cards.match(/../g)), ids(cur.daily.record.board), 'skip');
+    }
   } else if (mode === 'review') {
     const due = dueItems(stats);
     const pool = due.length ? due : practiceAll ? [...(stats.queue || [])].sort((a, b) => a.due - b.due) : [];
@@ -320,7 +324,7 @@ function draw(container) {
   const title = { rated: 'Find the best play', daily: 'Daily puzzle', review: 'Your missed puzzles' }[mode];
   const q = stats.queue || [];
   const statsHtml = mode === 'daily'
-    ? `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Streak</div><div class="text-2xl font-semibold num text-amber-200">${dailyStreak(stats)}<span class="text-sm text-ink-400"> days</span></div></div>`
+    ? `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Streak</div><div class="text-2xl font-semibold num text-amber-200">${dailyStreak(stats)}<span class="text-sm text-ink-400"> day${dailyStreak(stats) === 1 ? '' : 's'}</span></div></div>`
     : mode === 'review'
       ? `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Due</div><div class="text-2xl font-semibold num text-rose-200">${dueItems(stats).length}</div></div>
          <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">In queue</div><div class="text-2xl font-semibold num">${q.length}</div></div>`
