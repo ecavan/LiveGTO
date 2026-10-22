@@ -175,7 +175,7 @@ function draw(container, p) {
       </div>
     </div>
     <div>${puzzleTabs(p.review ? 'review' : '')}</div>
-    <div class="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-5 lg:grid-flow-dense items-start">
+    <div class="grid lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_1fr] gap-5 lg:grid-flow-dense items-start">
       <div class="space-y-4 min-w-0">
         ${tableHtml(p)}
         <div class="text-center text-ink-200">You have ${handText(byRank(h.holes[h.hero]).map(cardStr))}${h.toCall > 0 ? `, facing ${fmtBB(h.toCall)} into ${fmtBB(h.pot - h.toCall)}` : ''}. What's your play?</div>

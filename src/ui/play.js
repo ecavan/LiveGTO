@@ -203,7 +203,7 @@ function table(container) {
       </div>
       <a href="#play/new" class="btn btn-quiet text-sm">${icon('back', 'w-4 h-4')} Opponents</a>
     </div>
-    <div class="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-5 lg:grid-flow-dense items-start">
+    <div class="grid lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_1fr] gap-5 lg:grid-flow-dense items-start">
       <div class="space-y-4 min-w-0">
         ${liveTable(sess, { thinking: botTurn })}
         <div id="controls">${controls}</div>

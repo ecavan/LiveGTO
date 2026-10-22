@@ -270,7 +270,7 @@ function draw(container) {
       <div class="text-sm text-ink-300"><b class="text-white">Hand ${t.handNo}</b> · ${LEVELS[t.level].name} · ${t.n}-handed${t.stacks === 'mixed' ? ' · live stacks' : t.stacks === 'deep' ? ' · 200bb' : ''} · you are <b class="text-white">${posOf(s, HERO)}</b></div>
       ${playTabs('table')}
     </div>
-    <div class="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-5 lg:grid-flow-dense items-start">
+    <div class="grid lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_1fr] gap-5 lg:grid-flow-dense items-start">
       <div class="space-y-4 min-w-0">
         ${tableHtml(botTurn)}
         <div id="controls">${controls}</div>

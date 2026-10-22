@@ -355,7 +355,7 @@ function draw(container) {
   </div>`;
   container.innerHTML = `<div class="page space-y-4">
     ${header}
-    <div class="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-5 lg:grid-flow-dense items-start">
+    <div class="grid lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_1fr] gap-5 lg:grid-flow-dense items-start">
       <div class="space-y-4 min-w-0">
         ${tableHtml(r, current.view)}
         <div class="text-center text-ink-200">You have <b class="text-white">${esc(p.hand)}</b>. What's your play?</div>
