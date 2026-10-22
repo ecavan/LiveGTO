@@ -382,9 +382,14 @@ function draw(container) {
 function wire(container) {
   wireFilters(container, () => { cur.rated = null; navigate('puzzles'); });
   wireLevel(container, () => { cur.rated = null; filters.profile = ''; stats = loadStats(); navigate('puzzles'); });
-  container.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', () => answer(container, Number(btn.dataset.act))));
+  container.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', (e) => {
+    // the second tap of a double tap on a bucket lands on the play buttons that replace them
+    if (e.detail && performance.now() - (current?.bkAt || 0) < 400) return;
+    answer(container, Number(btn.dataset.act));
+  }));
   container.querySelectorAll('#bk-ask [data-bk]').forEach(btn => btn.addEventListener('click', () => {
-    if (!current) return;
+    if (!current || current.bk) return;
+    current.bkAt = performance.now();
     current.bk = gradeBucket(ids(current.puzzle.cards.match(/../g)), ids(current.record.board), btn.dataset.bk);
     recordBucket(stats, current.bk);
     saveStats(stats);

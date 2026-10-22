@@ -192,8 +192,14 @@ function draw(container, p) {
       </div>
     </div>
   </div>`;
-  container.querySelectorAll('#gz-acts [data-i]').forEach(b => b.addEventListener('click', () => answer(container, p, Number(b.dataset.i))));
+  container.querySelectorAll('#gz-acts [data-i]').forEach(b => b.addEventListener('click', (e) => {
+    // the second tap of a double tap on a bucket lands on the play buttons that replace them
+    if (e.detail && performance.now() - (p.bkAt || 0) < 400) return;
+    answer(container, p, Number(b.dataset.i));
+  }));
   container.querySelectorAll('#bk-ask [data-bk]').forEach(b => b.addEventListener('click', () => {
+    if (p.bk) return;
+    p.bkAt = performance.now();
     p.bk = gradeBucket(h.holes[h.hero], h.runout.slice(0, [0, 3, 4, 5][h.street]), b.dataset.bk);
     const st = loadStats();
     recordBucket(st, p.bk);
