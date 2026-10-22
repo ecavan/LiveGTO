@@ -108,7 +108,7 @@ function lastActions(s) {
 
 function hudLine(p) {
   const h = p.hud;
-  if (!h || h.hands < 8) return `${h?.hands ?? 0} hands`;
+  if (!h || h.hands < 8) return `${h?.hands ?? 0} hand${h?.hands === 1 ? '' : 's'}`;
   return `${Math.round((100 * h.vpip) / h.hands)} / ${Math.round((100 * h.pfr) / h.hands)}`;
 }
 
