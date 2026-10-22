@@ -69,7 +69,8 @@ export function render(container) {
           <td class="py-1.5 pr-3 font-semibold text-white">${esc(GUIDE[k].name)}</td>
           ${stats.map(s => `<td class="py-1.5 pr-3 text-ink-200">${t[s] ?? '—'}${s === 'AFq' || t[s] == null ? '' : '%'}</td>`).join('')}</tr>`).join('')}</tbody>
       </table>
-      <p class="text-[11px] text-ink-400 mt-2">Hover a column for its meaning. VPIP / PFR is the first read: 50 / 10 is a whale, 13 / 9 a nit, 23 / 17 a reg. Fish, Nit and Maniac: 8.9 million 25NL–100NL hands (2009). Reg: halfway between those regs and today's pros (more 3-bets, lighter c-bets). Shark and Pro: the 2019 Pluribus games.</p>
+      <dl class="grid sm:grid-cols-3 gap-x-4 gap-y-1 text-[11px] text-ink-300 mt-3">${stats.map(st => `<div><dt class="inline font-semibold text-ink-100">${HEAD[st][0]}</dt> <dd class="inline">${esc(HEAD[st][1].toLowerCase())}</dd></div>`).join('')}</dl>
+      <p class="text-[11px] text-ink-400 mt-2">VPIP / PFR is the first read: 50 / 10 is a whale, 13 / 9 a nit, 23 / 17 a reg. Fish, Nit and Maniac: 8.9 million 25NL–100NL hands (2009). Reg: halfway between those regs and today's pros (more 3-bets, lighter c-bets). Shark and Pro: the 2019 Pluribus games.</p>
     </section>
 
     <section class="grid sm:grid-cols-2 gap-3">

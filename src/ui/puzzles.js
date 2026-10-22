@@ -4,7 +4,7 @@
  */
 import {
   PROFILES, candidates, families, pickPuzzle, key, grade, updateRating, explain,
-  cellLabel, cellOf, loadStats, saveStats, queueMiss, queueResult, dueItems, dailyPick, dailyStreak, today, dayRand, INTERVALS,
+  cellLabel, cellOf, loadStats, saveStats, queueMiss, queueResult, dueItems, dailyPick, dailyStreak, dailyAt, setDaily, today, dayRand, INTERVALS,
 } from '../engine/puzzles.js';
 import { getIndex, getRecord, getFile } from '../engine/library.js';
 import { getLevel } from '../engine/level.js';
@@ -48,7 +48,7 @@ export async function render(container, params = []) {
     return undefined;
   }
   try {
-    if (mode === 'daily') { if (!cur.daily || cur.daily.date !== today()) await next(); }
+    if (mode === 'daily') { if (!cur.daily || cur.daily.date !== today() || cur.daily.level !== getLevel()) await next(); }
     else if (!cur[mode] || cur[mode].answered || (mode === 'review' && cur[mode].gen) || cur[mode].gen?.answered || (mode === 'rated' && cur.rated.level !== getLevel())) await next();
   } catch (e) {
     return loadError(container, e);
@@ -62,7 +62,7 @@ export async function render(container, params = []) {
   }
   draw(container);
   keyHandler = (e) => {
-    if (!container.isConnected) return;
+    if (!container.isConnected || /^(SELECT|INPUT|TEXTAREA)$/.test(e.target?.tagName)) return; // typing in a filter
     if (/^[1-9]$/.test(e.key)) {
       const ask = container.querySelectorAll('#bk-ask [data-bk]');
       if (ask.length) ask[Number(e.key) - 1]?.click();
@@ -122,9 +122,9 @@ async function load(cand, rand = Math.random) {
 async function next() {
   if (mode === 'daily') {
     const date = today();
-    const cand = dailyPick(index, date);
-    cur.daily = cand ? { ...(await load(cand, dayRand(date))), date } : null;
-    const done = stats.daily?.[date];
+    const cand = dailyPick(index, date, getLevel());
+    cur.daily = cand ? { ...(await load(cand, dayRand(date))), date, level: getLevel() } : null;
+    const done = dailyAt(stats, date, getLevel());
     if (cur.daily && done) {
       // already played today (e.g. after a reload): show the result, not the bucket question again
       cur.daily.answered = { g: grade(cur.daily.puzzle, cur.daily.record, done.choice), choice: done.choice };
@@ -331,7 +331,7 @@ function draw(container) {
       : `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Rating · L${stats.level}</div><div class="text-2xl font-semibold num text-emerald-300">${stats.rating}</div></div>
          <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Solved</div><div class="text-2xl font-semibold num">${acc}%</div></div>`;
   const header = `<div class="flex items-end justify-between gap-4 flex-wrap">
-    <div><div class="h-sec">Puzzles</div><h1 class="h-title">${title}</h1>${mode === 'rated' ? `<div class="mt-2">${levelSwitch({ blurb: false })}</div>` : ''}</div>
+    <div><div class="h-sec">Puzzles</div><h1 class="h-title">${title}</h1>${mode !== 'review' ? `<div class="mt-2">${levelSwitch({ blurb: false })}</div>` : ''}</div>
     <div class="flex gap-5 text-right items-end">
       ${statsHtml}
       ${current ? `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Puzzle</div><div class="text-2xl font-semibold num text-ink-200">${current.puzzle.rating}</div></div>` : ''}
@@ -381,7 +381,7 @@ function draw(container) {
 
 function wire(container) {
   wireFilters(container, () => { cur.rated = null; navigate('puzzles'); });
-  wireLevel(container, () => { cur.rated = null; filters.profile = ''; stats = loadStats(); navigate('puzzles'); });
+  wireLevel(container, () => { cur.rated = null; filters.profile = ''; stats = loadStats(); navigate(mode === 'daily' ? 'puzzles/daily' : 'puzzles'); });
   container.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', (e) => {
     // the second tap of a double tap on a bucket lands on the play buttons that replace them
     if (e.detail && performance.now() - (current?.bkAt || 0) < 400) return;
@@ -419,7 +419,7 @@ function answer(container, choice) {
     stats.history = [...stats.history, { id: k, v: g.verdict, loss: +g.loss_bb.toFixed(2), d: stats.rating - before }].slice(-500);
     if (!g.correct) queueMiss(stats, cand);
   } else if (mode === 'daily') {
-    stats.daily = { ...(stats.daily || {}), [current.date]: { choice, v: g.verdict } };
+    setDaily(stats, current.date, current.level ?? getLevel(), { choice, v: g.verdict });
     if (!g.correct) queueMiss(stats, cand);
   } else {
     queueResult(stats, k, g.correct);

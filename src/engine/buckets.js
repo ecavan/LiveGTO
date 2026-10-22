@@ -8,7 +8,7 @@
  *                   on boards where a flush, a straight or a full house is possible
  *   Bluff-catcher   a pair that beats bluffs but not value: top pair weak kicker, middle pair,
  *                   small pocket pairs (showdown value)
- *   Draw            no pair yet, real outs: flush draws, open-enders, combo draws
+ *   Draw            real outs: flush draws, open-enders, combo draws, or a weak pair with one
  *   Air with equity no pair, no real draw, but live: a gutshot, two overcards, or on the flop a
  *                   backdoor flush or straight draw. Where your bluffs come from
  *   Air             nothing to improve to: give up unless you have a reason
@@ -26,7 +26,7 @@ export const BUCKETS = [
   { key: 'nuts', name: 'Nuts', desc: 'the best hand or close to it on this board' },
   { key: 'value', name: 'Value', desc: 'strong but beatable: overpairs, top pair good kicker, two pair' },
   { key: 'catcher', name: 'Bluff-catcher', desc: 'a pair that beats bluffs, not value' },
-  { key: 'draw', name: 'Draw', desc: 'flush draws, open-enders, combo draws' },
+  { key: 'draw', name: 'Draw', desc: 'flush draws, open-enders, a pair with a draw' },
   { key: 'eqair', name: 'Air with equity', desc: 'gutshots, two overcards, backdoor draws' },
   { key: 'air', name: 'Air', desc: 'nothing to improve to' },
 ];
@@ -200,7 +200,8 @@ export function bucketOf(hole, board) {
   const cls = classify(hole, board);
   if (cls === 'monster') return vulnerability(hole, board).length ? 'value' : 'nuts';
   if (cls === 'strong') return 'value';
-  if (cls === 'medium' || cls === 'weak') return 'catcher';
+  // a medium or weak pair with a flush draw or an open-ender plays like a (strong) draw
+  if (cls === 'medium' || cls === 'weak') return board.length < 5 && (hasFlushDraw(hole, board) || straightRanks(hole, board) >= 2) ? 'draw' : 'catcher';
   if (cls === 'draw') return 'draw';
   return airEquity(hole, board).length ? 'eqair' : 'air';
 }
@@ -217,8 +218,10 @@ export function bucketWhy(hole, board) {
   if (b === 'eqair') return airEquity(hole, board).join(' · ');
   if (b === 'draw') {
     const ranks = straightRanks(hole, board);
-    if (!hasFlushDraw(hole, board)) return 'an open-ender or double gutshot (8 outs)';
+    const pair = cls === 'medium' || cls === 'weak' ? `${pairWhy(hole, board) || 'a pair'} and ` : '';
+    if (!hasFlushDraw(hole, board)) return pair ? `${pair}an open-ender` : 'an open-ender or double gutshot (8 outs)';
     const st = ranks >= 2 ? 'an open-ender' : ranks === 1 ? 'a gutshot' : '';
+    if (pair) return `${pair}a flush draw${st ? ` and ${st}` : ''}`;
     return st ? `a flush draw and ${st} (${ranks >= 2 ? 15 : 12} outs)` : 'a flush draw (9 outs)';
   }
   if (b === 'value' || b === 'catcher') return pairWhy(hole, board) || BUCKET[b].desc;

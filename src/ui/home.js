@@ -1,7 +1,7 @@
 /**
  * Home: the three modes, with where you are in each.
  */
-import { loadStats, dueItems, dailyStreak, today } from '../engine/puzzles.js';
+import { loadStats, dueItems, dailyStreak, dailyAt, today } from '../engine/puzzles.js';
 import { loadHands, leakReport } from '../engine/history.js';
 import { loadRaw, KEYS } from '../store.js';
 import { playRatingNow } from './ratings.js';
@@ -17,7 +17,7 @@ export function render(container) {
   const doneSteps = Object.keys(learn.done || {}).length;
   const due = dueItems(pz).length;
   const streak = dailyStreak(pz);
-  const dailyDone = !!pz.daily?.[today()];
+  const dailyDone = !!dailyAt(pz, today());
   const hands = loadHands();
   const topLeak = hands.length >= 10 ? leakReport(hands).leaks[0] : null;
   const quick = (href, ic, col, title, sub, badge = 0) => `<a href="${href}" class="panel px-4 py-3 flex items-center gap-3 hover:border-ink-500">

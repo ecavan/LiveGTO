@@ -55,7 +55,7 @@ export async function render(container, kind, { review = null, rated = null } = 
   p.ref = rated;
   draw(container, p);
   const onKey = (e) => {
-    if (!container.isConnected) return;
+    if (!container.isConnected || /^(SELECT|INPUT|TEXTAREA)$/.test(e.target?.tagName)) return; // typing in a filter
     if (/^[1-9]$/.test(e.key)) {
       const ask = container.querySelectorAll('#bk-ask [data-bk]');
       if (ask.length) ask[Number(e.key) - 1]?.click();

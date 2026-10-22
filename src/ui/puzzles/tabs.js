@@ -2,12 +2,12 @@
  * Puzzle modes: rated (the solver library plus flop and multiway spots), today's daily, your
  * review queue, the preflop range builder, and the postflop bucket drill.
  */
-import { loadStats, dueItems, today } from '../../engine/puzzles.js';
+import { loadStats, dueItems, today, dailyAt } from '../../engine/puzzles.js';
 
 export function puzzleTabs(active) {
   const st = loadStats();
   const due = dueItems(st).length;
-  const dailyDone = !!st.daily?.[today()];
+  const dailyDone = !!dailyAt(st, today());
   const items = [
     ['', 'Rated'],
     ['daily', `Daily${dailyDone ? ' ✓' : ''}`],

@@ -267,7 +267,7 @@ function draw(container) {
   const openState = [...container.querySelectorAll('#coach details, #side details')].map(d => d.open);
   container.innerHTML = `<div class="page">
     <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
-      <div class="text-sm text-ink-300"><b class="text-white">Hand ${t.handNo}</b> · ${LEVELS[t.level].name} · ${t.n}-handed${t.stacks === 'mixed' ? ' · live stacks' : t.stacks === 'deep' ? ' · 200bb' : ''} · you are <b class="text-white">${posOf(s, HERO)}</b></div>
+      <div class="text-sm text-ink-300"><b class="text-white">Hand ${t.handNo}</b> · ${LEVELS[t.level].name} · ${t.n}-handed · graded at Level ${t.coachLevel ?? 2}${t.stacks === 'mixed' ? ' · live stacks' : t.stacks === 'deep' ? ' · 200bb' : ''} · you are <b class="text-white">${posOf(s, HERO)}</b></div>
       ${playTabs('table')}
     </div>
     <div class="grid lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_1fr] gap-5 lg:grid-flow-dense items-start">
@@ -352,7 +352,7 @@ function review(container) {
   const tone = (x) => (x > 0 ? 'text-emerald-300' : x < 0 ? 'text-rose-300' : '');
   container.innerHTML = `<div class="page space-y-5 fade-up">
     <div class="flex items-end justify-between gap-3 flex-wrap">
-      <div><div class="h-sec">Session review</div><h1 class="h-title">Live table: ${LEVELS[t.level].name}, ${t.n}-handed</h1></div>
+      <div><div class="h-sec">Session review</div><h1 class="h-title">Live table: ${LEVELS[t.level].name}, ${t.n}-handed</h1><p class="muted text-sm mt-1">Graded at Level ${t.coachLevel ?? 2} (${(t.coachLevel ?? 2) === 1 ? 'baseline' : 'exploit'})</p></div>
       <div class="flex gap-2 flex-wrap"><a class="btn" href="#play/review/s/${t.startedAt}">${icon('review', 'w-4 h-4')} Game review</a><button class="btn" id="rv-again">Same table</button><button class="btn btn-primary" id="rv-new">New table</button></div>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">

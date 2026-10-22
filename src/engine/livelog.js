@@ -113,7 +113,21 @@ export function foldToHero(L) {
   }
 }
 
-export const undo = (L) => { L.actions.pop(); const s = stateOf(L); L.boardCards = L.boardCards.slice(0, Math.max(0, Math.min(L.boardCards.length, [0, 3, 4, 5][s.street] || 0))); };
+/**
+ * Undo the last step: the board cards just dealt if nobody has acted on that street yet, else the
+ * last action (and any board cards it no longer reaches).
+ */
+export function undo(L) {
+  const s = stateOf(L);
+  const prevNeed = [0, 0, 3, 4][s.street] ?? 0;
+  if (!s.done && s.street > 0 && !s.log.some(e => e.street === s.street) && L.boardCards.length > prevNeed) {
+    L.boardCards = L.boardCards.slice(0, prevNeed);
+    return;
+  }
+  L.actions.pop();
+  const s2 = stateOf(L);
+  L.boardCards = L.boardCards.slice(0, Math.max(0, Math.min(L.boardCards.length, [0, 3, 4, 5][s2.street] || 0)));
+}
 
 /** The table the coach sees: each seat's type as a player. */
 function tableOf(L, level = 2) {

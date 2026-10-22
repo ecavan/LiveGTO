@@ -316,16 +316,31 @@ export function dayRand(date) {
   };
 }
 
-/** The daily puzzle: an exploitative spot of middling difficulty, fixed by the date. */
-export function dailyPick(index, date = today()) {
-  const all = candidates(index, {});
+/** The daily puzzle at a level (vs GTO at Level 1, a villain type at 2), middling difficulty, fixed by the date. */
+export function dailyPick(index, date = today(), level = getLevel()) {
+  const all = candidates(index, { level });
   const pool = all.filter(c => c.rating >= 1150 && c.rating <= 1750);
   const list = (pool.length ? pool : all).sort((a, b) => (key(a) < key(b) ? -1 : 1));
   if (!list.length) return null;
   return list[hashStr(date) % list.length];
 }
 
-/** Consecutive days (ending today, or yesterday if today isn't done yet) with the daily played. */
+/**
+ * Your answer to the daily at a level: stats.daily[date].byLevel[level] = { choice, v }. Days saved
+ * before levels existed ({ choice, v }) were Level 2 dailies.
+ */
+export function dailyAt(stats, date, level = getLevel()) {
+  const e = stats.daily?.[date];
+  if (!e) return null;
+  return e.byLevel?.[level] ?? (level === 2 && e.choice != null ? { choice: e.choice, v: e.v } : null);
+}
+export function setDaily(stats, date, level, ans) {
+  const e = stats.daily?.[date] || {};
+  const byLevel = { ...(e.byLevel || (e.choice != null ? { 2: { choice: e.choice, v: e.v } } : {})), [level]: ans };
+  stats.daily = { ...(stats.daily || {}), [date]: { byLevel } };
+}
+
+/** Consecutive days (ending today, or yesterday if today isn't done yet) with a daily played (either level). */
 export function dailyStreak(stats, now = new Date()) {
   const done = stats.daily || {};
   let n = 0;

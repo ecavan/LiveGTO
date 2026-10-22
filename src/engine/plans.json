@@ -1,0 +1,2164 @@
+{
+ "version": 1,
+ "spots": 939,
+ "levels": {
+  "gto": {
+   "dry": {
+    "bet": {
+     "nuts": {
+      "act": "bet big",
+      "p": 0.78,
+      "dist": {
+       "check": 0.09,
+       "bet small": 0.12,
+       "bet big": 0.78
+      }
+     },
+     "value": {
+      "act": "bet big",
+      "p": 0.57,
+      "dist": {
+       "bet small": 0.26,
+       "bet big": 0.57,
+       "check": 0.17
+      }
+     },
+     "catcher": {
+      "act": "check",
+      "p": 0.63,
+      "dist": {
+       "bet small": 0.19,
+       "check": 0.63,
+       "bet big": 0.18
+      }
+     },
+     "draw": {
+      "act": "bet big",
+      "p": 0.67,
+      "dist": {
+       "bet small": 0.13,
+       "check": 0.2,
+       "bet big": 0.67
+      }
+     },
+     "eqair": {
+      "act": "bet big",
+      "p": 0.36,
+      "dist": {
+       "bet big": 0.36,
+       "check": 0.64
+      }
+     },
+     "air": {
+      "act": "check",
+      "p": 0.64,
+      "dist": {
+       "check": 0.64
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "raise",
+      "p": 0.58,
+      "dist": {
+       "call": 0.35,
+       "raise": 0.58,
+       "fold": 0.07
+      }
+     },
+     "value": {
+      "act": "call",
+      "p": 0.78,
+      "dist": {
+       "raise": 0.17,
+       "call": 0.78,
+       "fold": 0.05
+      }
+     },
+     "catcher": {
+      "act": "fold",
+      "p": 0.49,
+      "dist": {
+       "call": 0.47,
+       "fold": 0.49
+      }
+     },
+     "draw": {
+      "act": "call",
+      "p": 0.71,
+      "dist": {
+       "call": 0.71,
+       "fold": 0.11,
+       "raise": 0.18
+      }
+     },
+     "eqair": {
+      "act": "fold",
+      "p": 0.85,
+      "dist": {
+       "fold": 0.85
+      }
+     },
+     "air": {
+      "act": "fold",
+      "p": 0.85,
+      "dist": {
+       "fold": 0.85
+      }
+     }
+    }
+   },
+   "wet": {
+    "bet": {
+     "nuts": {
+      "act": "bet big",
+      "p": 0.57,
+      "dist": {
+       "bet small": 0.22,
+       "bet big": 0.57,
+       "check": 0.21
+      }
+     },
+     "value": {
+      "act": "bet big",
+      "p": 0.46,
+      "dist": {
+       "check": 0.29,
+       "bet small": 0.26,
+       "bet big": 0.46
+      }
+     },
+     "catcher": {
+      "act": "check",
+      "p": 0.64,
+      "dist": {
+       "check": 0.64,
+       "bet small": 0.19,
+       "bet big": 0.18
+      }
+     },
+     "draw": {
+      "act": "bet big",
+      "p": 0.56,
+      "dist": {
+       "check": 0.21,
+       "bet small": 0.23,
+       "bet big": 0.56
+      }
+     },
+     "eqair": {
+      "act": "bet big",
+      "p": 0.36,
+      "dist": {
+       "bet big": 0.36,
+       "check": 0.64
+      }
+     },
+     "air": {
+      "act": "check",
+      "p": 0.64,
+      "dist": {
+       "check": 0.64
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "call",
+      "p": 0.5,
+      "dist": {
+       "raise": 0.37,
+       "call": 0.5,
+       "fold": 0.12
+      }
+     },
+     "value": {
+      "act": "call",
+      "p": 0.62,
+      "dist": {
+       "raise": 0.15,
+       "call": 0.62,
+       "fold": 0.23
+      }
+     },
+     "catcher": {
+      "act": "fold",
+      "p": 0.56,
+      "dist": {
+       "call": 0.39,
+       "raise": 0.05,
+       "fold": 0.56
+      }
+     },
+     "draw": {
+      "act": "call",
+      "p": 0.57,
+      "dist": {
+       "call": 0.57,
+       "raise": 0.14,
+       "fold": 0.28
+      }
+     },
+     "eqair": {
+      "act": "fold",
+      "p": 0.85,
+      "dist": {
+       "fold": 0.85
+      }
+     },
+     "air": {
+      "act": "fold",
+      "p": 0.85,
+      "dist": {
+       "fold": 0.85
+      }
+     }
+    }
+   },
+   "paired": {
+    "bet": {
+     "nuts": {
+      "act": "bet big",
+      "p": 0.64,
+      "dist": {
+       "bet small": 0.16,
+       "check": 0.2,
+       "bet big": 0.64
+      }
+     },
+     "value": {
+      "act": "bet big",
+      "p": 0.55,
+      "dist": {
+       "bet small": 0.23,
+       "bet big": 0.55,
+       "check": 0.22
+      }
+     },
+     "catcher": {
+      "act": "check",
+      "p": 0.55,
+      "dist": {
+       "bet small": 0.24,
+       "bet big": 0.21,
+       "check": 0.55
+      }
+     },
+     "draw": {
+      "act": "bet big",
+      "p": 0.67,
+      "dist": {
+       "check": 0.14,
+       "bet big": 0.67,
+       "bet small": 0.19
+      }
+     },
+     "eqair": {
+      "act": "bet big",
+      "p": 0.34,
+      "dist": {
+       "bet big": 0.34,
+       "check": 0.66
+      }
+     },
+     "air": {
+      "act": "check",
+      "p": 0.66,
+      "dist": {
+       "check": 0.66
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "call",
+      "p": 0.46,
+      "dist": {
+       "raise": 0.32,
+       "call": 0.46,
+       "fold": 0.22
+      }
+     },
+     "value": {
+      "act": "call",
+      "p": 0.77,
+      "dist": {
+       "call": 0.77,
+       "raise": 0.18
+      }
+     },
+     "catcher": {
+      "act": "call",
+      "p": 0.54,
+      "dist": {
+       "fold": 0.42,
+       "call": 0.54
+      }
+     },
+     "draw": {
+      "act": "call",
+      "p": 0.71,
+      "dist": {
+       "fold": 0.2,
+       "call": 0.71,
+       "raise": 0.09
+      }
+     },
+     "eqair": {
+      "act": "call",
+      "p": 0.24,
+      "dist": {
+       "call": 0.24,
+       "fold": 0.76
+      }
+     },
+     "air": {
+      "act": "fold",
+      "p": 0.76,
+      "dist": {
+       "fold": 0.76
+      }
+     }
+    }
+   },
+   "monotone": {
+    "bet": {
+     "nuts": {
+      "act": "bet big",
+      "p": 0.54,
+      "dist": {
+       "check": 0.2,
+       "bet small": 0.26,
+       "bet big": 0.54
+      }
+     },
+     "value": {
+      "act": "bet big",
+      "p": 0.39,
+      "dist": {
+       "bet small": 0.29,
+       "bet big": 0.39,
+       "check": 0.32
+      }
+     },
+     "catcher": {
+      "act": "check",
+      "p": 0.61,
+      "dist": {
+       "bet small": 0.19,
+       "bet big": 0.2,
+       "check": 0.61
+      }
+     },
+     "draw": {
+      "act": "bet big",
+      "p": 0.48,
+      "dist": {
+       "bet small": 0.26,
+       "bet big": 0.48,
+       "check": 0.25
+      }
+     },
+     "eqair": {
+      "act": "bet big",
+      "p": 0.33,
+      "dist": {
+       "bet big": 0.33,
+       "check": 0.67
+      }
+     },
+     "air": {
+      "act": "check",
+      "p": 0.67,
+      "dist": {
+       "check": 0.67
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "call",
+      "p": 0.55,
+      "dist": {
+       "call": 0.55,
+       "fold": 0.16,
+       "raise": 0.29
+      }
+     },
+     "value": {
+      "act": "call",
+      "p": 0.65,
+      "dist": {
+       "call": 0.65,
+       "fold": 0.28,
+       "raise": 0.07
+      }
+     },
+     "catcher": {
+      "act": "fold",
+      "p": 0.61,
+      "dist": {
+       "fold": 0.61,
+       "call": 0.34,
+       "raise": 0.05
+      }
+     },
+     "draw": {
+      "act": "call",
+      "p": 0.6,
+      "dist": {
+       "call": 0.6,
+       "fold": 0.31,
+       "raise": 0.08
+      }
+     },
+     "eqair": {
+      "act": "fold",
+      "p": 0.85,
+      "dist": {
+       "fold": 0.85
+      }
+     },
+     "air": {
+      "act": "fold",
+      "p": 0.85,
+      "dist": {
+       "fold": 0.85
+      }
+     }
+    }
+   }
+  },
+  "station": {
+   "dry": {
+    "bet": {
+     "nuts": {
+      "act": "bet big",
+      "p": 0.53,
+      "dist": {
+       "bet big": 0.53,
+       "bet small": 0.46
+      }
+     },
+     "value": {
+      "act": "bet big",
+      "p": 0.48,
+      "dist": {
+       "bet big": 0.48,
+       "bet small": 0.44,
+       "check": 0.08
+      }
+     },
+     "catcher": {
+      "act": "bet big",
+      "p": 0.55,
+      "dist": {
+       "bet big": 0.55,
+       "check": 0.11,
+       "bet small": 0.34
+      }
+     },
+     "draw": {
+      "act": "bet big",
+      "p": 0.51,
+      "dist": {
+       "check": 0.23,
+       "bet big": 0.51,
+       "bet small": 0.26
+      }
+     },
+     "eqair": {
+      "act": "bet big",
+      "p": 0.93,
+      "dist": {
+       "bet big": 0.93,
+       "check": 0.07
+      }
+     },
+     "air": {
+      "act": "bet big",
+      "p": 0.93,
+      "dist": {
+       "bet big": 0.93,
+       "check": 0.07
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "raise",
+      "p": 0.87,
+      "dist": {
+       "call": 0.13,
+       "raise": 0.87
+      }
+     },
+     "value": {
+      "act": "raise",
+      "p": 0.63,
+      "dist": {
+       "call": 0.3,
+       "raise": 0.63,
+       "fold": 0.08
+      }
+     },
+     "catcher": {
+      "act": "raise",
+      "p": 0.56,
+      "dist": {
+       "call": 0.21,
+       "fold": 0.24,
+       "raise": 0.56
+      }
+     },
+     "draw": {
+      "act": "call",
+      "p": 0.66,
+      "dist": {
+       "raise": 0.34,
+       "call": 0.66
+      }
+     },
+     "eqair": {
+      "act": "raise",
+      "p": 0.71,
+      "dist": {
+       "raise": 0.71,
+       "fold": 0.29
+      }
+     },
+     "air": {
+      "act": "raise",
+      "p": 0.71,
+      "dist": {
+       "raise": 0.71,
+       "fold": 0.29
+      }
+     }
+    }
+   },
+   "wet": {
+    "bet": {
+     "nuts": {
+      "act": "bet small",
+      "p": 0.45,
+      "dist": {
+       "bet big": 0.43,
+       "check": 0.12,
+       "bet small": 0.45
+      }
+     },
+     "value": {
+      "act": "bet big",
+      "p": 0.46,
+      "dist": {
+       "bet small": 0.35,
+       "bet big": 0.46,
+       "check": 0.18
+      }
+     },
+     "catcher": {
+      "act": "bet big",
+      "p": 0.58,
+      "dist": {
+       "check": 0.17,
+       "bet big": 0.58,
+       "bet small": 0.25
+      }
+     },
+     "draw": {
+      "act": "bet big",
+      "p": 0.52,
+      "dist": {
+       "check": 0.2,
+       "bet small": 0.29,
+       "bet big": 0.52
+      }
+     },
+     "eqair": {
+      "act": "bet big",
+      "p": 0.89,
+      "dist": {
+       "bet big": 0.89,
+       "check": 0.11
+      }
+     },
+     "air": {
+      "act": "bet big",
+      "p": 0.89,
+      "dist": {
+       "bet big": 0.89,
+       "check": 0.11
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "raise",
+      "p": 0.7,
+      "dist": {
+       "raise": 0.7,
+       "call": 0.23,
+       "fold": 0.08
+      }
+     },
+     "value": {
+      "act": "raise",
+      "p": 0.58,
+      "dist": {
+       "call": 0.28,
+       "raise": 0.58,
+       "fold": 0.14
+      }
+     },
+     "catcher": {
+      "act": "raise",
+      "p": 0.49,
+      "dist": {
+       "call": 0.2,
+       "raise": 0.49,
+       "fold": 0.31
+      }
+     },
+     "draw": {
+      "act": "raise",
+      "p": 0.6,
+      "dist": {
+       "call": 0.4,
+       "raise": 0.6
+      }
+     },
+     "eqair": {
+      "act": "raise",
+      "p": 0.67,
+      "dist": {
+       "raise": 0.67,
+       "fold": 0.33
+      }
+     },
+     "air": {
+      "act": "raise",
+      "p": 0.67,
+      "dist": {
+       "raise": 0.67,
+       "fold": 0.33
+      }
+     }
+    }
+   },
+   "paired": {
+    "bet": {
+     "nuts": {
+      "act": "bet small",
+      "p": 0.4,
+      "dist": {
+       "bet big": 0.34,
+       "check": 0.25,
+       "bet small": 0.4
+      }
+     },
+     "value": {
+      "act": "bet big",
+      "p": 0.52,
+      "dist": {
+       "bet big": 0.52,
+       "check": 0.17,
+       "bet small": 0.31
+      }
+     },
+     "catcher": {
+      "act": "bet big",
+      "p": 0.6,
+      "dist": {
+       "bet big": 0.6,
+       "bet small": 0.33,
+       "check": 0.07
+      }
+     },
+     "draw": {
+      "act": "bet small",
+      "p": 0.53,
+      "dist": {
+       "check": 0.17,
+       "bet small": 0.53,
+       "bet big": 0.3
+      }
+     },
+     "eqair": {
+      "act": "bet big",
+      "p": 0.9,
+      "dist": {
+       "bet big": 0.9,
+       "check": 0.1
+      }
+     },
+     "air": {
+      "act": "bet big",
+      "p": 0.9,
+      "dist": {
+       "bet big": 0.9,
+       "check": 0.1
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "raise",
+      "p": 0.64,
+      "dist": {
+       "raise": 0.64,
+       "call": 0.29,
+       "fold": 0.07
+      }
+     },
+     "value": {
+      "act": "raise",
+      "p": 0.49,
+      "dist": {
+       "raise": 0.49,
+       "call": 0.48
+      }
+     },
+     "catcher": {
+      "act": "raise",
+      "p": 0.46,
+      "dist": {
+       "call": 0.27,
+       "raise": 0.46,
+       "fold": 0.27
+      }
+     },
+     "draw": {
+      "act": "call",
+      "p": 0.75,
+      "dist": {
+       "call": 0.75,
+       "raise": 0.25
+      }
+     },
+     "eqair": {
+      "act": "raise",
+      "p": 0.73,
+      "dist": {
+       "raise": 0.73,
+       "fold": 0.27
+      }
+     },
+     "air": {
+      "act": "raise",
+      "p": 0.73,
+      "dist": {
+       "raise": 0.73,
+       "fold": 0.27
+      }
+     }
+    }
+   },
+   "monotone": {
+    "bet": {
+     "nuts": {
+      "act": "bet big",
+      "p": 0.51,
+      "dist": {
+       "bet big": 0.51,
+       "check": 0.12,
+       "bet small": 0.38
+      }
+     },
+     "value": {
+      "act": "bet big",
+      "p": 0.61,
+      "dist": {
+       "bet big": 0.61,
+       "check": 0.09,
+       "bet small": 0.3
+      }
+     },
+     "catcher": {
+      "act": "bet big",
+      "p": 0.63,
+      "dist": {
+       "bet small": 0.22,
+       "bet big": 0.63,
+       "check": 0.15
+      }
+     },
+     "draw": {
+      "act": "check",
+      "p": 0.46,
+      "dist": {
+       "check": 0.46,
+       "bet small": 0.31,
+       "bet big": 0.23
+      }
+     },
+     "eqair": {
+      "act": "bet big",
+      "p": 0.86,
+      "dist": {
+       "bet big": 0.86,
+       "check": 0.14
+      }
+     },
+     "air": {
+      "act": "bet big",
+      "p": 0.86,
+      "dist": {
+       "bet big": 0.86,
+       "check": 0.14
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "raise",
+      "p": 0.47,
+      "dist": {
+       "call": 0.45,
+       "fold": 0.08,
+       "raise": 0.47
+      }
+     },
+     "value": {
+      "act": "raise",
+      "p": 0.71,
+      "dist": {
+       "call": 0.21,
+       "fold": 0.07,
+       "raise": 0.71
+      }
+     },
+     "catcher": {
+      "act": "raise",
+      "p": 0.53,
+      "dist": {
+       "fold": 0.24,
+       "call": 0.23,
+       "raise": 0.53
+      }
+     },
+     "draw": {
+      "act": "call",
+      "p": 0.58,
+      "dist": {
+       "call": 0.58,
+       "raise": 0.42
+      }
+     },
+     "eqair": {
+      "act": "raise",
+      "p": 0.7,
+      "dist": {
+       "raise": 0.7,
+       "fold": 0.3
+      }
+     },
+     "air": {
+      "act": "raise",
+      "p": 0.7,
+      "dist": {
+       "raise": 0.7,
+       "fold": 0.3
+      }
+     }
+    }
+   }
+  },
+  "nit": {
+   "dry": {
+    "bet": {
+     "nuts": {
+      "act": "bet small",
+      "p": 0.54,
+      "dist": {
+       "bet big": 0.43,
+       "bet small": 0.54
+      }
+     },
+     "value": {
+      "act": "bet small",
+      "p": 0.53,
+      "dist": {
+       "bet small": 0.53,
+       "bet big": 0.33,
+       "check": 0.14
+      }
+     },
+     "catcher": {
+      "act": "bet small",
+      "p": 0.65,
+      "dist": {
+       "bet small": 0.65,
+       "check": 0.13,
+       "bet big": 0.22
+      }
+     },
+     "draw": {
+      "act": "bet small",
+      "p": 0.75,
+      "dist": {
+       "check": 0.15,
+       "bet small": 0.75,
+       "bet big": 0.1
+      }
+     },
+     "eqair": {
+      "act": "bet small",
+      "p": 0.97,
+      "dist": {
+       "bet small": 0.97,
+       "check": 0.03
+      }
+     },
+     "air": {
+      "act": "bet small",
+      "p": 0.97,
+      "dist": {
+       "bet small": 0.97,
+       "check": 0.03
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "raise",
+      "p": 0.86,
+      "dist": {
+       "call": 0.12,
+       "raise": 0.86
+      }
+     },
+     "value": {
+      "act": "raise",
+      "p": 0.44,
+      "dist": {
+       "call": 0.3,
+       "raise": 0.44,
+       "fold": 0.26
+      }
+     },
+     "catcher": {
+      "act": "raise",
+      "p": 0.5,
+      "dist": {
+       "call": 0.18,
+       "fold": 0.32,
+       "raise": 0.5
+      }
+     },
+     "draw": {
+      "act": "call",
+      "p": 0.54,
+      "dist": {
+       "call": 0.54,
+       "raise": 0.45
+      }
+     },
+     "eqair": {
+      "act": "raise",
+      "p": 0.7,
+      "dist": {
+       "raise": 0.7,
+       "fold": 0.3
+      }
+     },
+     "air": {
+      "act": "raise",
+      "p": 0.7,
+      "dist": {
+       "raise": 0.7,
+       "fold": 0.3
+      }
+     }
+    }
+   },
+   "wet": {
+    "bet": {
+     "nuts": {
+      "act": "bet small",
+      "p": 0.52,
+      "dist": {
+       "bet big": 0.36,
+       "bet small": 0.52,
+       "check": 0.12
+      }
+     },
+     "value": {
+      "act": "bet small",
+      "p": 0.49,
+      "dist": {
+       "bet small": 0.49,
+       "bet big": 0.27,
+       "check": 0.24
+      }
+     },
+     "catcher": {
+      "act": "bet small",
+      "p": 0.55,
+      "dist": {
+       "check": 0.19,
+       "bet small": 0.55,
+       "bet big": 0.27
+      }
+     },
+     "draw": {
+      "act": "bet small",
+      "p": 0.64,
+      "dist": {
+       "check": 0.14,
+       "bet small": 0.64,
+       "bet big": 0.21
+      }
+     },
+     "eqair": {
+      "act": "bet small",
+      "p": 0.92,
+      "dist": {
+       "bet small": 0.92,
+       "check": 0.08
+      }
+     },
+     "air": {
+      "act": "bet small",
+      "p": 0.92,
+      "dist": {
+       "bet small": 0.92,
+       "check": 0.08
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "raise",
+      "p": 0.52,
+      "dist": {
+       "raise": 0.52,
+       "call": 0.27,
+       "fold": 0.21
+      }
+     },
+     "value": {
+      "act": "raise",
+      "p": 0.35,
+      "dist": {
+       "call": 0.34,
+       "raise": 0.35,
+       "fold": 0.31
+      }
+     },
+     "catcher": {
+      "act": "raise",
+      "p": 0.42,
+      "dist": {
+       "call": 0.18,
+       "raise": 0.42,
+       "fold": 0.4
+      }
+     },
+     "draw": {
+      "act": "call",
+      "p": 0.8,
+      "dist": {
+       "call": 0.8,
+       "raise": 0.17
+      }
+     },
+     "eqair": {
+      "act": "raise",
+      "p": 0.59,
+      "dist": {
+       "raise": 0.59,
+       "fold": 0.41
+      }
+     },
+     "air": {
+      "act": "fold",
+      "p": 0.41,
+      "dist": {
+       "fold": 0.41
+      }
+     }
+    }
+   },
+   "paired": {
+    "bet": {
+     "nuts": {
+      "act": "bet small",
+      "p": 0.53,
+      "dist": {
+       "bet small": 0.53,
+       "bet big": 0.39,
+       "check": 0.08
+      }
+     },
+     "value": {
+      "act": "bet small",
+      "p": 0.42,
+      "dist": {
+       "bet small": 0.42,
+       "bet big": 0.32,
+       "check": 0.25
+      }
+     },
+     "catcher": {
+      "act": "bet small",
+      "p": 0.67,
+      "dist": {
+       "bet small": 0.67,
+       "bet big": 0.24,
+       "check": 0.09
+      }
+     },
+     "draw": {
+      "act": "bet small",
+      "p": 0.6,
+      "dist": {
+       "check": 0.08,
+       "bet big": 0.32,
+       "bet small": 0.6
+      }
+     },
+     "eqair": {
+      "act": "bet big",
+      "p": 0.94,
+      "dist": {
+       "bet big": 0.94,
+       "check": 0.06
+      }
+     },
+     "air": {
+      "act": "bet big",
+      "p": 0.94,
+      "dist": {
+       "bet big": 0.94,
+       "check": 0.06
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "raise",
+      "p": 0.46,
+      "dist": {
+       "raise": 0.46,
+       "call": 0.27,
+       "fold": 0.27
+      }
+     },
+     "value": {
+      "act": "raise",
+      "p": 0.55,
+      "dist": {
+       "call": 0.38,
+       "raise": 0.55,
+       "fold": 0.07
+      }
+     },
+     "catcher": {
+      "act": "raise",
+      "p": 0.54,
+      "dist": {
+       "call": 0.21,
+       "fold": 0.24,
+       "raise": 0.54
+      }
+     },
+     "draw": {
+      "act": "call",
+      "p": 1,
+      "dist": {
+       "call": 1
+      }
+     },
+     "eqair": {
+      "act": "raise",
+      "p": 0.6,
+      "dist": {
+       "raise": 0.6,
+       "fold": 0.4
+      }
+     },
+     "air": {
+      "act": "raise",
+      "p": 0.6,
+      "dist": {
+       "raise": 0.6,
+       "fold": 0.4
+      }
+     }
+    }
+   },
+   "monotone": {
+    "bet": {
+     "nuts": {
+      "act": "bet small",
+      "p": 0.57,
+      "dist": {
+       "check": 0.12,
+       "bet big": 0.31,
+       "bet small": 0.57
+      }
+     },
+     "value": {
+      "act": "bet small",
+      "p": 0.51,
+      "dist": {
+       "bet big": 0.25,
+       "check": 0.24,
+       "bet small": 0.51
+      }
+     },
+     "catcher": {
+      "act": "bet small",
+      "p": 0.55,
+      "dist": {
+       "check": 0.22,
+       "bet small": 0.55,
+       "bet big": 0.23
+      }
+     },
+     "draw": {
+      "act": "bet small",
+      "p": 0.77,
+      "dist": {
+       "check": 0.2,
+       "bet small": 0.77
+      }
+     },
+     "eqair": {
+      "act": "bet small",
+      "p": 0.84,
+      "dist": {
+       "bet small": 0.84,
+       "check": 0.16
+      }
+     },
+     "air": {
+      "act": "bet small",
+      "p": 0.84,
+      "dist": {
+       "bet small": 0.84,
+       "check": 0.16
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "raise",
+      "p": 0.43,
+      "dist": {
+       "call": 0.41,
+       "raise": 0.43,
+       "fold": 0.16
+      }
+     },
+     "value": {
+      "act": "raise",
+      "p": 0.39,
+      "dist": {
+       "call": 0.35,
+       "fold": 0.26,
+       "raise": 0.39
+      }
+     },
+     "catcher": {
+      "act": "fold",
+      "p": 0.43,
+      "dist": {
+       "fold": 0.43,
+       "call": 0.24,
+       "raise": 0.34
+      }
+     },
+     "draw": {
+      "act": "call",
+      "p": 0.81,
+      "dist": {
+       "call": 0.81,
+       "raise": 0.19
+      }
+     },
+     "eqair": {
+      "act": "raise",
+      "p": 0.61,
+      "dist": {
+       "raise": 0.61,
+       "fold": 0.39
+      }
+     },
+     "air": {
+      "act": "raise",
+      "p": 0.61,
+      "dist": {
+       "raise": 0.61,
+       "fold": 0.39
+      }
+     }
+    }
+   }
+  },
+  "maniac": {
+   "dry": {
+    "bet": {
+     "nuts": {
+      "act": "bet big",
+      "p": 0.53,
+      "dist": {
+       "bet big": 0.53,
+       "bet small": 0.46
+      }
+     },
+     "value": {
+      "act": "bet big",
+      "p": 0.48,
+      "dist": {
+       "bet big": 0.48,
+       "check": 0.08,
+       "bet small": 0.44
+      }
+     },
+     "catcher": {
+      "act": "bet big",
+      "p": 0.5,
+      "dist": {
+       "bet big": 0.5,
+       "check": 0.11,
+       "bet small": 0.39
+      }
+     },
+     "draw": {
+      "act": "bet small",
+      "p": 0.44,
+      "dist": {
+       "check": 0.21,
+       "bet small": 0.44,
+       "bet big": 0.36
+      }
+     },
+     "eqair": {
+      "act": "bet big",
+      "p": 0.91,
+      "dist": {
+       "bet big": 0.91,
+       "check": 0.09
+      }
+     },
+     "air": {
+      "act": "bet big",
+      "p": 0.91,
+      "dist": {
+       "bet big": 0.91,
+       "check": 0.09
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "raise",
+      "p": 0.78,
+      "dist": {
+       "call": 0.2,
+       "raise": 0.78
+      }
+     },
+     "value": {
+      "act": "raise",
+      "p": 0.62,
+      "dist": {
+       "raise": 0.62,
+       "call": 0.21,
+       "fold": 0.17
+      }
+     },
+     "catcher": {
+      "act": "raise",
+      "p": 0.52,
+      "dist": {
+       "call": 0.11,
+       "raise": 0.52,
+       "fold": 0.37
+      }
+     },
+     "draw": {
+      "act": "raise",
+      "p": 0.71,
+      "dist": {
+       "call": 0.28,
+       "raise": 0.71
+      }
+     },
+     "eqair": {
+      "act": "raise",
+      "p": 0.67,
+      "dist": {
+       "raise": 0.67,
+       "fold": 0.33
+      }
+     },
+     "air": {
+      "act": "raise",
+      "p": 0.67,
+      "dist": {
+       "raise": 0.67,
+       "fold": 0.33
+      }
+     }
+    }
+   },
+   "wet": {
+    "bet": {
+     "nuts": {
+      "act": "bet small",
+      "p": 0.49,
+      "dist": {
+       "bet big": 0.41,
+       "check": 0.1,
+       "bet small": 0.49
+      }
+     },
+     "value": {
+      "act": "bet small",
+      "p": 0.39,
+      "dist": {
+       "bet small": 0.39,
+       "bet big": 0.38,
+       "check": 0.23
+      }
+     },
+     "catcher": {
+      "act": "bet big",
+      "p": 0.47,
+      "dist": {
+       "check": 0.2,
+       "bet small": 0.33,
+       "bet big": 0.47
+      }
+     },
+     "draw": {
+      "act": "bet small",
+      "p": 0.41,
+      "dist": {
+       "check": 0.2,
+       "bet small": 0.41,
+       "bet big": 0.39
+      }
+     },
+     "eqair": {
+      "act": "bet big",
+      "p": 0.85,
+      "dist": {
+       "bet big": 0.85,
+       "check": 0.15
+      }
+     },
+     "air": {
+      "act": "bet big",
+      "p": 0.85,
+      "dist": {
+       "bet big": 0.85,
+       "check": 0.15
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "raise",
+      "p": 0.57,
+      "dist": {
+       "raise": 0.57,
+       "call": 0.3,
+       "fold": 0.13
+      }
+     },
+     "value": {
+      "act": "raise",
+      "p": 0.52,
+      "dist": {
+       "call": 0.21,
+       "raise": 0.52,
+       "fold": 0.28
+      }
+     },
+     "catcher": {
+      "act": "raise",
+      "p": 0.48,
+      "dist": {
+       "call": 0.13,
+       "raise": 0.48,
+       "fold": 0.38
+      }
+     },
+     "draw": {
+      "act": "raise",
+      "p": 0.58,
+      "dist": {
+       "call": 0.42,
+       "raise": 0.58
+      }
+     },
+     "eqair": {
+      "act": "raise",
+      "p": 0.52,
+      "dist": {
+       "raise": 0.52,
+       "fold": 0.48
+      }
+     },
+     "air": {
+      "act": "fold",
+      "p": 0.48,
+      "dist": {
+       "fold": 0.48
+      }
+     }
+    }
+   },
+   "paired": {
+    "bet": {
+     "nuts": {
+      "act": "bet small",
+      "p": 0.5,
+      "dist": {
+       "bet big": 0.34,
+       "bet small": 0.5,
+       "check": 0.16
+      }
+     },
+     "value": {
+      "act": "bet big",
+      "p": 0.49,
+      "dist": {
+       "bet big": 0.49,
+       "check": 0.18,
+       "bet small": 0.33
+      }
+     },
+     "catcher": {
+      "act": "bet big",
+      "p": 0.52,
+      "dist": {
+       "bet big": 0.52,
+       "bet small": 0.38,
+       "check": 0.1
+      }
+     },
+     "draw": {
+      "act": "bet small",
+      "p": 0.43,
+      "dist": {
+       "check": 0.23,
+       "bet small": 0.43,
+       "bet big": 0.34
+      }
+     },
+     "eqair": {
+      "act": "bet big",
+      "p": 0.85,
+      "dist": {
+       "bet big": 0.85,
+       "check": 0.15
+      }
+     },
+     "air": {
+      "act": "bet big",
+      "p": 0.85,
+      "dist": {
+       "bet big": 0.85,
+       "check": 0.15
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "fold",
+      "p": 0.38,
+      "dist": {
+       "raise": 0.36,
+       "call": 0.26,
+       "fold": 0.38
+      }
+     },
+     "value": {
+      "act": "raise",
+      "p": 0.57,
+      "dist": {
+       "raise": 0.57,
+       "fold": 0.12,
+       "call": 0.31
+      }
+     },
+     "catcher": {
+      "act": "raise",
+      "p": 0.48,
+      "dist": {
+       "raise": 0.48,
+       "call": 0.2,
+       "fold": 0.32
+      }
+     },
+     "draw": {
+      "act": "call",
+      "p": 0.49,
+      "dist": {
+       "call": 0.49,
+       "raise": 0.49
+      }
+     },
+     "eqair": {
+      "act": "raise",
+      "p": 0.62,
+      "dist": {
+       "raise": 0.62,
+       "fold": 0.38
+      }
+     },
+     "air": {
+      "act": "raise",
+      "p": 0.62,
+      "dist": {
+       "raise": 0.62,
+       "fold": 0.38
+      }
+     }
+    }
+   },
+   "monotone": {
+    "bet": {
+     "nuts": {
+      "act": "bet big",
+      "p": 0.48,
+      "dist": {
+       "check": 0.1,
+       "bet big": 0.48,
+       "bet small": 0.42
+      }
+     },
+     "value": {
+      "act": "bet big",
+      "p": 0.41,
+      "dist": {
+       "check": 0.26,
+       "bet big": 0.41,
+       "bet small": 0.34
+      }
+     },
+     "catcher": {
+      "act": "bet big",
+      "p": 0.45,
+      "dist": {
+       "check": 0.25,
+       "bet small": 0.31,
+       "bet big": 0.45
+      }
+     },
+     "draw": {
+      "act": "bet small",
+      "p": 0.49,
+      "dist": {
+       "check": 0.47,
+       "bet small": 0.49
+      }
+     },
+     "eqair": {
+      "act": "bet big",
+      "p": 0.79,
+      "dist": {
+       "bet big": 0.79,
+       "check": 0.21
+      }
+     },
+     "air": {
+      "act": "bet big",
+      "p": 0.79,
+      "dist": {
+       "bet big": 0.79,
+       "check": 0.21
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "raise",
+      "p": 0.66,
+      "dist": {
+       "call": 0.2,
+       "fold": 0.14,
+       "raise": 0.66
+      }
+     },
+     "value": {
+      "act": "raise",
+      "p": 0.69,
+      "dist": {
+       "raise": 0.69,
+       "fold": 0.22,
+       "call": 0.09
+      }
+     },
+     "catcher": {
+      "act": "raise",
+      "p": 0.63,
+      "dist": {
+       "fold": 0.25,
+       "raise": 0.63,
+       "call": 0.12
+      }
+     },
+     "draw": {
+      "act": "raise",
+      "p": 0.65,
+      "dist": {
+       "call": 0.35,
+       "raise": 0.65
+      }
+     },
+     "eqair": {
+      "act": "raise",
+      "p": 0.64,
+      "dist": {
+       "raise": 0.64,
+       "fold": 0.36
+      }
+     },
+     "air": {
+      "act": "raise",
+      "p": 0.64,
+      "dist": {
+       "raise": 0.64,
+       "fold": 0.36
+      }
+     }
+    }
+   }
+  },
+  "whale": {
+   "dry": {
+    "bet": {
+     "nuts": {
+      "act": "bet big",
+      "p": 0.86,
+      "dist": {
+       "check": 0.11,
+       "bet big": 0.86
+      }
+     },
+     "value": {
+      "act": "bet big",
+      "p": 0.7,
+      "dist": {
+       "check": 0.17,
+       "bet big": 0.7,
+       "bet small": 0.13
+      }
+     },
+     "catcher": {
+      "act": "bet big",
+      "p": 0.56,
+      "dist": {
+       "check": 0.23,
+       "bet big": 0.56,
+       "bet small": 0.21
+      }
+     },
+     "draw": {
+      "act": "bet big",
+      "p": 0.5,
+      "dist": {
+       "check": 0.29,
+       "bet big": 0.5,
+       "bet small": 0.21
+      }
+     },
+     "eqair": {
+      "act": "bet big",
+      "p": 0.75,
+      "dist": {
+       "bet big": 0.75,
+       "check": 0.25
+      }
+     },
+     "air": {
+      "act": "bet big",
+      "p": 0.75,
+      "dist": {
+       "bet big": 0.75,
+       "check": 0.25
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "raise",
+      "p": 0.75,
+      "dist": {
+       "call": 0.14,
+       "raise": 0.75,
+       "fold": 0.11
+      }
+     },
+     "value": {
+      "act": "fold",
+      "p": 0.46,
+      "dist": {
+       "fold": 0.46,
+       "call": 0.23,
+       "raise": 0.3
+      }
+     },
+     "catcher": {
+      "act": "fold",
+      "p": 0.87,
+      "dist": {
+       "fold": 0.87,
+       "call": 0.07,
+       "raise": 0.06
+      }
+     },
+     "draw": {
+      "act": "call",
+      "p": 0.52,
+      "dist": {
+       "call": 0.52,
+       "raise": 0.45
+      }
+     },
+     "eqair": {
+      "act": "fold",
+      "p": 0.86,
+      "dist": {
+       "fold": 0.86
+      }
+     },
+     "air": {
+      "act": "fold",
+      "p": 0.86,
+      "dist": {
+       "fold": 0.86
+      }
+     }
+    }
+   },
+   "wet": {
+    "bet": {
+     "nuts": {
+      "act": "bet big",
+      "p": 0.69,
+      "dist": {
+       "bet big": 0.69,
+       "check": 0.19,
+       "bet small": 0.12
+      }
+     },
+     "value": {
+      "act": "bet big",
+      "p": 0.53,
+      "dist": {
+       "check": 0.31,
+       "bet big": 0.53,
+       "bet small": 0.16
+      }
+     },
+     "catcher": {
+      "act": "bet big",
+      "p": 0.48,
+      "dist": {
+       "check": 0.35,
+       "bet small": 0.18,
+       "bet big": 0.48
+      }
+     },
+     "draw": {
+      "act": "bet big",
+      "p": 0.48,
+      "dist": {
+       "check": 0.26,
+       "bet small": 0.26,
+       "bet big": 0.48
+      }
+     },
+     "eqair": {
+      "act": "bet big",
+      "p": 0.62,
+      "dist": {
+       "bet big": 0.62,
+       "check": 0.38
+      }
+     },
+     "air": {
+      "act": "bet big",
+      "p": 0.62,
+      "dist": {
+       "bet big": 0.62,
+       "check": 0.38
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "raise",
+      "p": 0.63,
+      "dist": {
+       "raise": 0.63,
+       "call": 0.13,
+       "fold": 0.25
+      }
+     },
+     "value": {
+      "act": "fold",
+      "p": 0.58,
+      "dist": {
+       "fold": 0.58,
+       "call": 0.14,
+       "raise": 0.27
+      }
+     },
+     "catcher": {
+      "act": "fold",
+      "p": 0.85,
+      "dist": {
+       "fold": 0.85,
+       "raise": 0.1,
+       "call": 0.06
+      }
+     },
+     "draw": {
+      "act": "call",
+      "p": 0.52,
+      "dist": {
+       "fold": 0.29,
+       "call": 0.52,
+       "raise": 0.19
+      }
+     },
+     "eqair": {
+      "act": "fold",
+      "p": 0.85,
+      "dist": {
+       "fold": 0.85
+      }
+     },
+     "air": {
+      "act": "fold",
+      "p": 0.85,
+      "dist": {
+       "fold": 0.85
+      }
+     }
+    }
+   },
+   "paired": {
+    "bet": {
+     "nuts": {
+      "act": "bet big",
+      "p": 0.52,
+      "dist": {
+       "bet big": 0.52,
+       "check": 0.37,
+       "bet small": 0.1
+      }
+     },
+     "value": {
+      "act": "bet big",
+      "p": 0.68,
+      "dist": {
+       "bet big": 0.68,
+       "check": 0.28
+      }
+     },
+     "catcher": {
+      "act": "bet big",
+      "p": 0.65,
+      "dist": {
+       "check": 0.15,
+       "bet big": 0.65,
+       "bet small": 0.21
+      }
+     },
+     "draw": {
+      "act": "bet big",
+      "p": 0.45,
+      "dist": {
+       "check": 0.3,
+       "bet big": 0.45,
+       "bet small": 0.25
+      }
+     },
+     "eqair": {
+      "act": "bet big",
+      "p": 0.66,
+      "dist": {
+       "bet big": 0.66,
+       "check": 0.34
+      }
+     },
+     "air": {
+      "act": "bet big",
+      "p": 0.66,
+      "dist": {
+       "bet big": 0.66,
+       "check": 0.34
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "raise",
+      "p": 0.59,
+      "dist": {
+       "raise": 0.59,
+       "fold": 0.32,
+       "call": 0.09
+      }
+     },
+     "value": {
+      "act": "fold",
+      "p": 0.41,
+      "dist": {
+       "fold": 0.41,
+       "call": 0.35,
+       "raise": 0.24
+      }
+     },
+     "catcher": {
+      "act": "fold",
+      "p": 0.85,
+      "dist": {
+       "fold": 0.85,
+       "raise": 0.11
+      }
+     },
+     "draw": {
+      "act": "call",
+      "p": 0.69,
+      "dist": {
+       "fold": 0.26,
+       "call": 0.69,
+       "raise": 0.05
+      }
+     },
+     "eqair": {
+      "act": "fold",
+      "p": 0.92,
+      "dist": {
+       "fold": 0.92
+      }
+     },
+     "air": {
+      "act": "fold",
+      "p": 0.92,
+      "dist": {
+       "fold": 0.92
+      }
+     }
+    }
+   },
+   "monotone": {
+    "bet": {
+     "nuts": {
+      "act": "bet big",
+      "p": 0.73,
+      "dist": {
+       "check": 0.18,
+       "bet big": 0.73,
+       "bet small": 0.09
+      }
+     },
+     "value": {
+      "act": "bet big",
+      "p": 0.53,
+      "dist": {
+       "check": 0.38,
+       "bet big": 0.53,
+       "bet small": 0.09
+      }
+     },
+     "catcher": {
+      "act": "bet big",
+      "p": 0.49,
+      "dist": {
+       "check": 0.4,
+       "bet small": 0.11,
+       "bet big": 0.49
+      }
+     },
+     "draw": {
+      "act": "check",
+      "p": 0.6,
+      "dist": {
+       "check": 0.6,
+       "bet big": 0.35
+      }
+     },
+     "eqair": {
+      "act": "bet big",
+      "p": 0.46,
+      "dist": {
+       "bet big": 0.46,
+       "check": 0.54
+      }
+     },
+     "air": {
+      "act": "check",
+      "p": 0.54,
+      "dist": {
+       "check": 0.54
+      }
+     }
+    },
+    "facing": {
+     "nuts": {
+      "act": "raise",
+      "p": 0.48,
+      "dist": {
+       "call": 0.1,
+       "raise": 0.48,
+       "fold": 0.42
+      }
+     },
+     "value": {
+      "act": "fold",
+      "p": 0.79,
+      "dist": {
+       "fold": 0.79,
+       "raise": 0.14,
+       "call": 0.08
+      }
+     },
+     "catcher": {
+      "act": "fold",
+      "p": 0.88,
+      "dist": {
+       "fold": 0.88,
+       "call": 0.05,
+       "raise": 0.07
+      }
+     },
+     "draw": {
+      "act": "fold",
+      "p": 0.55,
+      "dist": {
+       "fold": 0.55,
+       "call": 0.08,
+       "raise": 0.37
+      }
+     },
+     "eqair": {
+      "act": "fold",
+      "p": 0.96,
+      "dist": {
+       "fold": 0.96
+      }
+     },
+     "air": {
+      "act": "fold",
+      "p": 0.96,
+      "dist": {
+       "fold": 0.96
+      }
+     }
+    }
+   }
+  }
+ }
+}

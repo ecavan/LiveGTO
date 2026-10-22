@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { candidates, loadStats, saveStats } from '../src/engine/puzzles.js';
+import { candidates, loadStats, saveStats, dailyAt, setDaily, dailyStreak } from '../src/engine/puzzles.js';
 import { otherGrade, getLevel, setLevel } from '../src/engine/level.js';
 import { facingRole, applyProfile } from '../src/engine/hu/bots.js';
 import { rng } from '../src/engine/ring/game.js';
@@ -41,6 +41,17 @@ describe('levels', () => {
     saveStats(s1);
     expect(loadStats(1).rating).toBe(1100);
     expect(loadStats(2).rating).toBe(1340);
+  });
+
+  it('a daily per level; an old daily counts as Level 2; either keeps the streak', () => {
+    const st = { daily: { '2026-10-20': { choice: 1, v: 'best' } } };
+    expect(dailyAt(st, '2026-10-20', 2)).toEqual({ choice: 1, v: 'best' });
+    expect(dailyAt(st, '2026-10-20', 1)).toBeNull();
+    setDaily(st, '2026-10-20', 1, { choice: 0, v: 'mistake' });
+    expect(dailyAt(st, '2026-10-20', 1)).toEqual({ choice: 0, v: 'mistake' });
+    expect(dailyAt(st, '2026-10-20', 2)).toEqual({ choice: 1, v: 'best' });
+    setDaily(st, '2026-10-21', 1, { choice: 2, v: 'best' });
+    expect(dailyStreak(st, new Date(2026, 9, 21, 12))).toBe(2);
   });
 
   it('otherGrade: the verdict of the same choice priced at the other level', () => {

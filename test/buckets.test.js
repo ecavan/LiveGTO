@@ -18,6 +18,8 @@ describe('hand buckets', () => {
     expect(bucketOf(c('9c8c'), c('9dKc2s'))).toBe('catcher'); // middle pair
     expect(bucketOf(c('AhKh'), c('9h5h2s'))).toBe('draw'); // flush draw
     expect(bucketOf(c('8c7d'), c('9hTs2d'))).toBe('draw'); // open-ender
+    expect(bucketOf(c('9h8h'), c('9dKh2h'))).toBe('draw'); // middle pair and a flush draw
+    expect(bucketOf(c('9h8h'), c('9dKh2h5c3s'))).toBe('catcher'); // the river: just a pair
     expect(bucketOf(c('AcKd'), c('9h5h2s'))).toBe('eqair'); // two overcards
     expect(bucketOf(c('7h6h'), c('AsKd2c'))).toBe('air'); // nothing to improve to
     expect(bucketOf(c('JsTs'), c('As7h2d'))).toBe('eqair'); // backdoor flush and straight draws

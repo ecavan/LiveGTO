@@ -31,6 +31,12 @@ describe('live hand log', () => {
     expect(stateOf(L).street).toBe(1);
     logAction(L, { type: 'fold' });
     L.boardCards.push(ids(['9h'])[0]);
+    // undo right after dealing the turn takes back the card, not the action before it
+    const n = L.actions.length;
+    undo(L);
+    expect(L.actions.length).toBe(n);
+    expect(boardNeeded(L)).toBe(1);
+    L.boardCards.push(ids(['9h'])[0]);
     logAction(L, { type: 'check' });
     logAction(L, { type: 'bet', to: 30 });
     logAction(L, { type: 'fold' });
