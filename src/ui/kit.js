@@ -3,6 +3,7 @@
  * Everything returns HTML strings; views wire events after rendering.
  */
 import { cardStr } from '../engine/hu/hand.js';
+import { LEVELS, getLevel, setLevel } from '../engine/level.js';
 
 export const SUIT_SYM = { s: '♠', h: '♥', d: '♦', c: '♣' };
 
@@ -227,4 +228,21 @@ export function ringTable({ seats, board = [], pot = null, note = '', spr = null
     </div>
     ${html}
   </div>`;
+}
+
+/**
+ * The Level switch (1 Baseline / 2 Exploit), the same everywhere. `wireLevel` calls onChange(level)
+ * after saving it. With `blurb`, a line under it says what the level grades.
+ */
+export function levelSwitch({ blurb = true } = {}) {
+  const lv = getLevel();
+  return `<div class="space-y-1"><div class="seg" data-lv-seg>${[1, 2].map(k => `<button data-lv="${k}" class="${k === lv ? 'on' : ''}" title="${esc(LEVELS[k].blurb)}">${LEVELS[k].name}</button>`).join('')}</div>
+    ${blurb ? `<div class="text-xs text-ink-400">${esc(LEVELS[lv].blurb)}</div>` : ''}</div>`;
+}
+export function wireLevel(root, onChange) {
+  root.querySelectorAll('[data-lv]').forEach(b => b.addEventListener('click', () => {
+    if (Number(b.dataset.lv) === getLevel()) return;
+    setLevel(b.dataset.lv);
+    onChange(getLevel());
+  }));
 }

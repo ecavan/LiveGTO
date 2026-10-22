@@ -5,13 +5,17 @@
 // Writes public/spots/flop.json and public/spots/multiway.json, each spot with the plan for your
 // whole range by bucket, and public/spots/buckets.json: spots for the Buckets drill (one action
 // per kind of hand), heads-up on every street and multiway.
+// Every spot is judged at both levels: Level 1 prices it as if the others played solid (the
+// baseline: a Reg heads-up, Pros at the table, none adjusting to you), Level 2 against the real
+// players. A spot can be a puzzle at one level or both; each entry carries the other level's
+// answer (`other`) so the coach shows both.
 //   npx vite-node scripts/gen-spots.mjs [flop] [multiway] [buckets]
 import { writeFileSync, mkdirSync } from 'node:fs';
 import * as HU from '../src/engine/hu/game.js';
 import { createAgent, choose, AGENTS } from '../src/engine/hu/agents.js';
 import { coach, bucketView } from '../src/engine/hu/coach.js';
 import { rng } from '../src/engine/ring/game.js';
-import { createTable, startHand, botAct, HERO } from '../src/engine/ring/session.js';
+import { createTable, startHand, botAct, HERO, baselineTable } from '../src/engine/ring/session.js';
 import { randomPlayer, styleLabel } from '../src/engine/ring/players.js';
 import { ringCoach, ringBucketView } from '../src/engine/ring/coach.js';
 import { live } from '../src/engine/ring/game.js';
@@ -35,6 +39,8 @@ function sid(prefix, holes, runout, log) {
   return prefix + (h >>> 0).toString(36);
 }
 const aggr = (o) => o.type === 'bet' || o.type === 'raise' || o.type === 'allin';
+const packOther = (k, level) => ({ level, best: k.best, fine: k.fine, ev: k.options.map(o => r2(o.ev)) });
+const typeOf = (k) => (k.options[k.best].type === 'allin' ? 'raise' : k.options[k.best].type);
 
 /**
  * Drop unnatural all-ins (more than 3× the pot on top of the current bet): the bot models treat
@@ -87,14 +93,15 @@ function genFlop(count) {
   const opps = ['station', 'nit', 'maniac', 'whale', 'reg', 'shark'];
   const depths = [40, 100, 100, 100, 150, 200];
   const out = [];
-  const perType = {};
-  const cap = Math.ceil(count * 0.34);
+  const perType = { 1: {}, 2: {} };
+  const n = { 1: 0, 2: 0 };
+  const cap = Math.ceil((count / 2) * 0.34);
   let hands = 0;
-  for (let pass = 0; out.length < count && pass < 400; pass++) {
+  for (let pass = 0; (n[1] < count / 2 || n[2] < count / 2) && pass < 800; pass++) {
     const opp = opps[pass % opps.length];
     const vAgent = createAgent(opp);
     const hAgent = createAgent('reg');
-    for (let h = 0; h < 30 && out.length < count; h++) {
+    for (let h = 0; h < 30; h++) {
       hands++;
       const d = depths[Math.floor(rand() * depths.length)];
       let s = HU.newHand({ stacks: [d, d], rand });
@@ -104,18 +111,25 @@ function genFlop(count) {
         if (s.toAct === hero) {
           if (s.street === 1 && !took) {
             const P = HU.pot(s);
-            const k = natural(coach(s, hero, vAgent), P, s.streetBet[hero]);
-            const j = judge(k, P, rand);
-            const t = k.options[k.best].type === 'allin' ? 'raise' : k.options[k.best].type;
-            if (j && (perType[t] || 0) < cap) {
-              perType[t] = (perType[t] || 0) + 1;
+            // level 2: against him; level 1: as if a solid Reg had played his line
+            const ks = { 2: natural(coach(s, hero, vAgent), P, s.streetBet[hero]), 1: natural(coach(s, hero, 'reg'), P, s.streetBet[hero]) };
+            for (const lv of [1, 2]) {
+              if (n[lv] >= count / 2 || (lv === 2 && (opp === 'reg' || opp === 'shark'))) continue; // Level 2: the fish
+              const k = ks[lv];
+              const j = judge(k, P, rand);
+              const t = typeOf(k);
+              if (!j || (perType[lv][t] || 0) >= cap) continue;
+              perType[lv][t] = (perType[lv][t] || 0) + 1;
+              n[lv]++;
               took = true;
+              const view = lv === 1 ? 'reg' : vAgent;
               out.push({
-                id: sid('f', s.holes, s.runout, s.log), kind: 'hu', opp, depth: d, hero, start: [...s.start], holes: s.holes.map(x => [...x]), runout: [...s.runout],
+                id: sid('f', s.holes, s.runout, s.log) + (lv === 1 ? '.1' : ''), level: lv, kind: 'hu', opp, depth: d, hero, start: [...s.start], holes: s.holes.map(x => [...x]), runout: [...s.runout],
                 log: packLog(s.log), pot: r2(P), toCall: r2(HU.toCall(s, hero)), street: 1,
                 options: packOpts(k.options), best: k.best, fine: k.fine, equity: r3(k.equity), need: r3(k.need), range: packRange(k.range),
                 notes: k.notes || [], rating: j.rating, gap: j.gap,
-                buckets: k.buckets, heroBucket: k.heroBucket, plan: packPlan(bucketView(s, hero, vAgent)),
+                buckets: k.buckets, heroBucket: k.heroBucket, plan: packPlan(bucketView(s, hero, view)),
+                other: packOther(ks[3 - lv], 3 - lv),
               });
             }
           }
@@ -123,7 +137,7 @@ function genFlop(count) {
         } else s = HU.act(s, choose(vAgent, s, rand));
       }
     }
-    if (pass % 12 === 11) console.log(`flop: ${out.length}/${count} from ${hands} hands`, perType);
+    if (pass % 12 === 11) console.log(`flop: L1 ${n[1]} L2 ${n[2]} of ${count / 2} each, from ${hands} hands`);
   }
   return out;
 }
@@ -133,15 +147,16 @@ function genFlop(count) {
 function genMulti(count) {
   const rand = rng(777);
   const out = [];
-  const perType = {};
-  const cap = Math.ceil(count * 0.34);
+  const perType = { 1: {}, 2: {} };
+  const n = { 1: 0, 2: 0 };
+  const cap = Math.ceil((count / 2) * 0.34);
   let hands = 0;
-  for (let rep = 0; out.length < count && rep < 200; rep++) {
+  for (let rep = 0; (n[1] < count / 2 || n[2] < count / 2) && rep < 400; rep++) {
     const level = ['easy', 'medium', 'medium', 'hard'][rep % 4];
     const stacks = ['even', 'mixed', 'mixed', 'deep'][rep % 4];
     const t = createTable({ n: 6, level, stacks, rand });
     t.players[HERO] = { ...randomPlayer(rand, new Set(), 'reg'), name: 'You', mix: { reg: 1 }, hud: { hands: 0, vpip: 0, pfr: 0 } };
-    for (let h = 0; h < 40 && out.length < count; h++) {
+    for (let h = 0; h < 40; h++) {
       hands++;
       startHand(t, rand);
       let took = false;
@@ -149,26 +164,32 @@ function genMulti(count) {
         const s = t.s;
         if (s.toAct === HERO && s.street >= 1 && !took && live(s).length >= 3) {
           const P = s.invested.reduce((a, b) => a + b, 0);
-          const k = natural(ringCoach(s, HERO, t, t.snap), P, s.streetBet[HERO]);
-          const j = judge(k, P, rand);
-          const ty = k.options[k.best].type === 'allin' ? 'raise' : k.options[k.best].type;
-          if (j && (perType[ty] || 0) < cap) {
-            perType[ty] = (perType[ty] || 0) + 1;
+          const tables = { 1: baselineTable(t), 2: t };
+          const ks = { 1: natural(ringCoach(s, HERO, tables[1], t.snap), P, s.streetBet[HERO]), 2: natural(ringCoach(s, HERO, t, t.snap), P, s.streetBet[HERO]) };
+          for (const lv of [1, 2]) {
+            if (n[lv] >= count / 2) continue;
+            const k = ks[lv];
+            const j = judge(k, P, rand);
+            const ty = typeOf(k);
+            if (!j || (perType[lv][ty] || 0) >= cap) continue;
+            perType[lv][ty] = (perType[lv][ty] || 0) + 1;
+            n[lv]++;
             took = true;
             out.push({
-              id: sid('m', s.holes, s.runout, s.log), kind: 'table', level, n: s.n, btn: s.btn, hero: HERO, start: [...s.start], holes: s.holes.map(x => [...x]), runout: [...s.runout],
+              id: sid('m', s.holes, s.runout, s.log) + (lv === 1 ? '.1' : ''), level: lv, kind: 'table', tableLevel: level, n: s.n, btn: s.btn, hero: HERO, start: [...s.start], holes: s.holes.map(x => [...x]), runout: [...s.runout],
               log: packLog(s.log), pot: r2(P), toCall: r2(Math.max(...s.streetBet) - s.streetBet[HERO]), street: s.street,
               names: t.players.map((p, i) => (i === HERO ? 'You' : p.name)), styles: t.players.map((p, i) => (i === HERO ? '' : styleLabel(p))),
               options: packOpts(k.options), best: k.best, fine: k.fine, equity: r3(k.equity), need: r3(k.need), range: packRange(k.range),
               notes: k.notes || [], opponents: k.opponents, rating: j.rating, gap: j.gap,
-              buckets: k.buckets, heroBucket: k.heroBucket, plan: packPlan(ringBucketView(s, HERO, t, t.snap)),
+              buckets: k.buckets, heroBucket: k.heroBucket, plan: packPlan(ringBucketView(s, HERO, tables[lv], t.snap)),
+              other: packOther(ks[3 - lv], 3 - lv),
             });
           }
         }
         botAct(t, rand);
       }
     }
-    console.log(`multiway: ${out.length}/${count} from ${hands} hands`, perType);
+    console.log(`multiway: L1 ${n[1]} L2 ${n[2]} of ${count / 2} each, from ${hands} hands`);
   }
   return out;
 }
@@ -188,10 +209,12 @@ function genBuckets(count) {
   const opps = ['station', 'nit', 'maniac', 'whale', 'reg', 'shark'];
   const depths = [40, 100, 100, 100, 150, 200];
   const out = [];
-  const perStreet = [0, 0, 0, 0];
-  const cap = Math.ceil(count * 0.3);
-  // heads-up: flop, turn and river
-  for (let pass = 0; out.length < count * 0.8 && pass < 600; pass++) {
+  // per level and street (heads-up), so both levels get flop, turn and river spots
+  const per = { 1: [0, 0, 0, 0], 2: [0, 0, 0, 0] };
+  const cap = Math.ceil(count * 0.8 / 6);
+  const full = () => [1, 2].every(lv => [1, 2, 3].every(st => per[lv][st] >= cap));
+  // heads-up: flop, turn and river; at each spot the level that needs it more, if its plan drills well
+  for (let pass = 0; !full() && pass < 2000; pass++) {
     const opp = opps[pass % opps.length];
     const vAgent = createAgent(opp), hAgent = createAgent('reg');
     const d = depths[Math.floor(rand() * depths.length)];
@@ -199,43 +222,51 @@ function genBuckets(count) {
     const hero = rand() < 0.5 ? HU.BTN : HU.BB;
     let took = false;
     for (let g = 0; g < 40 && !s.done; g++) {
-      if (s.toAct === hero && s.street >= 1 && !took && perStreet[s.street] < cap && rand() < 0.6) {
-        const plan = packPlan(bucketView(s, hero, vAgent));
-        if (plan && drillable(plan)) {
+      if (s.toAct === hero && s.street >= 1 && !took && rand() < 0.6) {
+        const order = [1, 2].filter(lv => per[lv][s.street] < cap && !(lv === 2 && (opp === 'reg' || opp === 'shark'))).sort((a, b) => per[a][s.street] - per[b][s.street]);
+        for (const lv of order) {
+          const plan = packPlan(bucketView(s, hero, lv === 1 ? 'reg' : vAgent));
+          if (!plan || !drillable(plan)) continue;
           took = true;
-          perStreet[s.street]++;
-          out.push({ id: sid('b', s.holes, s.runout, s.log), kind: 'hu', opp, depth: d, hero, start: [...s.start], holes: s.holes.map(x => [...x]), runout: [...s.runout], log: packLog(s.log), street: s.street, pot: r2(HU.pot(s)), toCall: r2(HU.toCall(s, hero)), plan });
+          per[lv][s.street]++;
+          out.push({ id: sid('b', s.holes, s.runout, s.log), level: lv, kind: 'hu', opp, depth: d, hero, start: [...s.start], holes: s.holes.map(x => [...x]), runout: [...s.runout], log: packLog(s.log), street: s.street, pot: r2(HU.pot(s)), toCall: r2(HU.toCall(s, hero)), plan });
+          break;
         }
       }
       s = HU.act(s, choose(s.toAct === hero ? hAgent : vAgent, s, rand));
     }
-    if (pass % 60 === 59) console.log(`buckets: ${out.length}/${count}`, perStreet);
+    if (pass % 120 === 119) console.log(`buckets: ${out.length}`, per);
   }
-  // multiway
-  for (let rep = 0; out.length < count && rep < 60; rep++) {
+  // multiway, the same number at each level
+  const mw = { 1: 0, 2: 0 };
+  const capMw = Math.ceil(count * 0.1);
+  for (let rep = 0; (mw[1] < capMw || mw[2] < capMw) && rep < 150; rep++) {
     const level = ['easy', 'medium', 'hard'][rep % 3];
     const t = createTable({ n: 6, level, stacks: rep % 2 ? 'mixed' : 'even', rand });
     t.players[HERO] = { ...randomPlayer(rand, new Set(), 'reg'), name: 'You', mix: { reg: 1 }, hud: { hands: 0, vpip: 0, pfr: 0 } };
-    for (let h = 0; h < 40 && out.length < count; h++) {
+    for (let h = 0; h < 40 && (mw[1] < capMw || mw[2] < capMw); h++) {
       startHand(t, rand);
       let took = false;
       for (let g = 0; g < 120 && !t.s.done; g++) {
         const s = t.s;
         if (s.toAct === HERO && s.street >= 1 && !took && live(s).length >= 3) {
-          const plan = packPlan(ringBucketView(s, HERO, t, t.snap, 5));
-          if (plan && drillable(plan)) {
+          for (const lv of [1, 2].filter(x => mw[x] < capMw).sort((a, b) => mw[a] - mw[b])) {
+            const plan = packPlan(ringBucketView(s, HERO, lv === 1 ? baselineTable(t) : t, t.snap, 5));
+            if (!plan || !drillable(plan)) continue;
             took = true;
+            mw[lv]++;
             out.push({
-              id: sid('b', s.holes, s.runout, s.log), kind: 'table', level, n: s.n, btn: s.btn, hero: HERO, start: [...s.start], holes: s.holes.map(x => [...x]), runout: [...s.runout],
+              id: sid('b', s.holes, s.runout, s.log), level: lv, kind: 'table', tableLevel: level, n: s.n, btn: s.btn, hero: HERO, start: [...s.start], holes: s.holes.map(x => [...x]), runout: [...s.runout],
               log: packLog(s.log), street: s.street, pot: r2(s.invested.reduce((a, b) => a + b, 0)), toCall: r2(Math.max(...s.streetBet) - s.streetBet[HERO]),
               names: t.players.map((p, i) => (i === HERO ? 'You' : p.name)), styles: t.players.map((p, i) => (i === HERO ? '' : styleLabel(p))), plan,
             });
+            break;
           }
         }
         botAct(t, rand);
       }
     }
-    console.log(`buckets (multiway): ${out.length}/${count}`);
+    console.log(`buckets (multiway): L1 ${mw[1]} L2 ${mw[2]}`);
   }
   return out;
 }

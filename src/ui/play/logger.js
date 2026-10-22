@@ -9,6 +9,7 @@ import {
 } from '../../engine/livelog.js';
 import { addHand, loadHands } from '../../engine/history.js';
 import { settings, saveSettings } from '../../store.js';
+import { getLevel } from '../../engine/level.js';
 import { ringTable, fmtBB, icon, esc, seg, wireSeg, handText, cardText, SUIT_SYM, sprOf } from '../kit.js';
 import { decisionRow } from './views.js';
 
@@ -259,7 +260,7 @@ function play(container) {
   container.querySelector('#lg-grade')?.addEventListener('click', () => {
     container.querySelector('#lg-grade').textContent = 'Grading…';
     setTimeout(() => {
-      lg.graded = gradeLog(L);
+      lg.graded = gradeLog(L, getLevel());
       const h = toHistory(L, lg.graded);
       h.no = loadHands().filter(x => x.sid === h.sid).length + 1;
       addHand(h);

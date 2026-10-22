@@ -210,16 +210,18 @@ pub fn for_each_decision_node(
 }
 
 /// Like `for_each_decision_node`, also telling `f` whose street it is for the player to act
-/// (profile `role`): `entry` made the last bet or raise before the tree's first street.
+/// (profile `role`; `vs_cbet` / `vs_bet` / `vs_raise` when facing a bet): `entry` made the last bet or raise
+/// before the tree's first street.
 pub fn for_each_decision_node_with_role(
     game: &mut PostFlopGame,
     entry: Option<usize>,
     mut f: impl FnMut(&mut PostFlopGame, &[usize], Role),
 ) {
-    // (history, aggressor of the previous street, aggressor of this street, acted this street)
-    type St = (History, Option<usize>, Option<usize>, [bool; 2]);
-    let mut stack: Vec<St> = vec![(vec![], entry, None, [false; 2])];
-    while let Some((h, prev, cur, acted)) = stack.pop() {
+    // (history, aggressor of the previous street, aggressor of this street, acted this street,
+    //  bets and raises this street)
+    type St = (History, Option<usize>, Option<usize>, [bool; 2], u8);
+    let mut stack: Vec<St> = vec![(vec![], entry, None, [false; 2], 0)];
+    while let Some((h, prev, cur, acted, n_aggr)) = stack.pop() {
         game.apply_history(&h);
         if game.is_terminal_node() {
             continue;
@@ -231,17 +233,27 @@ pub fn for_each_decision_node_with_role(
                 m &= m - 1;
                 let mut k = h.clone();
                 k.push(c);
-                stack.push((k, cur, None, [false; 2]));
+                stack.push((k, cur, None, [false; 2], 0));
             }
             continue;
         }
         let me = game.current_player();
-        let role = match prev {
-            Some(a) if a == me => Role::Aggr,
-            Some(a) if !acted[a] => Role::Donk,
-            _ => Role::Free,
-        };
         let actions = game.available_actions();
+        let role = if facing_bet(&actions) {
+            if n_aggr >= 2 {
+                Role::VsRaise
+            } else if cur.is_some() && cur == prev {
+                Role::VsCbet
+            } else {
+                Role::VsBet
+            }
+        } else {
+            match prev {
+                Some(a) if a == me => Role::Aggr,
+                Some(a) if !acted[a] => Role::Donk,
+                _ => Role::Free,
+            }
+        };
         f(game, &h, role);
         for (i, a) in actions.iter().enumerate() {
             let mut k = h.clone();
@@ -249,7 +261,7 @@ pub fn for_each_decision_node_with_role(
             let mut ac = acted;
             ac[me] = true;
             let aggr = matches!(a, Action::Bet(_) | Action::Raise(_) | Action::AllIn(_));
-            stack.push((k, prev, if aggr { Some(me) } else { cur }, ac));
+            stack.push((k, prev, if aggr { Some(me) } else { cur }, ac, n_aggr + aggr as u8));
         }
     }
 }
@@ -306,7 +318,7 @@ fn distorted_strategy(
         facing_fraction,
         actions: &actions,
         pot,
-        role: (!facing).then_some(role),
+        role: Some(role),
     };
     let strat = game.strategy();
     let n_act = actions.len();

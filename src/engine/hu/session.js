@@ -14,10 +14,11 @@ import { createAgent, choose, handEnded, eloOf } from './agents.js';
 import { coach } from './coach.js';
 import { evaluate, cardStr } from './hand.js';
 import CAL from './calibration.json';
+import { otherGrade } from '../level.js';
 
 export const HAND_STACK = 100;
 
-export function createSession({ botId = 'reg', length = 0, coachMode = 'decision', model = null, stack = HAND_STACK } = {}) {
+export function createSession({ botId = 'reg', length = 0, coachMode = 'decision', model = null, stack = HAND_STACK, level = 2 } = {}) {
   const agent = createAgent(botId);
   if (model) agent.model = { ...agent.model, ...model, pi: { ...agent.model.pi, ...model.pi } }; // every bot remembers you
   return {
@@ -26,6 +27,7 @@ export function createSession({ botId = 'reg', length = 0, coachMode = 'decision
     stack, // bb each, every hand
     length, // 0 = endless
     coachMode,
+    level, // 1 baseline (graded as if he played solid: the Reg, not adjusting) · 2 exploit (his real range)
     handNo: 0,
     hands: [], // finished hands
     s: null, // current hand state
@@ -55,11 +57,17 @@ export function coachReady(sess) {
   return heroToAct(sess) && sess.pending?.key === nodeKey(sess) ? sess.pending.k : null;
 }
 
+/**
+ * Who the coach prices against: Level 2 the real bot; Level 1 a baseline Reg who doesn't adjust to
+ * you (the solid play). Preflop is the chart at both levels, so it always uses the real bot.
+ */
+export const coachAgent = (sess, level, s) => (level === 1 && s.street > 0 ? 'reg' : sess.agent);
+
 /** Coach result for the hero's current decision (cached per node). */
 export function coachNow(sess) {
   if (!heroToAct(sess)) return null;
   const key = nodeKey(sess);
-  if (sess.pending?.key !== key) sess.pending = { key, k: coach(sess.s, sess.hero, sess.agent) };
+  if (sess.pending?.key !== key) sess.pending = { key, k: coach(sess.s, sess.hero, coachAgent(sess, sess.level, sess.s)) };
   return sess.pending.k;
 }
 
@@ -103,6 +111,11 @@ export function heroAct(sess, idx) {
     chart: k.chart,
     notes: k.notes,
   };
+  if (s.street > 0) {
+    const other = sess.level === 1 ? 2 : 1;
+    d.other = otherGrade(coach(s, sess.hero, coachAgent(sess, other, s)), idx, pot(s), other);
+  }
+  d.level = sess.level ?? 2;
   sess.decisions.push(d);
   noteAllIn(sess, act(s, opt));
   return d;
@@ -214,6 +227,7 @@ export function summary(sess) {
     blunders: all.filter(d => d.verdict === 'blunder').length,
     mistakes: all.filter(d => d.verdict === 'mistake').length,
     rating: n >= 5 ? ratingFromLoss(lossPer100) : null,
+    level: sess.level ?? 2,
     botElo: eloOf(sess.botId),
   };
 }

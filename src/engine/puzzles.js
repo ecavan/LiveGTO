@@ -10,6 +10,7 @@
  */
 import { requiredEquity, alpha, mdf, pct } from './potmath.js';
 import { flopTexture } from './texture.js';
+import { getLevel } from './level.js';
 
 export const PROFILES = {
   gto: 'GTO',
@@ -31,6 +32,7 @@ const FACING = new Set(['oop_vs_bet', 'ip_vs_bet']);
 /**
  * Flatten the index into puzzle candidates matching the filters.
  * filters: {
+ *   level?: 1 → only the GTO villain (baseline) · 2 → only the exploitable ones (profile narrows it)
  *   profile?: ''  → every exploitative villain (the default: this isn't a GTO trainer)
  *             'all' → including GTO,  or one profile id ('gto', 'station', …)
  *   street?: 'turn' | 'river'
@@ -43,7 +45,8 @@ const FACING = new Set(['oop_vs_bet', 'ip_vs_bet']);
 export function candidates(index, filters = {}) {
   const out = [];
   for (const r of index.records) {
-    const prof = filters.profile || '';
+    // Level 1 (baseline): the spots against GTO. Level 2 (exploit): against the villain types.
+    const prof = filters.level === 1 ? 'gto' : filters.level === 2 && (!filters.profile || filters.profile === 'gto' || filters.profile === 'all') ? '' : filters.profile || '';
     if (prof === '' && r.profile === 'gto') continue;
     if (prof !== '' && prof !== 'all' && r.profile !== prof) continue;
     if (filters.street && r.street !== filters.street) continue;
@@ -237,15 +240,23 @@ export function cellOf(cards) {
 
 const STORE = 'livegto.puzzles.v1';
 
-export function loadStats() {
+/**
+ * Puzzle stats. Each level has its own rating: `rating`, `played` and `solved` are the current
+ * level's (stats.level), kept per level in `levels`. Ratings from before levels existed were
+ * earned against the exploitable villains, so they become Level 2's.
+ */
+export function loadStats(level = getLevel()) {
+  let s = null;
   try {
-    const s = JSON.parse(localStorage.getItem(STORE) || 'null');
-    if (s && typeof s.rating === 'number') return s;
+    s = JSON.parse(localStorage.getItem(STORE) || 'null');
   } catch { /* storage unavailable */ }
-  return { rating: 1000, played: 0, solved: 0, seen: [], history: [] };
+  if (!s || typeof s.rating !== 'number') s = { rating: 1000, played: 0, solved: 0, seen: [], history: [], levels: {} };
+  if (!s.levels) s.levels = s.played ? { 2: { rating: s.rating, played: s.played, solved: s.solved } } : {};
+  return Object.assign(s, s.levels[level] || { rating: 1000, played: 0, solved: 0 }, { level });
 }
 
 export function saveStats(stats) {
+  if (stats.level) stats.levels = { ...stats.levels, [stats.level]: { rating: stats.rating, played: stats.played, solved: stats.solved } };
   try {
     localStorage.setItem(STORE, JSON.stringify(stats));
   } catch { /* storage unavailable: keep in memory only */ }

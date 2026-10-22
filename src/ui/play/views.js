@@ -151,6 +151,21 @@ export function weightGrid(w, heroHole = null) {
   }));
 }
 
+/**
+ * The other level's answer (d.other): "Level 1 · Baseline: Check (yours too)" or "Level 2 ·
+ * Exploit: Bet 75%; yours gives up 1.2bb". Both levels are taught on every decision.
+ */
+export function otherLevelHtml(d) {
+  const o = d.other;
+  if (!o || !d.options?.[o.best]) return '';
+  const lab = esc(labelText(d.options[o.best].label));
+  const same = o.best === d.best;
+  const ok = o.verdict === 'best' || o.verdict === 'fine';
+  const name = o.level === 1 ? 'Level 1 · Baseline' : 'Level 2 · Exploit';
+  const tail = same ? 'the same play' : ok ? (o.verdict === 'best' ? 'yours is the best play there' : 'yours is fine there too') : `yours gives up ${fmtBB(o.loss)} there`;
+  return `<div class="text-sm rounded-lg bg-ink-850 border border-ink-700 px-3 py-2"><span class="text-ink-400">${name}:</span> <b class="${ok ? 'text-sky-200' : 'text-amber-200'}">${lab}</b> <span class="text-ink-400">· ${tail}${!same && o.level === 1 ? ' (against a solid player)' : !same ? ' (against these players)' : ''}</span></div>`;
+}
+
 /** The coach card after a decision. `weights` = his range (for the grid), if available. */
 export function coachCard(d, { weights = null, botName = 'He', live = false, evNote = null, fmt = null } = {}) {
   LABEL_FMT = fmt;
@@ -166,8 +181,10 @@ export function coachCard(d, { weights = null, botName = 'He', live = false, evN
       ${disc('Why', `<div class="space-y-1.5">${(d.notes || []).map(n => `<p>${n}</p>`).join('')}</div>`)}</div>`;
   }
   const why = whyLines(d).map(l => `<p>${l}</p>`).join('');
+  const other = otherLevelHtml(d);
   const his = d.buckets?.length ? bucketBarsHtml(d.buckets) : d.range ? rangeBars(d.range) : '';
   return `<div class="space-y-3">${head}
+    ${other}
     ${d.heroBucket ? `<div class="text-sm text-ink-300">Your hand: <b class="text-amber-200">${esc(bucketName(d.heroBucket))}</b>${d.board?.length ? ` on ${handText(d.board.map(cardStr))}` : ''}</div>` : ''}
     ${evBars(d.options, { best: d.best, fine: d.fine, chosen: d.chosen })}
     <div class="text-xs text-ink-400">${evNote ?? `EV in bb vs ${esc(botName)}'s actual range and strategy. ${d.street === 3 ? 'Exact on the river.' : 'One street ahead, equity treated as realised.'}`}</div>

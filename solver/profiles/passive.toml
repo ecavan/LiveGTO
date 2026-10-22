@@ -1,0 +1,62 @@
+name = "Passive"
+description = """
+Tight-passive. Plays a normal number of hands but rarely raises: limps, calls, and folds
+when he misses. When he bets or raises he has it."""
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["flop"]
+role = ["vs_cbet"]
+scale = { fold = 0.964 }
+
+[[rules]]
+note = "folds to a donk bet or a stab 2 times in 3"
+streets = ["flop"]
+role = ["vs_bet"]
+scale = { fold = 1.12 }
+
+[[rules]]
+note = "folds to turn bets half the time"
+streets = ["turn"]
+role = ["vs_cbet", "vs_bet"]
+scale = { fold = 1.172 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["river"]
+role = ["vs_cbet", "vs_bet"]
+scale = { fold = 1.511 }
+
+[[rules]]
+# calibration (fitted to real players)
+role = ["vs_cbet", "vs_bet"]
+scale = { raise = 1.528 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["flop"]
+role = ["aggr"]
+scale = { aggressive = 1.331 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["turn", "river"]
+role = ["aggr"]
+scale = { aggressive = 1.072 }
+
+[[rules]]
+# calibration (fitted to real players)
+role = ["donk"]
+scale = { aggressive = 4.185 }
+
+[[rules]]
+# calibration (fitted to real players)
+role = ["free"]
+scale = { aggressive = 0.816 }
+
+[[rules]]
+note = "seldom bluffs the river: about 1 in 10 called river bets"
+streets = ["river"]
+facing = "none"
+hands = ["weak", "air"]
+scale = { aggressive = 0.492 }

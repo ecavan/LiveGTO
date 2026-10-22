@@ -19,6 +19,7 @@ ROUNDS = int(sys.argv[4]) if len(sys.argv) > 4 else 4
 HANDS = int(sys.argv[5]) if len(sys.argv) > 5 else 60000
 T = json.load(open(targets_path))
 os.makedirs(work, exist_ok=True)
+ONLY = [x for x in os.environ.get('FIT_ONLY', '').split(',') if x]  # refit only these (the rest stay as they are)
 KEYS = ['RFI_UTG', 'RFI_HJ', 'RFI_CO', 'RFI_BTN', 'RFI_SB', 'OLimp_UTG', 'OLimp_BTN', 'OLimp_SB', 'IsoBehind', 'LimpBehind',
         'IsoVsLimp(BB)', '3Bet', 'ColdCall', 'BB3Bet', 'BBFold', 'LimpCallVsRaise', 'LimpFoldVsRaise', 'FoldTo3Bet', '4Bet', 'VPIP', 'PFR']
 
@@ -58,7 +59,7 @@ for k in range(ROUNDS):
     M = measure(cur, f'r{k}')
     report(M, f'round {k}')
     json.dump(M, open(f'{work}/measured_{k}.json', 'w'), indent=1)
-    P = {a: fit_preflop.rounded(fit_preflop.refine(P[a], T[a], M[a])) for a in fit_preflop.ORDER}
+    P = {a: fit_preflop.rounded(fit_preflop.refine(P[a], T[a], M[a])) if not ONLY or a in ONLY else P[a] for a in fit_preflop.ORDER}
     cur = f'{work}/preflop_{k + 1}.json'
     json.dump(P, open(cur, 'w'), indent=1)
 M = measure(cur, 'final')

@@ -4,9 +4,11 @@ Each profile keeps its character rules (the notes the app shows: "never folds a 
 tells", …) with their old strengths, then a block of calibration rules whose strengths are
 fitted so that the bots' stats match real players of that type (targets.json):
 
-  fold_flop / fold_turn / fold_river   facing a bet: fold more or less      → Fold to bet, by street
-  air_fold_river                       facing a river bet with air           → share of air among his river calls
-  raise                                facing a bet: raise more or less      → Raise vs c-bet (flop)
+  fold_cbet                            facing a flop c-bet: fold             → Fold to c-bet (flop)
+  fold_flop                            facing any other flop bet: fold       → Fold to a donk or stab bet (flop)
+  fold_turn / fold_river               facing a first bet: fold              → Fold to bet, by street
+  (facing a raise stays the baseline: the HUD's fold-to-bet stats don't count raises)
+  raise                                facing a first bet: raise             → Raise vs c-bet and check-raise (flop)
   cbet_flop / cbet_later               as last street's aggressor: bet       → C-bet flop / turn
   donk                                 into last street's aggressor: bet     → Donk flop
   probe                                checked to / no aggressor: bet        → Probe turn
@@ -22,7 +24,7 @@ import json
 import os
 import sys
 
-FISH = ['whale', 'station', 'nit', 'maniac', 'reg']
+FISH = ['whale', 'station', 'passive', 'nit', 'maniac', 'reg', 'shark', 'pro']
 
 CHARACTER = {
     'whale': {
@@ -37,12 +39,17 @@ CHARACTER = {
     },
     'station': {
         'name': 'Station',
-        'description': 'Loose-passive calling station. Plays too many hands and calls a lot before the flop; after it he\nfolds a little less than most and checks hands he should bet. When he bets the river he usually\nhas it. The most common profitable opponent at $1/$2.',
+        'description': 'Loose-passive and sticky. Plays a third of his hands, calls a lot before the flop, and goes to\nshowdown more than anyone. He checks hands he should bet; when he bets the river he usually has it.\nThe most common profitable opponent at $1/$2.',
         'rules': [
             {'note': 'hates folding a pair to a normal bet', 'facing_size': ['small', 'large'], 'hands': ['strong', 'medium', 'weak'], 'scale': {'fold': 0.5}},
             {'note': 'checks his medium hands', 'facing': 'none', 'hands': ['medium'], 'scale': {'aggressive': 0.5}},
             {'note': 'bets smaller than he should with value', 'facing': 'none', 'hands': ['monster', 'strong'], 'scale': {'bet_small': 1.5}},
         ],
+    },
+    'passive': {
+        'name': 'Passive',
+        'description': 'Tight-passive. Plays a normal number of hands but rarely raises: limps, calls, and folds\nwhen he misses. When he bets or raises he has it.',
+        'rules': [],
     },
     'nit': {
         'name': 'Nit',
@@ -61,18 +68,28 @@ CHARACTER = {
     },
     'reg': {
         'name': 'Reg',
-        'description': 'A typical online regular (tight-aggressive): c-bets a lot, gives up when called, folds\nwhen he is beaten. Solid, but more predictable than an expert.',
+        'description': 'A modern regular (tight-aggressive): raises first in, 3-bets more than the old-school reg,\nc-bets often and folds when he meets resistance. Solid, but more predictable than an expert.',
+        'rules': [],
+    },
+    'shark': {
+        'name': 'Shark',
+        'description': 'A strong human pro (the pros who played Pluribus): close to the baseline, a little more\naggressive and harder to push off a hand.',
+        'rules': [],
+    },
+    'pro': {
+        'name': 'Pro',
+        'description': 'Plays like Pluribus, the poker AI: the baseline, calibrated to its stats.',
         'rules': [],
     },
 }
 
 # knob: (rule fields, action class it scales)
 KNOBS = {
-    'fold_flop': ({'facing': 'bet', 'streets': ['flop']}, 'fold'),
-    'fold_turn': ({'facing': 'bet', 'streets': ['turn']}, 'fold'),
-    'fold_river': ({'facing': 'bet', 'streets': ['river']}, 'fold'),
-    'air_fold_river': ({'facing': 'bet', 'streets': ['river'], 'hands': ['air']}, 'fold'),
-    'raise': ({'facing': 'bet'}, 'raise'),
+    'fold_cbet': ({'role': ['vs_cbet'], 'streets': ['flop']}, 'fold'),
+    'fold_flop': ({'role': ['vs_bet'], 'streets': ['flop']}, 'fold'),
+    'fold_turn': ({'role': ['vs_cbet', 'vs_bet'], 'streets': ['turn']}, 'fold'),
+    'fold_river': ({'role': ['vs_cbet', 'vs_bet'], 'streets': ['river']}, 'fold'),
+    'raise': ({'role': ['vs_cbet', 'vs_bet']}, 'raise'),
     'cbet_flop': ({'role': ['aggr'], 'streets': ['flop']}, 'aggressive'),
     'cbet_later': ({'role': ['aggr'], 'streets': ['turn', 'river']}, 'aggressive'),
     'donk': ({'role': ['donk']}, 'aggressive'),
@@ -85,22 +102,28 @@ KNOBS = {
 # from the real players' stats (shown in puzzles under "How he plays"). A knob's own size isn't
 # a trait: it also undoes or sharpens the character rules above it, so the notes come from the data.
 NOTES = {
-    'whale': {'fold_flop': 'calls flop and turn bets more than most players',
-              'donk': 'bets into the preflop raiser often (about 1 flop in 5)',
+    'whale': {'fold_cbet': 'calls a flop c-bet about half the time',
+              'fold_turn': 'calls turn bets more than anyone: folds 4 in 10',
+              'donk': 'bets into the preflop raiser about 1 flop in 5',
               'bluff_river': 'about 1 in 5 of his called river bets is a bluff'},
-    'station': {'fold_turn': 'folds to bets a little less than most players',
-                'donk': 'bets into the preflop raiser more than most (about 1 flop in 6)',
-                'bluff_river': 'does bluff the river sometimes: about 1 in 7 of his called river bets'},
-    'nit': {'fold_flop': 'folds to bets more than anyone: 7 flop bets in 10',
+    'station': {'fold_cbet': 'folds to a flop c-bet only about half the time',
+                'fold_turn': 'calls turn bets more than most: folds 4 in 10',
+                'donk': 'bets into the preflop raiser about 1 flop in 7',
+                'bluff_river': 'rarely bluffs the river: about 1 in 7 called river bets'},
+    'passive': {'fold_flop': 'folds to a donk bet or a stab 2 times in 3',
+                'fold_turn': 'folds to turn bets half the time',
+                'bluff_river': 'seldom bluffs the river: about 1 in 10 called river bets'},
+    'nit': {'fold_cbet': 'folds to a flop c-bet 6 times in 10',
+            'fold_flop': 'folds to other flop bets 3 times in 4',
             'probe': 'rarely bets when checked to',
             'bluff_river': 'almost never bluffs the river: about 1 in 20 called river bets'},
-    'maniac': {'fold_flop': 'folds to flop bets less than most players',
+    'maniac': {'fold_cbet': 'calls flop c-bets more than most players',
                'donk': 'bets into the preflop raiser more than anyone (more than 1 flop in 4)',
-               'probe': 'bets most times he is checked to',
+               'probe': 'bets 4 times in 10 when checked to on the turn',
                'bluff_river': 'a quarter of his called river bets are bluffs'},
-    'reg': {'cbet_flop': 'c-bets the flop two times in three',
+    'reg': {'cbet_flop': 'c-bets the flop 6 times in 10',
             'fold_turn': 'folds to turn and river bets more than most players',
-            'bluff_river': 'bluffs the river rarely: about 1 in 10 called river bets'},
+            'bluff_river': 'about 1 in 6 of his called river bets is a bluff'},
 }
 
 

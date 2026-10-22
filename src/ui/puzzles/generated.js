@@ -9,11 +9,11 @@ import { statesOf, viewOf, posName } from '../../engine/history.js';
 import { AGENTS } from '../../engine/hu/agents.js';
 import { cardStr } from '../../engine/hu/hand.js';
 import { getIndex } from '../../engine/library.js';
-import { ringTable, fmtBB, icon, esc, handText, disc, sprOf } from '../kit.js';
+import { ringTable, fmtBB, icon, esc, handText, disc, sprOf, levelSwitch, wireLevel } from '../kit.js';
 import { actionBar, coachCard } from '../play/views.js';
 import { bucketPlanHtml, bucketStepHtml, gradeBucket, recordBucket } from '../buckets.js';
 import { puzzleTabs } from './tabs.js';
-import { filterPanel, wireFilters } from './filters.js';
+import { filterPanel, wireFilters, filters } from './filters.js';
 import { navigate } from '../../router.js';
 
 const sets = {};
@@ -124,6 +124,14 @@ function whoPanel(p) {
     ${inHand.map(i => `<div class="flex justify-between text-sm gap-2"><span class="text-white">${esc(h.names[i])} <span class="text-ink-400">${posName(h, i)}</span></span><span class="text-ink-300 text-right">${esc(h.styles[i])}</span></div>`).join('')}</div>`;
 }
 
+/** The other level's grade of option `idx` (h.other: { level, best, fine, ev }). */
+function otherOf(h, idx) {
+  const o = h.other;
+  const loss = Math.round(Math.max(0, o.ev[o.best] - o.ev[idx]) * 100) / 100;
+  const verdict = idx === o.best ? 'best' : o.fine.includes(idx) ? 'fine' : (loss >= 10 || loss >= 0.25 * h.pot) ? 'blunder' : 'mistake';
+  return { level: o.level, best: o.best, fine: o.fine, loss, verdict };
+}
+
 function decisionOf(p, idx) {
   const h = p.spot;
   const best = h.options[h.best], o = h.options[idx];
@@ -133,6 +141,7 @@ function decisionOf(p, idx) {
     street: h.street, board: h.runout.slice(0, [0, 3, 4, 5][h.street]), hole: h.holes[h.hero], pot: h.pot, toCall: h.toCall,
     options: h.options, best: h.best, fine: h.fine, chosen: idx, loss, verdict, equity: h.equity, need: h.need, range: h.range,
     preflop: false, notes: h.notes, opponents: h.opponents, buckets: h.buckets, heroBucket: h.heroBucket,
+    other: h.other ? otherOf(h, idx) : null,
   };
 }
 
@@ -141,7 +150,9 @@ function draw(container, p) {
   const h = p.spot;
   const d = p.answered ? decisionOf(p, p.answered.idx) : null;
   const who = h.kind === 'hu' ? AGENTS[h.opp]?.name ?? 'He' : 'them';
-  const evNote = h.kind === 'table' ? `EV in bb against every player still in (${h.opponents}): their ranges and strategies; multiway equity by Monte Carlo, one street ahead.` : null;
+  const evNote = (h.level ?? 2) === 1
+    ? `Level 1: EV in bb as if ${h.kind === 'table' ? 'everyone still in' : 'he'} played solid (the baseline), whatever ${h.kind === 'table' ? 'they are' : 'he is'}. ${h.kind === 'table' ? 'Multiway equity by Monte Carlo, one street ahead.' : 'One street ahead.'}`
+    : h.kind === 'table' ? `EV in bb against every player still in (${h.opponents}): their ranges and strategies; multiway equity by Monte Carlo, one street ahead.` : null;
   const plan = d && h.plan ? disc('Your range by bucket: a plan for each kind of hand', bucketPlanHtml({ ...h.plan, board: h.runout.slice(0, [0, 3, 4, 5][h.street]) }, {
     hero: h.heroBucket,
     note: h.kind === 'hu' ? 'Your range as a solid player has it on this line; each bucket\'s best play against him.' : 'Your range as a solid player has it; a few hands per bucket priced against everyone still in.',
@@ -155,10 +166,10 @@ function draw(container, p) {
   const tag = h.kind === 'hu' ? `Flop · heads-up vs ${esc(AGENTS[h.opp]?.name ?? h.opp)} · ${h.depth ?? 100}bb` : `${STREET[h.street]} · multiway (${h.opponents + 1} players)`;
   container.innerHTML = `<div class="page space-y-4">
     <div class="flex items-end justify-between gap-4 flex-wrap">
-      <div><div class="h-sec">Puzzles${p.review ? ' · review' : ''}</div><h1 class="h-title">${p.review ? 'Your missed puzzles' : 'Find the best play'}</h1>
+      <div><div class="h-sec">Puzzles${p.review ? ' · review' : ''}</div><h1 class="h-title">${p.review ? 'Your missed puzzles' : 'Find the best play'}</h1>${p.review ? '' : `<div class="mt-2">${levelSwitch({ blurb: false })}</div>`}
         <p class="muted mt-1 text-sm"><span class="tag">${tag}</span></p></div>
       <div class="flex gap-5 text-right">
-        ${p.review ? '' : `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Rating</div><div class="text-2xl font-semibold num text-emerald-300">${stats.rating}</div></div>
+        ${p.review ? '' : `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Rating · L${stats.level}</div><div class="text-2xl font-semibold num text-emerald-300">${stats.rating}</div></div>
         <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Solved</div><div class="text-2xl font-semibold num">${acc}%</div></div>`}
         <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Puzzle</div><div class="text-2xl font-semibold num text-ink-200">${h.rating}</div></div>
       </div>
@@ -168,7 +179,7 @@ function draw(container, p) {
       <div class="space-y-4 min-w-0">
         ${tableHtml(p)}
         <div class="text-center text-ink-200">You have ${handText(byRank(h.holes[h.hero]).map(cardStr))}${h.toCall > 0 ? `, facing ${fmtBB(h.toCall)} into ${fmtBB(h.pot - h.toCall)}` : ''}. What's your play?</div>
-        ${bucketStepHtml(p.bk, { multiway: h.kind === 'table' && h.opponents > 1, stats })}
+        ${bucketStepHtml(p.bk, { multiway: h.kind === 'table' && h.opponents > 1, stats, facing: h.toCall > 0, villain: h.kind === 'hu' ? h.opp : null })}
         ${d || !p.bk ? '' : `<div id="gz-acts">${actionBar(h.options)}</div>`}
       </div>
       <div class="space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
@@ -191,6 +202,7 @@ function draw(container, p) {
   }));
   container.querySelector('#gz-next')?.addEventListener('click', () => { navigate(p.review ? 'puzzles/review' : 'puzzles'); window.scrollTo(0, 0); });
   wireFilters(container, () => { if (p.ref) p.ref.answered = true; navigate('puzzles'); });
+  wireLevel(container, () => { if (p.ref) p.ref.answered = true; filters.profile = ''; navigate('puzzles'); });
 }
 
 function answer(container, p, idx) {

@@ -6,10 +6,11 @@ import {
   PROFILES, candidates, families, pickPuzzle, key, grade, updateRating, explain,
   cellLabel, cellOf, loadStats, saveStats, queueMiss, queueResult, dueItems, dailyPick, dailyStreak, today, dayRand, INTERVALS,
 } from '../engine/puzzles.js';
-import { getIndex, getRecord } from '../engine/library.js';
+import { getIndex, getRecord, getFile } from '../engine/library.js';
+import { getLevel } from '../engine/level.js';
 import { pct } from '../engine/potmath.js';
 import { flopTexture, textureLabel, boardTags, randomSuitMap, remapCard, isCard } from '../engine/texture.js';
-import { pokerTable, icon, esc, verdict, disc, rangeGrid, fmtBB, lossKind, optionLabel } from './kit.js';
+import { pokerTable, icon, esc, verdict, disc, rangeGrid, fmtBB, lossKind, optionLabel, levelSwitch, wireLevel } from './kit.js';
 import { ids } from '../engine/hu/hand.js';
 import { puzzleTabs } from './puzzles/tabs.js';
 import { filters, filterPanel as sharedFilters, wireFilters, libraryOnly } from './puzzles/filters.js';
@@ -48,7 +49,7 @@ export async function render(container, params = []) {
   }
   try {
     if (mode === 'daily') { if (!cur.daily || cur.daily.date !== today()) await next(); }
-    else if (!cur[mode] || cur[mode].answered || (mode === 'review' && cur[mode].gen) || cur[mode].gen?.answered) await next();
+    else if (!cur[mode] || cur[mode].answered || (mode === 'review' && cur[mode].gen) || cur[mode].gen?.answered || (mode === 'rated' && cur.rated.level !== getLevel())) await next();
   } catch (e) {
     return loadError(container, e);
   }
@@ -111,7 +112,11 @@ async function load(cand, rand = Math.random) {
     cards: remapCard(puzzle.cards, m),
     prior: record.history.prior.map(x => (isCard(x) ? remapCard(x, m) : x)),
   };
-  return { cand, record, puzzle, view, answered: null, gridTab: 'villain' };
+  // the same spot solved against the villain types (Level 2), for the Level 1 feedback
+  const file = await getFile(cand.file).catch(() => null);
+  const base = record.id.replace(/\/[^/]+$/, '/');
+  const siblings = record.villain.profile === 'gto' && file ? file.records.filter(x => x.id.startsWith(base) && x.villain.profile !== 'gto') : [];
+  return { cand, record, puzzle, view, answered: null, gridTab: 'villain', siblings };
 }
 
 async function next() {
@@ -130,6 +135,7 @@ async function next() {
     cur.review = !it ? null : it.id.startsWith('gen:') ? { gen: it, cand: { id: it.id, i: it.i } } : await load({ id: it.id, file: it.file, i: it.i, rating: it.rating });
   } else {
     cur.rated = await nextRated();
+    if (cur.rated) cur.rated.level = getLevel(); // switching level elsewhere makes it stale
   }
   current = cur[mode];
 }
@@ -143,7 +149,7 @@ async function nextRated() {
   const seen = new Set(stats.seen);
   const lib = () => {
     if (filters.street === 'flop' || filters.players === 'multiway') return [];
-    return candidates(index, { ...filters, street: filters.street === 'flop' ? '' : filters.street });
+    return candidates(index, { ...filters, level: getLevel(), street: filters.street === 'flop' ? '' : filters.street });
   };
   const gm = await import('./puzzles/generated.js');
   const gen = async (kind) => {
@@ -152,7 +158,7 @@ async function nextRated() {
     if (kind === 'multiway' && filters.players === 'hu') return [];
     const spots = await gm.loadSet(kind).catch(() => []);
     const st = { flop: 1, turn: 2, river: 3 }[filters.street];
-    return spots.filter(x => (!st || x.street === st) && (!filters.decision || (filters.decision === 'facing') === x.toCall > 0))
+    return spots.filter(x => (x.level ?? 2) === getLevel() && (!st || x.street === st) && (!filters.decision || (filters.decision === 'facing') === x.toCall > 0))
       .map(x => ({ gen: kind, id: x.id, i: 0, rating: x.rating, k: `gen:${kind}#${x.id}` }));
   };
   const pools = [['lib', lib(), 0.5], ['flop', await gen('flop'), 0.3], ['multiway', await gen('multiway'), 0.2]].filter(p => p[1].length);
@@ -215,12 +221,41 @@ function feedback(r, p, g, choice) {
   const points = explain(r, p).map(pt => `<p><b class="text-white">${pt.title}.</b> ${pt.body}</p>`).join('');
   return `<div class="space-y-3 fade-up">
     ${head}
+    ${bothLevels(r, p, choice)}
     ${evBarsFromLoss(opts, p, choice)}
     ${disc('Why', `<div class="space-y-2">${points}</div>`, g.verdict !== 'best')}
     ${disc('Your range by bucket: a plan for each kind of hand', libraryPlan(r, p), true)}
     ${disc('Ranges', rangePanel(r, p))}
     ${nextButton()}
   </div>`;
+}
+
+/**
+ * Both levels on every puzzle. Level 2 (a villain type): the baseline play next to the exploit.
+ * Level 1 (vs GTO): what the exploit is with your kind of hand against each villain type, from
+ * the same spot solved against them (loaded with this flop's file).
+ */
+function bothLevels(r, p, choice) {
+  const a = r.actions_short;
+  const cap = (x) => x.replace(/^\w/, c => c.toUpperCase());
+  if (r.villain.profile !== 'gto') {
+    const same = p.gto_answer === p.answer;
+    const ok = choice === p.gto_answer;
+    return `<div class="text-sm rounded-lg bg-ink-850 border border-ink-700 px-3 py-2"><span class="text-ink-400">Level 1 · Baseline:</span> <b class="text-sky-200">${esc(cap(a[p.gto_answer]))}</b> <span class="text-ink-400">· ${same ? 'the same play: no exploit needed here' : `the solid play; against ${esc(r.villain.name)} ${esc(a[p.answer])} earns ${fmtBB(-p.ev[p.gto_answer])} more`}${ok && !same ? ' (yours)' : ''}</span></div>`;
+  }
+  const sib = current.siblings;
+  if (!sib?.length) return '';
+  const B = CLASS_AS_BUCKET[p.class];
+  const rows = sib.map(x => {
+    const row = x.classes.find(c => c.class === p.class);
+    if (!row) return null;
+    const best = row.exploit.pure.reduce((m, v, i) => (v > row.exploit.pure[m] ? i : m), 0);
+    return { name: x.villain.name, act: x.actions_short[best], p: row.exploit.pure[best] };
+  }).filter(Boolean);
+  if (!rows.length) return '';
+  return `<div class="text-sm rounded-lg bg-ink-850 border border-ink-700 px-3 py-2 space-y-1">
+    <div class="text-ink-400">Level 2 · Exploit: with ${esc(B?.name?.toLowerCase() ?? 'this kind of hand')} here, most of the time…</div>
+    <div class="flex flex-wrap gap-x-4 gap-y-1">${rows.map(x => `<span>vs ${esc(x.name)}: <b class="${x.act === a[p.answer] ? 'text-ink-100' : 'text-amber-200'}">${esc(x.act)}</b></span>`).join('')}</div></div>`;
 }
 
 /** The solver's plan for each class of hand in your range (the exploit against this villain). */
@@ -289,10 +324,10 @@ function draw(container) {
     : mode === 'review'
       ? `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Due</div><div class="text-2xl font-semibold num text-rose-200">${dueItems(stats).length}</div></div>
          <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">In queue</div><div class="text-2xl font-semibold num">${q.length}</div></div>`
-      : `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Rating</div><div class="text-2xl font-semibold num text-emerald-300">${stats.rating}</div></div>
+      : `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Rating · L${stats.level}</div><div class="text-2xl font-semibold num text-emerald-300">${stats.rating}</div></div>
          <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Solved</div><div class="text-2xl font-semibold num">${acc}%</div></div>`;
   const header = `<div class="flex items-end justify-between gap-4 flex-wrap">
-    <div><div class="h-sec">Puzzles</div><h1 class="h-title">${title}</h1></div>
+    <div><div class="h-sec">Puzzles</div><h1 class="h-title">${title}</h1>${mode === 'rated' ? `<div class="mt-2">${levelSwitch({ blurb: false })}</div>` : ''}</div>
     <div class="flex gap-5 text-right items-end">
       ${statsHtml}
       ${current ? `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Puzzle</div><div class="text-2xl font-semibold num text-ink-200">${current.puzzle.rating}</div></div>` : ''}
@@ -324,7 +359,7 @@ function draw(container) {
       <div class="space-y-4 min-w-0">
         ${tableHtml(r, current.view)}
         <div class="text-center text-ink-200">You have <b class="text-white">${esc(p.hand)}</b>. What's your play?</div>
-        ${bucketStepHtml(current.bk, { stats })}
+        ${bucketStepHtml(current.bk, { stats, facing: r.to_call > 0, villain: r.villain.profile })}
         ${answered || !current.bk ? '' : actionButtons(r)}
       </div>
       <div class="space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
@@ -342,6 +377,7 @@ function draw(container) {
 
 function wire(container) {
   wireFilters(container, () => { cur.rated = null; navigate('puzzles'); });
+  wireLevel(container, () => { cur.rated = null; filters.profile = ''; stats = loadStats(); navigate('puzzles'); });
   container.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', () => answer(container, Number(btn.dataset.act))));
   container.querySelectorAll('#bk-ask [data-bk]').forEach(btn => btn.addEventListener('click', () => {
     if (!current) return;

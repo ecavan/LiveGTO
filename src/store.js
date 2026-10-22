@@ -31,5 +31,5 @@ export const KEYS = {
   drills: 'livegto.drills.v1',
 };
 
-export const settings = () => load(KEYS.settings, { coach: 'decision', pauseOn: 'mistake', bot: 'reg', length: 0, tier: 'feel' });
+export const settings = () => load(KEYS.settings, { coach: 'decision', pauseOn: 'mistake', bot: 'reg', length: 0, tier: 'feel', level: 1 });
 export const saveSettings = (s) => save(KEYS.settings, s);

@@ -55,9 +55,9 @@ pub enum Facing {
     Bet,
 }
 
-/// Whose street it is when not facing a bet (same as `streetRole` in the app's bots).
+/// Whose street it is (same as `streetRole` / `facingRole` in the app's bots).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum Role {
     /// Made the last bet or raise on the previous street (the c-bettor).
     Aggr,
@@ -65,6 +65,12 @@ pub enum Role {
     Donk,
     /// Checked to by the aggressor, or nobody bet the previous street.
     Free,
+    /// Facing a bet: the c-bet (the first bet of the street, by the previous street's aggressor).
+    VsCbet,
+    /// Facing the first bet of the street by anyone else (a donk bet, a stab, a probe).
+    VsBet,
+    /// Facing a raise (his bet was raised, or a check-raise).
+    VsRaise,
 }
 
 /// Size of the bet being faced, relative to the pot before it.
@@ -104,7 +110,7 @@ pub struct Rule {
     /// Only when facing a bet of these sizes (implies `facing = "bet"`).
     #[serde(default)]
     pub facing_size: Option<Vec<FacingSize>>,
-    /// Only when not facing a bet and it is this kind of street for him (see `Role`).
+    /// Only when it is this kind of street for him (see `Role`; `vs_cbet` / `vs_bet` when facing a bet).
     #[serde(default)]
     pub role: Option<Vec<Role>>,
     #[serde(default)]
@@ -175,7 +181,7 @@ pub struct NodeCtx<'a> {
     pub facing_fraction: Option<f64>,
     pub actions: &'a [Action],
     pub pot: i32,
-    /// Whose street it is (None when facing a bet, or when it can't be told).
+    /// Whose street it is (see `Role`; None when it can't be told).
     pub role: Option<Role>,
 }
 
@@ -231,7 +237,7 @@ impl Profile {
                 ctx.facing_fraction
                     .map_or(false, |f| sz.contains(&FacingSize::of(f)))
             })
-            && rule.role.as_ref().map_or(true, |r| !ctx.facing_bet && ctx.role.map_or(false, |x| r.contains(&x)))
+            && rule.role.as_ref().map_or(true, |r| ctx.role.map_or(false, |x| r.contains(&x)))
             && rule.hands.as_ref().map_or(true, |h| h.contains(&class))
             && rule.hand_types.as_ref().map_or(true, |t| t.iter().any(|x| x == hand_type))
     }
@@ -323,8 +329,22 @@ mod tests {
             facing_fraction: facing.then_some(0.75),
             actions,
             pot: 100,
-            role: (!facing).then_some(Role::Donk),
+            role: Some(if facing { Role::VsCbet } else { Role::Donk }),
         }
+    }
+
+    #[test]
+    fn vs_cbet_filter() {
+        let p = Profile::from_toml("name='c'\n[[rules]]\nrole=['vs_cbet']\nscale={ fold = 2.0 }").unwrap();
+        let acts = [Action::Fold, Action::Call, Action::Raise(300)];
+        let mut x = [0.3, 0.6, 0.1];
+        p.apply_hand(&ctx(&acts, true), HandClass::Air, "", &mut x, 1.0);
+        assert!((x[0] - 0.6).abs() < 1e-12);
+        let mut c = ctx(&acts, true);
+        c.role = Some(Role::VsBet);
+        let mut y = [0.3, 0.6, 0.1];
+        p.apply_hand(&c, HandClass::Air, "", &mut y, 1.0);
+        assert_eq!(y, [0.3, 0.6, 0.1]);
     }
 
     #[test]

@@ -1,8 +1,9 @@
 /**
  * Buckets: play your range, not your hand. A real spot (heads-up on any street, or multiway), your
- * whole range split into kinds of hand (monsters, vulnerable monsters, strong / medium / weak pairs,
- * flush draws, straight draws, air) and one action to choose for each. Graded against the coach's
- * best play for every hand in the bucket, weighted by how much of your range it is.
+ * whole range split into the six buckets (nuts, value, bluff-catchers, draws, air with equity, air)
+ * and one action to choose for each. Graded against the coach's best play for every hand in the
+ * bucket, weighted by how much of your range it is: at Level 1 as if they played solid, at Level 2
+ * against the real players.
  */
 import { loadSet } from './generated.js';
 import { statesOf, viewOf, posName } from '../../engine/history.js';
@@ -10,7 +11,8 @@ import { AGENTS } from '../../engine/hu/agents.js';
 import { cardStr } from '../../engine/hu/hand.js';
 import { boardLine } from '../../engine/buckets.js';
 import { loadRaw, save, KEYS } from '../../store.js';
-import { ringTable, fmtBB, icon, esc, handText, verdict, sprOf } from '../kit.js';
+import { ringTable, fmtBB, icon, esc, handText, verdict, sprOf, levelSwitch, wireLevel } from '../kit.js';
+import { getLevel } from '../../engine/level.js';
 import { optionColors, shortLabel } from '../buckets.js';
 import { pct } from '../../engine/potmath.js';
 import { puzzleTabs } from './tabs.js';
@@ -25,13 +27,13 @@ export async function render(container) {
     container.innerHTML = `<div class="page text-rose-300">${esc(e.message)}. Build it with <code>npx vite-node scripts/gen-spots.mjs</code>.</div>`;
     return undefined;
   }
-  if (!st.cur || st.cur.checked) next(spots);
+  if (!st.cur || st.cur.checked || (st.cur.spot.level ?? 2) !== getLevel()) next(spots);
   draw(container, spots);
   return undefined;
 }
 
 function next(spots) {
-  const pool = spots.filter(x => (!st.street || x.street === st.street) && (!st.players || (st.players === 'multiway') === (x.kind === 'table')));
+  const pool = spots.filter(x => (x.level ?? 2) === getLevel() && (!st.street || x.street === st.street) && (!st.players || (st.players === 'multiway') === (x.kind === 'table')));
   const seen = new Set(loadRaw(KEYS.drills, {}).bucketsSeen || []);
   const fresh = pool.filter(x => !seen.has(x.id));
   const from = fresh.length ? fresh : pool;
@@ -83,7 +85,8 @@ function draw(container, spots) {
     <select id="bk-players"><option value="">Heads-up and multiway</option><option value="hu" ${st.players === 'hu' ? 'selected' : ''}>Heads-up</option><option value="multiway" ${st.players === 'multiway' ? 'selected' : ''}>Multiway</option></select></div>`;
   const header = `<div class="flex items-end justify-between gap-4 flex-wrap">
       <div><div class="h-sec">Puzzles</div><h1 class="h-title">Buckets</h1>
-        <p class="muted mt-1 text-sm max-w-2xl">Play your range, not your hand. Pick one action for each kind of hand you can have here: the monsters, the pairs, the draws, the air.</p></div>
+        <p class="muted mt-1 text-sm max-w-2xl">Play your range, not your hand. Pick one action for each kind of hand you can have here: the nuts, the value hands, the bluff-catchers, the draws, the air.</p>
+        <div class="mt-2">${levelSwitch({ blurb: false })}</div></div>
       <div class="flex gap-5 text-right">
         <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Streak</div><div class="text-2xl font-semibold num text-emerald-300">${st.streak}</div></div>
         <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Spots</div><div class="text-2xl font-semibold num">${rec.good}/${rec.n}</div></div>
@@ -129,6 +132,7 @@ function draw(container, spots) {
         ${tableHtml(spot, s)}
         <div class="panel panel-pad space-y-2">
           <div class="text-sm">${who}</div>
+          ${(spot.level ?? 2) === 1 ? '<div class="text-xs text-sky-200/90">Level 1: the plan is priced as if they played solid, whoever they are.</div>' : ''}
           ${lineHtml(spot)}
           <div class="text-xs text-ink-400">Board: ${esc(boardLine(bd))} · pot ${fmtBB(spot.pot)}${spot.toCall > 0 ? ` · ${fmtBB(spot.toCall)} to call` : ''}</div>
         </div>
@@ -145,6 +149,7 @@ function draw(container, spots) {
 }
 
 function wire(container, spots) {
+  wireLevel(container, () => { next(spots); draw(container, spots); });
   container.querySelector('#bk-street')?.addEventListener('change', (e) => { st.street = Number(e.target.value); next(spots); draw(container, spots); });
   container.querySelector('#bk-players')?.addEventListener('change', (e) => { st.players = e.target.value; next(spots); draw(container, spots); });
   container.querySelectorAll('[data-b]').forEach(b => b.addEventListener('click', () => { st.cur.picks[b.dataset.b] = Number(b.dataset.a); draw(container, spots); }));

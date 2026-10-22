@@ -10,53 +10,59 @@ hands = ["weak", "draw", "air"]
 scale = { bet_large = 1.5 }
 
 [[rules]]
-note = "folds to flop bets less than most players"
+note = "calls flop c-bets more than most players"
 streets = ["flop"]
-facing = "bet"
-scale = { fold = 0.836 }
+role = ["vs_cbet"]
+scale = { fold = 0.768 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["flop"]
+role = ["vs_bet"]
+scale = { fold = 0.851 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["turn"]
-facing = "bet"
-scale = { fold = 0.912 }
+role = ["vs_cbet", "vs_bet"]
+scale = { fold = 0.866 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["river"]
-facing = "bet"
-scale = { fold = 1.16 }
+role = ["vs_cbet", "vs_bet"]
+scale = { fold = 1.182 }
 
 [[rules]]
 # calibration (fitted to real players)
-facing = "bet"
-scale = { raise = 2.049 }
+role = ["vs_cbet", "vs_bet"]
+scale = { raise = 1.805 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["flop"]
 role = ["aggr"]
-scale = { aggressive = 1.22 }
+scale = { aggressive = 1.24 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["turn", "river"]
 role = ["aggr"]
-scale = { aggressive = 1.061 }
+scale = { aggressive = 1.071 }
 
 [[rules]]
 note = "bets into the preflop raiser more than anyone (more than 1 flop in 4)"
 role = ["donk"]
-scale = { aggressive = 10.22 }
+scale = { aggressive = 9.787 }
 
 [[rules]]
-note = "bets most times he is checked to"
+note = "bets 4 times in 10 when checked to on the turn"
 role = ["free"]
-scale = { aggressive = 1.19 }
+scale = { aggressive = 1.233 }
 
 [[rules]]
 note = "a quarter of his called river bets are bluffs"
 streets = ["river"]
 facing = "none"
 hands = ["weak", "air"]
-scale = { aggressive = 0.623 }
+scale = { aggressive = 0.651 }

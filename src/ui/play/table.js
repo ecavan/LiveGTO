@@ -3,12 +3,13 @@
  * from their stats (VPIP / PFR) or reveal their styles; the coach grades every decision.
  */
 import {
-  createTable, startHand, heroToAct, coachNow, coachReady, heroAct, botAct, endHand, summary, HERO,
+  createTable, startHand, heroToAct, coachNow, coachReady, heroAct, botAct, endHand, summary, HERO, coachTable,
 } from '../../engine/ring/session.js';
+import { getLevel } from '../../engine/level.js';
 import { board, pot, potShown, posOf, legal } from '../../engine/ring/game.js';
 import { styleLabel, ARCHETYPES, adjustment, LEVELS } from '../../engine/ring/players.js';
 import { settings, saveSettings } from '../../store.js';
-import { ringTable, fmtBB, seg, wireSeg, icon, esc, stat, handText, disc, verdict, sprOf } from '../kit.js';
+import { ringTable, fmtBB, seg, wireSeg, icon, esc, stat, handText, disc, verdict, sprOf, levelSwitch, wireLevel } from '../kit.js';
 import { actionBar, coachCard, decisionRow, playTabs, bucketViewHtml } from './views.js';
 import { ringBucketView } from '../../engine/ring/coach.js';
 import { pct } from '../../engine/potmath.js';
@@ -55,6 +56,7 @@ function setup(container) {
         <p class="text-xs text-ink-400 mt-2">A solid reg wins about ${{ easy: 100, medium: 45, hard: 20 }[k]}bb/100 here.</p>
       </button>`).join('')}
     </div>
+    <div class="panel panel-pad space-y-2"><div class="h-sec">Graded at</div>${levelSwitch()}</div>
     <div class="panel panel-pad grid md:grid-cols-2 lg:grid-cols-4 gap-5">
       <div class="space-y-2"><div class="h-sec">Players</div>
         ${seg('size', [{ v: 4, label: '4' }, { v: 5, label: '5' }, { v: 6, label: '6-max' }], size)}</div>
@@ -78,13 +80,14 @@ function setup(container) {
     saveSettings(cur);
     setup(container);
   });
+  wireLevel(container, () => setup(container));
   container.querySelectorAll('[data-level]').forEach(b => b.addEventListener('click', () => {
     saveSettings({ ...settings(), tableLevel: b.dataset.level });
     setup(container);
   }));
   container.querySelector('#start').addEventListener('click', () => {
     const cur = settings();
-    t = createTable({ n: cur.tableSize ?? 6, coachMode: cur.coach, level: cur.tableLevel ?? 'medium', stacks: cur.tableStacks ?? 'even' });
+    t = createTable({ n: cur.tableSize ?? 6, coachMode: cur.coach, level: cur.tableLevel ?? 'medium', stacks: cur.tableStacks ?? 'even', coachLevel: getLevel() });
     window.scrollTo(0, 0);
     ui = { last: null, paused: false, recap: null, over: false, reveal: !!cur.reveal };
     startHand(t);
@@ -290,7 +293,7 @@ function draw(container) {
     ui.rvFor = state;
     setTimeout(() => {
       if (!t || ui.lastState !== state) return;
-      const bv = ringBucketView(state, HERO, t, t.snap);
+      const bv = ringBucketView(state, HERO, coachTable(t), t.snap);
       ui.rangeHtml = bucketViewHtml(bv, state.holes[HERO], 'Your range as a solid player has it on this line; each bucket priced against everyone still in (a few hands per bucket).');
       const el = container.querySelector('details[data-rangeview] .body');
       if (el) el.innerHTML = ui.rangeHtml;

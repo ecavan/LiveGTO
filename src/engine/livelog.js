@@ -15,13 +15,15 @@ import { ringCoach } from './ring/coach.js';
 import { gradeDecision } from './ring/session.js';
 import { newHeroStats, ARCHETYPES } from './ring/players.js';
 import { packDecision } from './history.js';
+import { otherGrade } from './level.js';
 
 export const HERO = 0;
 export const N = 6;
 
 export const VILLAIN_TYPES = {
-  unknown: { name: 'Unknown', blurb: 'a typical $1/$2 player', mix: { station: 0.3, whale: 0.12, nit: 0.2, reg: 0.25, maniac: 0.05, shark: 0.08 } },
+  unknown: { name: 'Unknown', blurb: 'a typical $1/$2 player', mix: { station: 0.22, passive: 0.16, whale: 0.12, nit: 0.14, reg: 0.23, maniac: 0.05, shark: 0.08 } },
   station: { name: 'Station', mix: { station: 1 } },
+  passive: { name: 'Passive', mix: { passive: 1 } },
   whale: { name: 'Whale', mix: { whale: 1 } },
   nit: { name: 'Nit', mix: { nit: 1 } },
   maniac: { name: 'Maniac', mix: { maniac: 1 } },
@@ -114,18 +116,21 @@ export function foldToHero(L) {
 export const undo = (L) => { L.actions.pop(); const s = stateOf(L); L.boardCards = L.boardCards.slice(0, Math.max(0, Math.min(L.boardCards.length, [0, 3, 4, 5][s.street] || 0))); };
 
 /** The table the coach sees: each seat's type as a player. */
-function tableOf(L) {
-  return { players: L.types.map((t, i) => (i === HERO ? null : { name: `Seat ${i}`, mix: VILLAIN_TYPES[t]?.mix ?? VILLAIN_TYPES.unknown.mix, learn: 0, ramp: 120 })) };
+function tableOf(L, level = 2) {
+  // Level 1 prices the solid play: everyone as a Pro, whatever you tagged them
+  return { players: L.types.map((t, i) => (i === HERO ? null : { name: `Seat ${i}`, mix: level === 1 ? { pro: 1 } : VILLAIN_TYPES[t]?.mix ?? VILLAIN_TYPES.unknown.mix, learn: 0, ramp: 120 })) };
 }
 
 /**
  * Grade every one of your decisions: the coach at each node where you acted, your real action
  * priced alongside the menu's options.
  */
-export function gradeLog(L) {
+export function gradeLog(L, level = 2) {
   const { holes, runout } = placeholders(L);
   let s = newHand({ n: N, btn: L.btn, stacks: L.start, holes, board: runout, smallBlind: L.sb ?? 0.5 });
-  const table = tableOf(L);
+  const table = tableOf(L, level);
+  const other = level === 1 ? 2 : 1;
+  const otherTable = tableOf(L, other);
   const stats = newHeroStats();
   const out = [];
   for (const a of L.actions) {
@@ -135,7 +140,12 @@ export function gradeLog(L) {
       let idx = k.options.findIndex(o => o.type === a.type && (a.to == null || Math.abs((o.to ?? -1) - a.to) < 0.011));
       if (idx < 0 && a.type === 'allin') idx = k.options.findIndex(o => o.type === 'allin');
       if (idx < 0 && a.type === 'raise') idx = k.options.findIndex(o => (o.type === 'raise' || o.type === 'bet') && Math.abs(o.to - a.to) < 0.011);
-      if (idx >= 0) out.push(gradeDecision(s, k, idx, HERO));
+      if (idx >= 0) {
+        const d = gradeDecision(s, k, idx, HERO);
+        if (s.street > 0) d.other = otherGrade(ringCoach(s, HERO, otherTable, stats, extra), idx, pot(s), other);
+        d.level = level;
+        out.push(d);
+      }
     }
     s = act(s, a);
   }

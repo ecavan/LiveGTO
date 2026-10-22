@@ -39,6 +39,8 @@ export function packDecision(d) {
   if (d.opponents) out.opponents = d.opponents;
   if (d.buckets) out.buckets = d.buckets;
   if (d.heroBucket) out.heroBucket = d.heroBucket;
+  if (d.other) out.other = d.other;
+  if (d.level) out.level = d.level;
   return out;
 }
 

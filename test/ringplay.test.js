@@ -64,7 +64,7 @@ describe('table difficulty', () => {
     expect(count('hard', 6)).toBe(3);
     expect(count('hard', 4)).toBe(2); // always at least one fish at the table
     const t = createTable({ n: 6, level: 'easy', rand: r });
-    for (const p of t.players.slice(1)) expect(Object.keys(p.mix).every(k => ['station', 'whale', 'nit', 'maniac'].includes(k))).toBe(true);
+    for (const p of t.players.slice(1)) expect(Object.keys(p.mix).every(k => ['station', 'passive', 'whale', 'nit', 'maniac'].includes(k))).toBe(true);
     const h = createTable({ n: 6, level: 'hard', rand: r });
     expect(h.players.slice(1).filter(p => p.mix.pro || p.mix.shark).length).toBeGreaterThanOrEqual(3);
     expect(Object.keys(LEVELS)).toEqual(['easy', 'medium', 'hard']);

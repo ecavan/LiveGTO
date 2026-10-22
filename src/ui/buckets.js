@@ -4,7 +4,9 @@
  */
 import { esc } from './kit.js';
 import { pct } from '../engine/potmath.js';
-import { BUCKET, BUCKETS, BUCKET_PLAN, boardLine, bucketOf, bucketWhy } from '../engine/buckets.js';
+import { BUCKET, BUCKETS, BUCKET_PLAN, boardLine, bucketOf, bucketWhy, boardKind, BOARD_KINDS } from '../engine/buckets.js';
+import { planFor, PLAN_VILLAINS, ACT_NAME } from '../engine/plans.js';
+import { getLevel } from '../engine/level.js';
 
 export const ACT_COL = { fold: '#64748b', check: '#38bdf8', call: '#0ea5e9', bet: '#10b981', raise: '#f59e0b', allin: '#f43f5e' };
 
@@ -63,7 +65,7 @@ export function bucketPlanHtml(view, { hero = view.hero, note = '' } = {}) {
     ${note ? `<div class="text-[11px] text-ink-400">${note}</div>` : ''}</div>`;
 }
 
-const BCOL = { nutted: '#f43f5e', vulnerable: '#fb923c', strong: '#f59e0b', medium: '#eab308', weak: '#84cc16', fdraw: '#38bdf8', sdraw: '#818cf8', draw: '#38bdf8', eqair: '#a78bfa', air: '#64748b' };
+const BCOL = { nuts: '#f43f5e', value: '#f59e0b', catcher: '#eab308', draw: '#38bdf8', eqair: '#a78bfa', air: '#64748b' };
 
 /** His range by bucket, as bars with examples. */
 export function bucketBarsHtml(rows) {
@@ -84,7 +86,7 @@ export const bucketName = (key) => BUCKET[key]?.name ?? key;
 /** Grade a bucket pick for `hole` on `board` (card ids). pick = a bucket key, or 'skip'. */
 export function gradeBucket(hole, board, pick) {
   const key = bucketOf(hole, board);
-  return { pick, key, right: pick === key, skipped: pick === 'skip', why: bucketWhy(hole, board) };
+  return { pick, key, right: pick === key, skipped: pick === 'skip', why: bucketWhy(hole, board), kind: board.length >= 3 ? boardKind(board) : null };
 }
 
 /** Count bucket picks in the puzzle stats (skips don't count). */
@@ -95,8 +97,23 @@ export function recordBucket(stats, g) {
   if (g.right) stats.buckets.right += 1;
 }
 
+/**
+ * The plan for a bucket here, from the solved spots: the baseline (Level 1) on this kind of board,
+ * and at Level 2 the exploit against this villain type when there is one. Multiway: the rule of thumb.
+ */
+function planLine(g, { multiway, facing, villain }) {
+  if (multiway || !g.kind) return `Plan multiway: ${esc(BUCKET_PLAN[g.key].mw)}`;
+  const dec = facing ? 'facing' : 'bet';
+  const say = (lv) => { const pl = planFor(lv, g.kind, dec, g.key); return pl ? `<b class="text-ink-100">${ACT_NAME[pl.act] ?? pl.act}</b>` : null; };
+  const base = say('gto');
+  if (!base) return `Plan: ${esc(BUCKET_PLAN[g.key].hu)}`;
+  const where = `${BOARD_KINDS[g.kind].name.toLowerCase()} board, ${facing ? 'facing a bet' : 'checked to you or first in'}`;
+  const vil = getLevel() === 2 && PLAN_VILLAINS[villain] ? say(villain) : null;
+  return `Plan with ${esc(BUCKET[g.key].name.toLowerCase())} on a ${where}: baseline ${base}${vil ? ` · against a ${PLAN_VILLAINS[villain]} ${vil}` : ''}.`;
+}
+
 /** Step 1 of a postflop puzzle: the bucket buttons (keys 1–9), or the result once picked. */
-export function bucketStepHtml(g, { multiway = false, stats = null } = {}) {
+export function bucketStepHtml(g, { multiway = false, stats = null, facing = false, villain = null } = {}) {
   if (!g) {
     return `<div id="bk-ask" class="panel panel-pad space-y-2.5">
       <div class="text-sm text-ink-100"><b class="text-white">First: what kind of hand is this?</b> <span class="text-ink-400">Then pick your play.</span></div>
@@ -106,12 +123,11 @@ export function bucketStepHtml(g, { multiway = false, stats = null } = {}) {
     </div>`;
   }
   const B = BUCKET[g.key];
-  const plan = BUCKET_PLAN[g.key][multiway ? 'mw' : 'hu'];
   const acc = stats?.buckets?.n ? ` · ${stats.buckets.right}/${stats.buckets.n} buckets right` : '';
   const head = g.skipped ? `<span class="text-ink-300">Your hand:</span>`
     : g.right ? `<span class="text-emerald-300 font-semibold">Right.</span>`
       : `<span class="text-rose-300 font-semibold">You said ${esc(BUCKET[g.pick]?.name ?? g.pick)}.</span> <span class="text-ink-300">It's</span>`;
   return `<div class="rounded-lg px-3 py-2 text-sm ${g.right ? 'bg-emerald-500/10 border border-emerald-500/30' : g.skipped ? 'bg-ink-850 border border-ink-700' : 'bg-rose-500/10 border border-rose-500/30'}">
     ${head} <b style="color:${BCOL[g.key]}">${esc(B.name)}</b>: <span class="text-ink-200">${esc(g.why)}</span>.
-    <div class="text-xs text-ink-400 mt-1">Default plan${multiway ? ' multiway' : ''}: ${esc(plan)}${acc}</div></div>`;
+    <div class="text-xs text-ink-400 mt-1">${planLine(g, { multiway, facing, villain })}${acc}</div></div>`;
 }

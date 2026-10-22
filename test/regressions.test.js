@@ -60,8 +60,8 @@ describe('small fixes', () => {
     }
   });
   it('buckets: the nut flush with the ace on board; quads on board', () => {
-    expect(bucketOf(c('KhQc'), c('Ah7h4h2h9c'))).toBe('nutted');
-    expect(bucketOf(c('QhJc'), c('Ah7h4h2h9c'))).toBe('vulnerable');
+    expect(bucketOf(c('KhQc'), c('Ah7h4h2h9c'))).toBe('nuts');
+    expect(bucketOf(c('QhJc'), c('Ah7h4h2h9c'))).toBe('value');
     expect(classify(c('3c2d'), c('7h7c7d7s'))).toBe('air');
     expect(classify(c('Ac2d'), c('7h7c7d7s'))).toBe('strong');
   });

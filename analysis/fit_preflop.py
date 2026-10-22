@@ -15,13 +15,13 @@ refined by simulation (refine), since ranges overlap and noise adds a little eve
 import json
 import sys
 
-NOISE = {'whale': 0.06, 'station': 0.03, 'maniac': 0.04}
+NOISE = {'whale': 0.06, 'station': 0.03, 'passive': 0.01, 'maniac': 0.04}
 # Facing a 4-bet (or a shove) after 3-betting: [5-bet/shove, continue] as shares of his 3-bets.
 # The logs have too few of these to fit; these keep the ratios the archetypes had before.
-VS3 = {'whale': [0.67, 1.0], 'station': [0.75, 1.0], 'nit': [0.5, 0.67], 'maniac': [0.27, 0.5],
+VS3 = {'whale': [0.67, 1.0], 'station': [0.75, 1.0], 'passive': [0.5, 0.75], 'nit': [0.5, 0.67], 'maniac': [0.27, 0.5],
        'reg': [0.29, 0.43], 'shark': [0.28, 0.39], 'pro': [0.25, 0.35]}
 POS = ['UTG', 'HJ', 'CO', 'BTN', 'SB']
-ORDER = ['whale', 'station', 'nit', 'maniac', 'reg', 'shark', 'pro']
+ORDER = ['whale', 'station', 'passive', 'nit', 'maniac', 'reg', 'shark', 'pro']
 
 
 def solve(R, C, nu):

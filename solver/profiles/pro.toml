@@ -1,0 +1,61 @@
+name = "Pro"
+description = """
+Plays like Pluribus, the poker AI: the baseline, calibrated to its stats."""
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["flop"]
+role = ["vs_cbet"]
+scale = { fold = 0.701 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["flop"]
+role = ["vs_bet"]
+scale = { fold = 0.81 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["turn"]
+role = ["vs_cbet", "vs_bet"]
+scale = { fold = 1.025 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["river"]
+role = ["vs_cbet", "vs_bet"]
+scale = { fold = 1.206 }
+
+[[rules]]
+# calibration (fitted to real players)
+role = ["vs_cbet", "vs_bet"]
+scale = { raise = 1.176 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["flop"]
+role = ["aggr"]
+scale = { aggressive = 1.164 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["turn", "river"]
+role = ["aggr"]
+scale = { aggressive = 0.815 }
+
+[[rules]]
+# calibration (fitted to real players)
+role = ["donk"]
+scale = { aggressive = 0.705 }
+
+[[rules]]
+# calibration (fitted to real players)
+role = ["free"]
+scale = { aggressive = 1.058 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["river"]
+facing = "none"
+hands = ["weak", "air"]
+scale = { aggressive = 1.851 }

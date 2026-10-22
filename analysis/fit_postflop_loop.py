@@ -29,14 +29,16 @@ ROUNDS = int(sys.argv[4]) if len(sys.argv) > 4 else 5
 HANDS = int(sys.argv[5]) if len(sys.argv) > 5 else 40000
 K = json.load(open(sys.argv[6])) if len(sys.argv) > 6 else {n: {} for n in profiles_fit.FISH}
 os.makedirs(work, exist_ok=True)
-POOL = {'reg': 0.26, 'nit': 0.18, 'station': 0.18, 'whale': 0.14, 'maniac': 0.12, 'pro': 0.12}
-DRIVE = {  # knob → (stat, direction)
-    'fold_flop': ('FoldToBetFlop', 1), 'fold_turn': ('FoldToBetTurn', 1), 'fold_river': ('FoldToBetRiver', 1),
-    'raise': ('RaiseCBetFlop', 1),
+ONLY = [x for x in os.environ.get('FIT_ONLY', '').split(',') if x]  # refit only these (the rest stay as they are)
+POOL = {'reg': 0.18, 'nit': 0.13, 'station': 0.14, 'passive': 0.13, 'whale': 0.12, 'maniac': 0.1, 'shark': 0.1, 'pro': 0.1}
+DRIVE = {  # knob → (stat or stats, direction); with two stats the step is their geometric mean
+    'fold_cbet': ('FoldToCBetFlop', 1), 'fold_flop': ('FoldToStabFlop', 1),
+    'fold_turn': ('FoldToBetTurn', 1), 'fold_river': ('FoldToBetRiver', 1),
+    'raise': (('RaiseCBetFlop', 'CheckRaiseFlop'), 1),
     'cbet_flop': ('CBetFlop', 1), 'cbet_later': ('CBetTurn', 1), 'donk': ('DonkFlop', 1), 'probe': ('ProbeTurn', 1),
     'bluff_river': ('air_in_river_bets', 1),
 }
-REPORT = list(dict.fromkeys([v[0] for v in DRIVE.values()] + ['WTSD', 'AFq', 'FoldToCBetFlop', 'CheckRaiseFlop']))
+REPORT = list(dict.fromkeys([x for v in DRIVE.values() for x in (v[0] if isinstance(v[0], tuple) else (v[0],))] + ['FoldToBetFlop', 'WTSD', 'AFq']))
 
 
 def all_profiles(knobs):
@@ -94,12 +96,21 @@ for r in range(ROUNDS + 1):
     if r == ROUNDS:
         break
     for n in profiles_fit.FISH:
+        if ONLY and n not in ONLY:
+            continue
         kn = dict(K.get(n, {}))
-        for knob, (stat, sign) in DRIVE.items():
-            t, m = target(n, stat), M.get(n, {}).get(stat)
-            if t is None or m is None or t < 0.5 or m < 0.5:
+        for knob, (stats, sign) in DRIVE.items():
+            ratios = []
+            for stat in (stats if isinstance(stats, tuple) else (stats,)):
+                t, m = target(n, stat), M.get(n, {}).get(stat)
+                if t is not None and m is not None and t >= 0.5 and m >= 0.5:
+                    ratios.append(t / m)
+            if not ratios:
                 continue
-            step = (t / m) ** (0.7 * sign)
+            g = 1.0
+            for x in ratios:
+                g *= x
+            step = (g ** (1 / len(ratios))) ** (0.7 * sign)
             kn[knob] = max(0.05, min(20.0, kn.get(knob, 1.0) * max(0.5, min(2.0, step))))
         K[n] = {k: round(v, 3) for k, v in kn.items()}
 json.dump(K, open(f'{work}/knobs.json', 'w'), indent=1)

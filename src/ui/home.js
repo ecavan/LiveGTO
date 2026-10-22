@@ -5,7 +5,8 @@ import { loadStats, dueItems, dailyStreak, today } from '../engine/puzzles.js';
 import { loadHands, leakReport } from '../engine/history.js';
 import { loadRaw, KEYS } from '../store.js';
 import { playRatingNow } from './ratings.js';
-import { icon } from './kit.js';
+import { icon, levelSwitch, wireLevel } from './kit.js';
+import { getLevel } from '../engine/level.js';
 import { AGENTS, eloOf } from '../engine/hu/agents.js';
 
 export function render(container) {
@@ -41,16 +42,17 @@ export function render(container) {
       <h1 class="h-title">Get better at live poker.</h1>
       <p class="muted mt-1">Learn the maths, drill real spots, then play bots that punish your leaks.</p>
     </div>
+    ${levelSwitch()}
     <div class="grid md:grid-cols-3 gap-4">
       ${card('#learn', 'learn', 'bg-sky-500/15 text-sky-300', 'Learn',
         'The Boot Camp course, quick-fire table maths, range drills and preflop charts.',
         doneSteps, 'Steps done', 'Pot odds · MDF · outs · combos')}
       ${card('#puzzles', 'puzzle', 'bg-emerald-500/15 text-emerald-300', 'Puzzles',
         'Solver-backed spots with one right answer, a daily puzzle, range building, flop and multiway spots.',
-        pz.played ? pz.rating : '—', 'Puzzle rating', `${pz.played} attempts`)}
+        pz.played ? pz.rating : '—', `Puzzle rating · L${getLevel()}`, `${pz.played} attempts`)}
       ${card('#play', 'play', 'bg-amber-500/15 text-amber-300', 'Play',
         'Rated bots heads-up or a live 6-max table. The coach grades every decision; replay them in game review.',
-        play ?? '—', 'Play rating', last ? `Last: vs ${AGENTS[last.bot]?.name ?? last.bot} (${eloOf(last.bot)})` : 'No sessions yet')}
+        play ?? '—', `Play rating · L${getLevel()}`, last ? `Last: vs ${AGENTS[last.bot]?.name ?? last.bot} (${eloOf(last.bot)})` : 'No sessions yet')}
     </div>
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
       ${quick('#puzzles/daily', 'star', 'text-amber-300', dailyDone ? 'Daily puzzle: done' : 'Daily puzzle', streak ? `${streak}-day streak` : 'one spot a day')}
@@ -59,4 +61,5 @@ export function render(container) {
       ${quick('#learn/drill/feel', 'bolt', 'text-sky-300', 'Bet-size feel', 'size and price in 8 seconds')}
     </div>
   </div>`;
+  wireLevel(container, () => render(container));
 }

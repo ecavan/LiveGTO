@@ -176,6 +176,21 @@ export function streetRole(s, seat) {
   return !folded && !acted && s.stacks[prev.seat] > 1e-9 ? 'donk' : 'free';
 }
 
+/**
+ * Facing a bet, what kind (profiles use it like streetRole, e.g. `role = ["vs_cbet"]`):
+ *   vs_cbet   the c-bet: the first bet of the street, made by the previous street's aggressor
+ *   vs_bet    the first bet of the street by anyone else (a donk bet, a stab, a probe)
+ *   vs_raise  a raise (his bet was raised, or a check-raise)
+ * The HUD's "fold to c-bet" and "fold to bet" count the first two; a raise is its own thing.
+ */
+export function facingRole(s) {
+  const aggressive = (e) => e.type === 'bet' || e.type === 'raise' || (e.type === 'allin' && !e.callAllIn);
+  const prev = s.log.filter(e => e.street === s.street - 1 && aggressive(e)).pop();
+  const now = s.log.filter(e => e.street === s.street && aggressive(e));
+  if (now.length >= 2) return 'vs_raise';
+  return prev && now.length === 1 && now[0].seat === prev.seat ? 'vs_cbet' : 'vs_bet';
+}
+
 export const sizeBucket = (f) => (f < 0.5 ? 'small' : f <= 1.05 ? 'large' : 'overbet');
 
 function keysOf(k, facing) {
@@ -200,7 +215,7 @@ export function applyProfile(profileId, dist, ctx) {
     if (r.streets && !r.streets.includes(ctx.street)) continue;
     if ((r.facing === 'none' && ctx.facing) || (r.facing === 'bet' && !ctx.facing)) continue;
     if (r.facing_size && (!ctx.facing || !r.facing_size.includes(sizeBucket(ctx.fraction)))) continue;
-    if (r.role && (ctx.facing || !r.role.includes(ctx.role))) continue;
+    if (r.role && !r.role.includes(ctx.role)) continue;
     if (r.hands && !r.hands.includes(ctx.cls)) continue;
     if (r.hand_types && !r.hand_types.includes(ctx.handType)) continue;
     for (const [key, m] of Object.entries(r.scale || {})) {
@@ -247,7 +262,7 @@ export function postflopMix(profileId, s, seat, cls, hType) {
   } else {
     base = { ...BASE_OPEN[streetRole(s, seat)][c] };
   }
-  return applyProfile(profileId, base, { street, facing: L.facing, fraction, cls: c, handType: hType, role: L.facing ? null : streetRole(s, seat) });
+  return applyProfile(profileId, base, { street, facing: L.facing, fraction, cls: c, handType: hType, role: L.facing ? facingRole(s) : streetRole(s, seat) });
 }
 
 /** Map an abstract mix onto the concrete menu (missing sizes fall through to the nearest one). */

@@ -1,56 +1,62 @@
 name = "Reg"
 description = """
-A typical online regular (tight-aggressive): c-bets a lot, gives up when called, folds
-when he is beaten. Solid, but more predictable than an expert."""
+A modern regular (tight-aggressive): raises first in, 3-bets more than the old-school reg,
+c-bets often and folds when he meets resistance. Solid, but more predictable than an expert."""
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["flop"]
-facing = "bet"
-scale = { fold = 1.171 }
+role = ["vs_cbet"]
+scale = { fold = 0.852 }
+
+[[rules]]
+# calibration (fitted to real players)
+streets = ["flop"]
+role = ["vs_bet"]
+scale = { fold = 1.05 }
 
 [[rules]]
 note = "folds to turn and river bets more than most players"
 streets = ["turn"]
-facing = "bet"
-scale = { fold = 1.532 }
+role = ["vs_cbet", "vs_bet"]
+scale = { fold = 1.406 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["river"]
-facing = "bet"
-scale = { fold = 1.958 }
+role = ["vs_cbet", "vs_bet"]
+scale = { fold = 2.14 }
 
 [[rules]]
 # calibration (fitted to real players)
-facing = "bet"
-scale = { raise = 2.505 }
+role = ["vs_cbet", "vs_bet"]
+scale = { raise = 1.412 }
 
 [[rules]]
-note = "c-bets the flop two times in three"
+note = "c-bets the flop 6 times in 10"
 streets = ["flop"]
 role = ["aggr"]
-scale = { aggressive = 1.389 }
+scale = { aggressive = 1.286 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["turn", "river"]
 role = ["aggr"]
-scale = { aggressive = 0.887 }
+scale = { aggressive = 0.974 }
 
 [[rules]]
 # calibration (fitted to real players)
 role = ["donk"]
-scale = { aggressive = 2.914 }
+scale = { aggressive = 1.881 }
 
 [[rules]]
 # calibration (fitted to real players)
 role = ["free"]
-scale = { aggressive = 0.811 }
+scale = { aggressive = 0.884 }
 
 [[rules]]
-note = "bluffs the river rarely: about 1 in 10 called river bets"
+note = "about 1 in 6 of his called river bets is a bluff"
 streets = ["river"]
 facing = "none"
 hands = ["weak", "air"]
-scale = { aggressive = 0.522 }
+scale = { aggressive = 0.687 }

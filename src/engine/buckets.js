@@ -1,16 +1,21 @@
 /**
- * Hand buckets: how players think after the flop. Instead of 1,326 combos, a handful of kinds of
- * hand, each with one plan: "sets and two pair: bet big; flush draws: bet small; air: give up".
+ * Hand buckets: how players think after the flop. Instead of 1,326 combos, six kinds of hand,
+ * strongest first, each with one plan:
  *
- * Built on the live-player classes (hand.js classify, the same ones the bots and the solver use),
- * with two refinements that matter at the table:
- *   - Monsters split by the board: a set or two pair is "big but vulnerable" when a flush or a
- *     straight is already possible, or the board is paired (a full house beats it). Same hand, a
- *     different plan: you can't always get it all in.
- *   - Draws split into flush draws and straight draws (open-enders).
- *   - Air splits in two: air with equity (a gutshot, two overcards, or on the flop a backdoor
- *     flush or straight draw: your natural bluffs and barrels) and dead air (nothing to improve
- *     to: give up, or bluff only for a reason). On the river all air is just air.
+ *   Nuts            the best hand or close to it on this board (a set on a dry board, a made
+ *                   flush, a full house)
+ *   Value           strong but beatable: overpairs, top pair good kicker, two pair, and big hands
+ *                   on boards where a flush, a straight or a full house is possible
+ *   Bluff-catcher   a pair that beats bluffs but not value: top pair weak kicker, middle pair,
+ *                   small pocket pairs (showdown value)
+ *   Draw            no pair yet, real outs: flush draws, open-enders, combo draws
+ *   Air with equity no pair, no real draw, but live: a gutshot, two overcards, or on the flop a
+ *                   backdoor flush or straight draw. Where your bluffs come from
+ *   Air             nothing to improve to: give up unless you have a reason
+ *
+ * The same hand moves between buckets as the board changes (a set is Nuts on K-7-2 and Value on
+ * J-T-9 with two hearts), and so does the plan: see boardKind and plans.js.
+ * Built on the live-player classes (hand.js classify), the same ones the bots and the solver use.
  */
 import { classify, evaluate, category, CAT, rank, suit, ALL_COMBOS, handType } from './hu/hand.js';
 import { N } from './hu/equity.js';
@@ -18,39 +23,67 @@ import { cardStr } from './hu/hand.js';
 import { boardTags } from './texture.js';
 
 export const BUCKETS = [
-  { key: 'nutted', name: 'Monsters', desc: 'sets, two pair, straights, flushes' },
-  { key: 'vulnerable', name: 'Big but vulnerable', desc: 'strong, but the board can beat it' },
-  { key: 'strong', name: 'Strong pairs', desc: 'overpairs, top pair good kicker, weaker two pair' },
-  { key: 'medium', name: 'Medium pairs', desc: 'top pair weak kicker, second pair' },
-  { key: 'weak', name: 'Weak pairs', desc: 'third pair, small pocket pairs' },
-  { key: 'fdraw', name: 'Flush draws', desc: 'four to a flush (with or without a straight draw)' },
-  { key: 'sdraw', name: 'Straight draws', desc: 'open-enders' },
+  { key: 'nuts', name: 'Nuts', desc: 'the best hand or close to it on this board' },
+  { key: 'value', name: 'Value', desc: 'strong but beatable: overpairs, top pair good kicker, two pair' },
+  { key: 'catcher', name: 'Bluff-catcher', desc: 'a pair that beats bluffs, not value' },
+  { key: 'draw', name: 'Draw', desc: 'flush draws, open-enders, combo draws' },
   { key: 'eqair', name: 'Air with equity', desc: 'gutshots, two overcards, backdoor draws' },
-  { key: 'air', name: 'Dead air', desc: 'no pair, no draw, nothing to improve to' },
+  { key: 'air', name: 'Air', desc: 'nothing to improve to' },
 ];
 export const BUCKET_KEYS = BUCKETS.map(b => b.key);
 
-/** The default plan for each bucket, heads-up and multiway (Learn → Hand buckets, the drill). */
+/** Plain-English default plan for each bucket, heads-up and multiway (the plan tables in plans.js give the solved version by board). */
 export const BUCKET_PLAN = {
-  nutted: { hu: 'Build the pot: bet big, raise, get the stacks in. Slow down only on a dry board against someone who will bet for you.', mw: 'Bet big: someone will call. Raise when you\'re bet into.' },
-  vulnerable: { hu: 'Bet for value and protection, usually big. If he raises on a scary board, slow down: you beat bluffs and worse, not the nuts.', mw: 'Bet big and charge the draws; be more careful when two players show strength.' },
-  strong: { hu: 'Value-bet one or two streets; check-call against an aggressive player. Don\'t stack off against a nit\'s raise.', mw: 'Bet once for value and protection, then mostly pot control.' },
-  medium: { hu: 'Showdown value: check, call a bet, rarely bet yourself. Bet thin in position against a station.', mw: 'Check and call small bets; fold to a bet and a raise.' },
-  weak: { hu: 'Check and look for a cheap showdown; fold to big bets.', mw: 'Mostly check-fold: too many players to get to showdown cheaply.' },
-  fdraw: { hu: 'Semi-bluff: bet, or raise his bet. You win when he folds and when you hit.', mw: 'Call when the price is right; bet when you\'re last to act and the table looks weak.' },
-  sdraw: { hu: 'Semi-bluff like a flush draw (a little weaker: 8 outs).', mw: 'Call with a good price; a raise often isn\'t worth it with several players behind.' },
-  eqair: { hu: 'Your best bluffs. C-bet these; barrel the turn when it gives you a draw or scares him. Against a station, bluff less.', mw: 'C-bet sometimes on dry boards; give up most of the time with two or more opponents.' },
-  air: { hu: 'Give up: check and fold. Bluff only with a reason: a nit, a scare card, a blocker.', mw: 'Check and fold.' },
+  nuts: { hu: 'Build the pot: bet, raise, get the stacks in.', mw: 'Bet big: someone will call. Raise when you\'re bet into.' },
+  value: { hu: 'Bet for value and protection. Slow down when he raises a scary board: you beat bluffs and worse, not the nuts.', mw: 'Bet once for value and protection, then pot control.' },
+  catcher: { hu: 'Check and call a bet; don\'t bet yourself unless he calls with worse (a station).', mw: 'Check; call small bets, fold to a bet and a raise.' },
+  draw: { hu: 'Semi-bluff: bet, or raise his bet. You win when he folds and when you hit.', mw: 'Call when the price is right; bet when the table looks weak.' },
+  eqair: { hu: 'Your bluffs: c-bet these, and barrel the turn when it gives you a draw or scares him.', mw: 'Mostly give up: with two or more players someone has something.' },
+  air: { hu: 'Give up: check and fold. Bluff only with a reason (a nit, a scare card).', mw: 'Check and fold.' },
 };
 export const BUCKET = Object.fromEntries(BUCKETS.map(b => [b.key, b]));
 
-/** The 6 live classes (library records) shown as buckets: monster → Monsters, draw → Draws. */
+/** The solver's classes (library records) shown as buckets. */
 export const CLASS_AS_BUCKET = {
-  monster: { key: 'nutted', name: 'Monsters', desc: 'sets, straights, flushes, top two pair' },
-  strong: BUCKET.strong, medium: BUCKET.medium, weak: BUCKET.weak,
-  draw: { key: 'draw', name: 'Draws', desc: 'flush draws, open-enders' },
+  monster: { key: 'nuts', name: 'Nuts & big hands', desc: 'sets, straights, flushes, top two pair' },
+  strong: BUCKET.value,
+  medium: BUCKET.catcher, weak: BUCKET.catcher,
+  draw: BUCKET.draw,
   air: { key: 'air', name: 'Air', desc: 'no pair and no real draw' },
 };
+
+// ------------------------------------------------------------------ board kinds
+
+/**
+ * Four kinds of board, decided on the flop (the way players talk about boards; what the turn and
+ * river change shows up in your bucket instead: a set becomes Value when the flush comes in):
+ *   monotone  three of a suit: a flush is already possible
+ *   paired    a pair on the board: full houses are possible, few strong hands around
+ *   wet       two of a suit or connected cards (J♥T♥8♣, 9-8-4): draws everywhere
+ *   dry       none of that (K♠7♥2♦, A-8-3 rainbow): few draws
+ */
+export const BOARD_KINDS = {
+  dry: { name: 'Dry', desc: 'rainbow, unpaired, cards far apart: few draws' },
+  wet: { name: 'Wet', desc: 'two of a suit or connected cards: draws everywhere' },
+  paired: { name: 'Paired', desc: 'a pair on the flop' },
+  monotone: { name: 'Monotone', desc: 'three of one suit on the flop' },
+};
+export function boardKind(board) {
+  const flop = board.slice(0, 3);
+  if (maxSuitCount(flop) >= 3) return 'monotone';
+  if (new Set(flop.map(rank)).size < 3) return 'paired';
+  if (maxSuitCount(flop) === 2 || maxInWindow(flop) >= 3 || closeRanks(flop)) return 'wet';
+  return 'dry';
+}
+/**
+ * Two board cards within two ranks of each other (J-9, 8-7): open-enders are easy. Not the ace:
+ * A-K or A-3 only give gutshots, so A-K-7 and A-8-3 rainbow stay dry.
+ */
+function closeRanks(board) {
+  const r = [...new Set(board.map(rank))].filter(x => x !== 12).sort((a, b) => a - b);
+  for (let i = 1; i < r.length; i++) if (r[i] - r[i - 1] <= 2) return true;
+  return false;
+}
 
 const maxSuitCount = (board) => { const c = [0, 0, 0, 0]; for (const x of board) c[suit(x)]++; return Math.max(...c); };
 
@@ -165,26 +198,30 @@ export function airEquity(hole, board) {
 /** The bucket of one hand on a board (3–5 cards). */
 export function bucketOf(hole, board) {
   const cls = classify(hole, board);
-  if (cls === 'monster') return vulnerability(hole, board).length ? 'vulnerable' : 'nutted';
-  if (cls === 'draw') return hasFlushDraw(hole, board) ? 'fdraw' : 'sdraw';
-  if (cls === 'air') return airEquity(hole, board).length ? 'eqair' : 'air';
-  return cls;
+  if (cls === 'monster') return vulnerability(hole, board).length ? 'value' : 'nuts';
+  if (cls === 'strong') return 'value';
+  if (cls === 'medium' || cls === 'weak') return 'catcher';
+  if (cls === 'draw') return 'draw';
+  return airEquity(hole, board).length ? 'eqair' : 'air';
 }
 
 /** Why a hand is in its bucket, in a few words ("set, but flush possible", "backdoor flush draw · two overcards"). */
 export function bucketWhy(hole, board) {
   const b = bucketOf(hole, board);
+  const cls = classify(hole, board);
   const made = { [CAT.HIGH]: 'no pair', [CAT.PAIR]: 'a pair', [CAT.TWO_PAIR]: 'two pair', [CAT.TRIPS]: rank(hole[0]) === rank(hole[1]) ? 'a set' : 'trips', [CAT.STRAIGHT]: 'a straight', [CAT.FLUSH]: 'a flush', [CAT.FULL_HOUSE]: 'a full house', [CAT.QUADS]: 'quads', [CAT.STRAIGHT_FLUSH]: 'a straight flush' }[category(evaluate([...hole, ...board]))];
-  if (b === 'vulnerable') return `${made}, but ${vulnerability(hole, board).join(', ')}`;
-  if (b === 'nutted') return made;
+  if (cls === 'monster') {
+    const v = vulnerability(hole, board);
+    return v.length ? `${made}, but ${v.join(', ')}` : made;
+  }
   if (b === 'eqair') return airEquity(hole, board).join(' · ');
-  if (b === 'fdraw' || b === 'sdraw') {
+  if (b === 'draw') {
     const ranks = straightRanks(hole, board);
+    if (!hasFlushDraw(hole, board)) return 'an open-ender or double gutshot (8 outs)';
     const st = ranks >= 2 ? 'an open-ender' : ranks === 1 ? 'a gutshot' : '';
-    if (b === 'sdraw') return 'an open-ender or double gutshot (8 outs)';
     return st ? `a flush draw and ${st} (${ranks >= 2 ? 15 : 12} outs)` : 'a flush draw (9 outs)';
   }
-  if (b === 'strong' || b === 'medium' || b === 'weak') return pairWhy(hole, board) || BUCKET[b].desc;
+  if (b === 'value' || b === 'catcher') return pairWhy(hole, board) || BUCKET[b].desc;
   return BUCKET[b].desc;
 }
 
@@ -223,15 +260,16 @@ export function bucketsOn(board) {
   return out;
 }
 
-const CAT_WORD = { [CAT.TWO_PAIR]: 'two pair', [CAT.TRIPS]: 'sets and trips', [CAT.STRAIGHT]: 'straights', [CAT.FLUSH]: 'flushes', [CAT.FULL_HOUSE]: 'full houses', [CAT.QUADS]: 'quads', [CAT.STRAIGHT_FLUSH]: 'straight flushes' };
+const CAT_WORD = { [CAT.PAIR]: 'pairs', [CAT.TWO_PAIR]: 'two pair', [CAT.TRIPS]: 'sets and trips', [CAT.STRAIGHT]: 'straights', [CAT.FLUSH]: 'flushes', [CAT.FULL_HOUSE]: 'full houses', [CAT.QUADS]: 'quads', [CAT.STRAIGHT_FLUSH]: 'straight flushes' };
 
 /** Description of a bucket on this board, from what's actually in it. */
 function describe(key, board, idx, w) {
-  if (key !== 'nutted' && key !== 'vulnerable') return BUCKET[key].desc;
+  if (key !== 'nuts' && key !== 'value') return BUCKET[key].desc;
   const by = {};
   for (const i of idx) { const c = category(evaluate([...ALL_COMBOS[i], ...board])); by[c] = (by[c] || 0) + w[i]; }
   const words = Object.entries(by).sort((a, b) => b[1] - a[1]).map(([c]) => CAT_WORD[c]).filter(Boolean).slice(0, 3).join(', ');
-  return key === 'vulnerable' ? `${words}; but ${boardDangers(board).join(', ')}` : words;
+  const d = boardDangers(board);
+  return key === 'value' && d.length ? `${words} (${d.join(', ')})` : words;
 }
 
 /** The three most common hand types (by weight) among combos `idx`. */
@@ -280,11 +318,19 @@ export function plan(w, board, best, nOpts, min = 0.02) {
 
 /** Bucket plan rows from a library record's class plans (the solver's classes). */
 export function planFromClasses(classes) {
-  return classes.filter(c => c.exploit.weight >= 0.02).map(c => {
+  const by = new Map();
+  for (const c of classes) {
     const B = CLASS_AS_BUCKET[c.class];
-    const mix = c.exploit.pure;
+    const w = c.exploit.weight;
+    const r = by.get(B.key) || { key: B.key, name: B.name, desc: B.desc, share: 0, examples: [], mix: c.exploit.pure.map(() => 0) };
+    r.share += w;
+    c.exploit.pure.forEach((p, i) => { r.mix[i] += w * p; });
+    by.set(B.key, r);
+  }
+  return [...by.values()].filter(r => r.share >= 0.02).map(r => {
+    const mix = r.mix.map(x => x / r.share);
     const best = mix.reduce((a, x, j) => (x > mix[a] ? j : a), 0);
-    return { key: B.key, name: B.name, desc: B.desc, share: c.exploit.weight, examples: [], mix, best, agree: mix[best] };
+    return { ...r, mix, best, agree: mix[best] };
   });
 }
 

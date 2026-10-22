@@ -9,7 +9,10 @@ Types (VPIP / PFR in %, from the usual HUD reading, with LiveGTO's names):
   lag       VPIP 28–40, PFR ≥ 0.6·VPIP                                     — loose-aggressive
   maniac    VPIP ≥ 40 and PFR ≥ 0.5·VPIP, or AFq ≥ 50 with VPIP ≥ 30
   passive   VPIP 15–28, PFR < 0.6·VPIP                                     — tight-passive limper
-  station   VPIP 28–45, PFR < 0.6·VPIP
+  station   VPIP 28–45, PFR < 0.6·VPIP, and sticky: goes to showdown (WTSD) ≥ 33% of the flops
+            he sees (the top third of loose-passive players; a calling station is defined by
+            what he does after the flop, not by VPIP)
+  loose     the other loose-passive players (they play too many hands but fold after the flop)
   whale     VPIP ≥ 45, PFR < 0.5·VPIP
 
 Usage: python3 -I population.py <players.tsv> [--min-hands 150] [--json out.json] [--types typed.parquet]
@@ -32,6 +35,7 @@ whole = df.group_by(['venue', 'player']).agg([pl.col(c).sum() for c in num])
 pp = hud.per_player(whole, MIN)
 
 v, r, afq = pl.col('VPIP'), pl.col('PFR'), pl.col('AFq')
+STICKY = 33.0
 typed = pp.with_columns(
     type=pl.when(v < 15).then(pl.lit('nit'))
     .when(((v >= 40) & (r >= 0.5 * v)) | ((afq >= 50) & (v >= 30))).then(pl.lit('maniac'))
@@ -39,10 +43,11 @@ typed = pp.with_columns(
     .when((v < 28) & (r >= 0.6 * v)).then(pl.lit('reg'))
     .when((v < 28)).then(pl.lit('passive'))
     .when((v < 40) & (r >= 0.6 * v)).then(pl.lit('lag'))
-    .otherwise(pl.lit('station'))
+    .when(pl.col('WTSD') >= STICKY).then(pl.lit('station'))
+    .otherwise(pl.lit('loose'))
 ).select(['venue', 'player', 'type', 'vpip_opp'])
 
-ORDER = ['nit', 'passive', 'reg', 'lag', 'station', 'whale', 'maniac']
+ORDER = ['nit', 'passive', 'reg', 'lag', 'station', 'loose', 'whale', 'maniac']
 share = typed.group_by('type').agg(players=pl.len(), hands=pl.col('vpip_opp').sum())
 share = share.with_columns(
     (100 * pl.col('players') / pl.col('players').sum()).round(1).alias('% of players'),

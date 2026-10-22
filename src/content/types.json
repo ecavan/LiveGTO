@@ -1,0 +1,119 @@
+{
+ "stats": [
+  "VPIP",
+  "PFR",
+  "3Bet",
+  "FoldTo3Bet",
+  "CBetFlop",
+  "FoldToCBetFlop",
+  "CheckRaiseFlop",
+  "WTSD",
+  "AFq"
+ ],
+ "types": {
+  "whale": {
+   "VPIP": 55,
+   "PFR": 12,
+   "3Bet": 4,
+   "FoldTo3Bet": 21,
+   "CBetFlop": 66,
+   "FoldToCBetFlop": 50,
+   "CheckRaiseFlop": 6,
+   "WTSD": 32,
+   "AFq": 28,
+   "RiverBluffs": 21,
+   "source": "HandHQ whales"
+  },
+  "station": {
+   "VPIP": 36,
+   "PFR": 10,
+   "3Bet": 3,
+   "FoldTo3Bet": 26,
+   "CBetFlop": 60,
+   "FoldToCBetFlop": 48,
+   "CheckRaiseFlop": 7,
+   "WTSD": 37,
+   "AFq": 23,
+   "RiverBluffs": 14,
+   "source": "HandHQ stations"
+  },
+  "passive": {
+   "VPIP": 22,
+   "PFR": 9,
+   "3Bet": 3,
+   "FoldTo3Bet": 40,
+   "CBetFlop": 64,
+   "FoldToCBetFlop": 55,
+   "CheckRaiseFlop": 7,
+   "WTSD": 29,
+   "AFq": 24,
+   "RiverBluffs": 10,
+   "source": "HandHQ tight-passive players"
+  },
+  "nit": {
+   "VPIP": 13,
+   "PFR": 9,
+   "3Bet": 3,
+   "FoldTo3Bet": 51,
+   "CBetFlop": 67,
+   "FoldToCBetFlop": 59,
+   "CheckRaiseFlop": 5,
+   "WTSD": 28,
+   "AFq": 23,
+   "RiverBluffs": 5,
+   "source": "HandHQ nits"
+  },
+  "maniac": {
+   "VPIP": 49,
+   "PFR": 27,
+   "3Bet": 8,
+   "FoldTo3Bet": 35,
+   "CBetFlop": 67,
+   "FoldToCBetFlop": 48,
+   "CheckRaiseFlop": 10,
+   "WTSD": 30,
+   "AFq": 37,
+   "RiverBluffs": 25,
+   "source": "HandHQ maniacs"
+  },
+  "reg": {
+   "VPIP": 23,
+   "PFR": 17,
+   "3Bet": 6,
+   "FoldTo3Bet": 52,
+   "CBetFlop": 59,
+   "FoldToCBetFlop": 50,
+   "CheckRaiseFlop": 9,
+   "WTSD": 29,
+   "AFq": 26,
+   "RiverBluffs": 17,
+   "source": "halfway between the 2009 HandHQ regs and the 2019 pros against Pluribus"
+  },
+  "shark": {
+   "VPIP": 27,
+   "PFR": 18,
+   "3Bet": 8,
+   "FoldTo3Bet": 46,
+   "CBetFlop": 52,
+   "FoldToCBetFlop": 46,
+   "CheckRaiseFlop": 10,
+   "WTSD": 30,
+   "AFq": 25,
+   "RiverBluffs": 24,
+   "source": "the pros against Pluribus"
+  },
+  "pro": {
+   "VPIP": 27,
+   "PFR": 18,
+   "3Bet": 7,
+   "FoldTo3Bet": 50,
+   "CBetFlop": 54,
+   "FoldToCBetFlop": 45,
+   "CheckRaiseFlop": 9,
+   "WTSD": 31,
+   "AFq": 27,
+   "RiverBluffs": 35,
+   "source": "Pluribus"
+  }
+ }
+}

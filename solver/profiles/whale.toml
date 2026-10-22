@@ -29,53 +29,59 @@ hands = ["medium", "weak", "draw", "air"]
 scale = { bet_large = 0.2, bet_small = 1.5 }
 
 [[rules]]
-note = "calls flop and turn bets more than most players"
+note = "calls a flop c-bet about half the time"
 streets = ["flop"]
-facing = "bet"
-scale = { fold = 0.758 }
+role = ["vs_cbet"]
+scale = { fold = 0.772 }
 
 [[rules]]
 # calibration (fitted to real players)
+streets = ["flop"]
+role = ["vs_bet"]
+scale = { fold = 0.725 }
+
+[[rules]]
+note = "calls turn bets more than anyone: folds 4 in 10"
 streets = ["turn"]
-facing = "bet"
-scale = { fold = 0.766 }
+role = ["vs_cbet", "vs_bet"]
+scale = { fold = 0.729 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["river"]
-facing = "bet"
-scale = { fold = 1.022 }
+role = ["vs_cbet", "vs_bet"]
+scale = { fold = 1.01 }
 
 [[rules]]
 # calibration (fitted to real players)
-facing = "bet"
-scale = { raise = 1.539 }
+role = ["vs_cbet", "vs_bet"]
+scale = { raise = 1.267 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["flop"]
 role = ["aggr"]
-scale = { aggressive = 2.673 }
+scale = { aggressive = 2.764 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["turn", "river"]
 role = ["aggr"]
-scale = { aggressive = 2.279 }
+scale = { aggressive = 2.33 }
 
 [[rules]]
-note = "bets into the preflop raiser often (about 1 flop in 5)"
+note = "bets into the preflop raiser about 1 flop in 5"
 role = ["donk"]
-scale = { aggressive = 6.289 }
+scale = { aggressive = 6.072 }
 
 [[rules]]
 # calibration (fitted to real players)
 role = ["free"]
-scale = { aggressive = 1.89 }
+scale = { aggressive = 1.931 }
 
 [[rules]]
 note = "about 1 in 5 of his called river bets is a bluff"
 streets = ["river"]
 facing = "none"
 hands = ["weak", "air"]
-scale = { aggressive = 0.863 }
+scale = { aggressive = 0.799 }

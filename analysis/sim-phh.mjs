@@ -27,7 +27,7 @@ if (opt('--pre')) {
 if (opt('--profiles')) Object.assign(PROFILES, JSON.parse(readFileSync(opt('--profiles'), 'utf8')));
 const pos = argv.filter((a, i) => !a.startsWith('--') && !(i > 0 && ['--pre', '--profiles'].includes(argv[i - 1])));
 const [H = 2000, out = 'bots.phhs', seed = 1, poolArg] = pos;
-const POOL = poolArg ? JSON.parse(poolArg) : { station: 0.22, whale: 0.12, nit: 0.18, reg: 0.18, maniac: 0.08, shark: 0.11, pro: 0.11 };
+const POOL = poolArg ? JSON.parse(poolArg) : { station: 0.16, passive: 0.12, whale: 0.12, nit: 0.14, reg: 0.16, maniac: 0.08, shark: 0.11, pro: 0.11 };
 const rand = rng(Number(seed));
 const NONE = { adj: 0, vsHero: false, heroInBlinds: false, heroTight: false, heroAggro: false, heroBluffy: false, heroHonest: false };
 

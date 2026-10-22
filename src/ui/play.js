@@ -5,11 +5,12 @@
  *   coach "off":      a straight session, everything in the review
  */
 import {
-  createSession, startHand, heroToAct, coachNow, coachReady, heroAct, botAct, endHand, sessionOver, summary,
+  createSession, startHand, heroToAct, coachNow, coachReady, heroAct, botAct, endHand, sessionOver, summary, coachAgent,
 } from '../engine/hu/session.js';
+import { getLevel, LEVELS } from '../engine/level.js';
 import { AGENTS, AGENT_IDS, eloOf, levelOf } from '../engine/hu/agents.js';
 import { settings, saveSettings, loadRaw, save, KEYS } from '../store.js';
-import { seg, wireSeg, icon, disc, fmtBB, esc } from './kit.js';
+import { seg, wireSeg, icon, disc, fmtBB, esc, levelSwitch, wireLevel } from './kit.js';
 import {
   liveTable, actionBar, historyHtml, coachCard, sessionPanel, handRecap, reviewHtml, bucketViewHtml, playTabs,
 } from './play/views.js';
@@ -54,11 +55,14 @@ export function playStore() {
   return loadRaw(KEYS.play, { sessions: [] });
 }
 
-/** Play rating: hands-weighted average of recent session performances (last ~1000 hands). */
-export function playRating(store = playStore()) {
+/**
+ * Play rating at a level: hands-weighted average of recent session performances (last ~1000
+ * hands). Sessions from before levels existed were graded against the bot's real range: Level 2.
+ */
+export function playRating(store = playStore(), level = getLevel()) {
   let hands = 0, sum = 0;
   for (const p of [...store.sessions].reverse()) {
-    if (p.rating == null || p.hands < 5) continue;
+    if (p.rating == null || p.hands < 5 || (p.level ?? 2) !== level) continue;
     sum += p.rating * p.hands;
     hands += p.hands;
     if (hands >= 1000) break;
@@ -71,7 +75,7 @@ function recordSession() {
   if (!sum.hands) return;
   const store = playStore();
   // saved after every hand (closing the app mid-session loses nothing); one entry per session
-  const row = { at: sess.startedAt, bot: sess.botId, hands: sum.hands, net: sum.net, evLost: sum.evLost, rating: sum.rating };
+  const row = { at: sess.startedAt, bot: sess.botId, hands: sum.hands, net: sum.net, evLost: sum.evLost, rating: sum.rating, level: sum.level };
   const i = store.sessions.findIndex(x => x.at === sess.startedAt);
   if (i >= 0) store.sessions[i] = row; else store.sessions.push(row);
   store.sessions = store.sessions.slice(-200);
@@ -90,8 +94,8 @@ function setup(container) {
   container.innerHTML = `<div class="page space-y-6 fade-up">
     <div class="flex items-end justify-between gap-4 flex-wrap">
       <div><div class="h-sec">Play</div><h1 class="h-title">Choose your opponent</h1>
-        <p class="muted mt-1 text-sm">Heads-up, ${st.huStack ?? 100}bb, button vs big blind. Every decision is graded against the bot's real range.</p></div>
-      <div class="flex items-end gap-3 flex-wrap">${playTabs('')}<div class="stat min-w-[150px]"><div class="k">Your Play rating</div><div class="v text-amber-200">${mine ? mine.rating : '—'}</div>
+        <p class="muted mt-1 text-sm">Heads-up, ${st.huStack ?? 100}bb, button vs big blind. Every decision is graded at your level; the coach shows the other level's answer too.</p></div>
+      <div class="flex items-end gap-3 flex-wrap">${playTabs('')}<div class="stat min-w-[150px]"><div class="k">Play rating · ${LEVELS[getLevel()].short}</div><div class="v text-amber-200">${mine ? mine.rating : '—'}</div>
         <div class="s">${mine ? `${mine.hands} rated hands` : 'play a session to get rated'}</div></div></div>
     </div>
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -110,6 +114,7 @@ function setup(container) {
         </button>`;
       }).join('')}
     </div>
+    <div class="panel panel-pad space-y-2"><div class="h-sec">Graded at</div>${levelSwitch()}</div>
     <div class="panel panel-pad grid md:grid-cols-3 gap-5">
       <div class="space-y-2"><div class="h-sec">Coach</div>
         ${seg('coach', [{ v: 'decision', label: 'Every decision' }, { v: 'hand', label: 'After each hand' }, { v: 'off', label: 'Session review only' }], st.coach)}
@@ -134,13 +139,14 @@ function setup(container) {
     saveSettings({ ...settings(), [name]: name === 'length' || name === 'huStack' ? Number(v) : v });
     setup(container);
   });
+  wireLevel(container, () => setup(container));
   container.querySelector('#start').addEventListener('click', () => start(container));
 }
 
 function start(container) {
   const st = settings();
   const memory = playStore().models?.[st.bot] ?? null; // adaptive bots remember how you play
-  sess = createSession({ botId: st.bot, length: st.length, coachMode: st.coach, model: memory, stack: st.huStack ?? 100 });
+  sess = createSession({ botId: st.bot, length: st.length, coachMode: st.coach, model: memory, stack: st.huStack ?? 100, level: getLevel() });
   ui = { last: null, lastWeights: null, paused: false, recap: null, over: false };
   startHand(sess);
   table(container);
@@ -179,11 +185,11 @@ function table(container) {
   if (ui.recap) {
     coachHtml = handRecap(sess, ui.recap, { showDecisions: mode !== 'off' });
   } else if (mode === 'decision' && ui.last) {
-    coachHtml = coachCard(ui.last, { weights: ui.lastWeights, botName: AGENTS[sess.botId].name, live: !!ui.lastState && !ui.last.preflop && ui.last.street > 0 });
+    coachHtml = coachCard(ui.last, { weights: ui.lastWeights, botName: AGENTS[sess.botId].name, live: !!ui.lastState && !ui.last.preflop && ui.last.street > 0, evNote: sess.level === 1 ? `Level 1: EV in bb as if ${AGENTS[sess.botId].name} played solid (the baseline), not his real range. ${ui.last.street === 3 ? 'Exact on the river.' : 'One street ahead.'}` : null });
   } else if (mode !== 'decision') {
     coachHtml = `<div class="text-sm text-ink-400">${mode === 'hand' ? 'The coach speaks at the end of the hand.' : 'Coach off. Your review comes at the end of the session.'}</div>`;
   } else {
-    coachHtml = `<div class="text-sm text-ink-400">Make your decision. The coach grades it against ${AGENTS[sess.botId].name}'s real range.</div>`;
+    coachHtml = `<div class="text-sm text-ink-400">Make your decision. ${sess.level === 1 ? 'Level 1: the coach grades it as if he played solid.' : `The coach grades it against ${AGENTS[sess.botId].name}'s real range.`}</div>`;
   }
 
   // keep open panels open across re-renders (the bot acting re-draws the page)
@@ -255,8 +261,8 @@ function wire(container) {
     ui.rvFor = state;
     setTimeout(() => {
       if (!sess || ui.lastState !== state) return;
-      const bv = bucketView(state, sess.hero, sess.agent);
-      if (bv?.v) bv.v.read = sess.agent.kind === 'thinker';
+      const bv = bucketView(state, sess.hero, coachAgent(sess, sess.level, state));
+      if (bv?.v) bv.v.read = sess.level !== 1 && sess.agent.kind === 'thinker';
       ui.rangeHtml = bucketViewHtml(bv, state.holes[sess.hero]);
       const el = container.querySelector('details[data-rangeview] .body');
       if (el) el.innerHTML = ui.rangeHtml;
@@ -277,7 +283,7 @@ function choose(container, i) {
   ui.rangeHtml = null;
   const d = heroAct(sess, i);
   ui.last = d;
-  ui.lastWeights = !d.preflop && sess.coachMode === 'decision' ? villainRange(s0, 1 - sess.hero, sess.agent) : null;
+  ui.lastWeights = !d.preflop && sess.coachMode === 'decision' ? villainRange(s0, 1 - sess.hero, typeof coachAgent(sess, sess.level, s0) === 'string' ? { id: 'reg', kind: 'profile' } : sess.agent) : null;
   const bad = d.verdict === 'mistake' || d.verdict === 'blunder';
   if (sess.coachMode === 'decision' && bad && !sess.s.done) ui.paused = true;
   afterAction(container);

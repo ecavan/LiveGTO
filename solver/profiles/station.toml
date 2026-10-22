@@ -1,8 +1,8 @@
 name = "Station"
 description = """
-Loose-passive calling station. Plays too many hands and calls a lot before the flop; after it he
-folds a little less than most and checks hands he should bet. When he bets the river he usually
-has it. The most common profitable opponent at $1/$2."""
+Loose-passive and sticky. Plays a third of his hands, calls a lot before the flop, and goes to
+showdown more than anyone. He checks hands he should bet; when he bets the river he usually has it.
+The most common profitable opponent at $1/$2."""
 
 [[rules]]
 note = "hates folding a pair to a normal bet"
@@ -23,53 +23,59 @@ hands = ["monster", "strong"]
 scale = { bet_small = 1.5 }
 
 [[rules]]
-# calibration (fitted to real players)
+note = "folds to a flop c-bet only about half the time"
 streets = ["flop"]
-facing = "bet"
-scale = { fold = 1.008 }
+role = ["vs_cbet"]
+scale = { fold = 0.852 }
 
 [[rules]]
-note = "folds to bets a little less than most players"
+# calibration (fitted to real players)
+streets = ["flop"]
+role = ["vs_bet"]
+scale = { fold = 0.944 }
+
+[[rules]]
+note = "calls turn bets more than most: folds 4 in 10"
 streets = ["turn"]
-facing = "bet"
-scale = { fold = 1.433 }
+role = ["vs_cbet", "vs_bet"]
+scale = { fold = 1.063 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["river"]
-facing = "bet"
-scale = { fold = 2.602 }
+role = ["vs_cbet", "vs_bet"]
+scale = { fold = 1.905 }
 
 [[rules]]
 # calibration (fitted to real players)
-facing = "bet"
-scale = { raise = 1.735 }
+role = ["vs_cbet", "vs_bet"]
+scale = { raise = 1.148 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["flop"]
 role = ["aggr"]
-scale = { aggressive = 1.429 }
+scale = { aggressive = 1.345 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["turn", "river"]
 role = ["aggr"]
-scale = { aggressive = 1.229 }
+scale = { aggressive = 1.252 }
 
 [[rules]]
-note = "bets into the preflop raiser more than most (about 1 flop in 6)"
+note = "bets into the preflop raiser about 1 flop in 7"
 role = ["donk"]
-scale = { aggressive = 5.346 }
+scale = { aggressive = 4.904 }
 
 [[rules]]
 # calibration (fitted to real players)
 role = ["free"]
-scale = { aggressive = 1.161 }
+scale = { aggressive = 0.934 }
 
 [[rules]]
-note = "does bluff the river sometimes: about 1 in 7 of his called river bets"
+note = "rarely bluffs the river: about 1 in 7 called river bets"
 streets = ["river"]
 facing = "none"
 hands = ["weak", "air"]
-scale = { aggressive = 0.585 }
+scale = { aggressive = 0.503 }

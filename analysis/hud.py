@@ -52,6 +52,7 @@ STATS = {
     'FoldToBetFlop': ('fbet_fold_f', 'fbet_opp_f'),
     'FoldToBetTurn': ('fbet_fold_t', 'fbet_opp_t'),
     'FoldToBetRiver': ('fbet_fold_r', 'fbet_opp_r'),
+    'FoldToStabFlop': ('fstab_fold_f', 'fstab_opp_f'),  # a first flop bet that isn't the c-bet (donk, stab)
     'WTSD': ('wtsd', 'saw_flop'),
     'W$SD': ('wsd', 'wsd_known'),
     'BetSmall': ('size_small', None),
@@ -74,6 +75,8 @@ def with_totals(df):
         folds=pl.sum_horizontal([pl.col(f'fold_{x}') for x in s]),
         checks=pl.sum_horizontal([pl.col(f'check_{x}') for x in s]),
         bets=pl.sum_horizontal([pl.col(f'bet_{x}') for x in s]),
+        fstab_fold_f=pl.col('fbet_fold_f') - pl.col('vcb_fold_f'),
+        fstab_opp_f=pl.col('fbet_opp_f') - pl.col('vcb_opp_f'),
     )
 
 

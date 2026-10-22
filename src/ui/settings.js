@@ -1,7 +1,7 @@
 /**
  * Settings: appearance, offline download, data reset.
  */
-import { icon } from './kit.js';
+import { icon, levelSwitch, wireLevel } from './kit.js';
 import { themePref, setTheme } from '../theme.js';
 
 const LIB_CACHE = 'puzzle-library';
@@ -23,7 +23,7 @@ async function offlineStatus() {
 let downloading = null; // one download at a time, even if you leave the page and come back
 
 const RESETS = {
-  puzzles: { label: 'Reset puzzle rating', what: 'your puzzle rating and history (your review queue, streak and range-builder bests stay)' },
+  puzzles: { label: 'Reset puzzle rating', what: 'your puzzle ratings at both levels and your history (your review queue, streak and range-builder bests stay)' },
   drills: { label: 'Reset drill stats', what: 'streaks and scores in the table-maths drills, the preflop trainer and the Buckets drill' },
   play: { label: 'Reset Play sessions', what: 'your Play rating, sessions, and what the bots remember about you' },
   learn: { label: 'Reset lesson progress', what: 'which course steps you have done' },
@@ -34,7 +34,7 @@ function reset(kind) {
   try {
     if (kind === 'puzzles') {
       const st = JSON.parse(localStorage.getItem('livegto.puzzles.v1') || '{}');
-      Object.assign(st, { rating: 1000, played: 0, solved: 0, history: [], seen: [] });
+      Object.assign(st, { rating: 1000, played: 0, solved: 0, history: [], seen: [], levels: {} });
       localStorage.setItem('livegto.puzzles.v1', JSON.stringify(st));
     } else {
       localStorage.removeItem({ drills: 'livegto.drills.v1', play: 'livegto.play.v2', learn: 'livegto.learn.v1', hands: 'livegto.hands.v1' }[kind]);
@@ -48,6 +48,11 @@ export async function render(container) {
     <div class="panel panel-pad flex items-center justify-between gap-3 flex-wrap">
       <div><div class="font-semibold text-white">Appearance</div><p class="text-sm text-ink-300">Auto follows your device's light or dark setting.</p></div>
       <div class="seg" id="theme-seg">${[['system', 'Auto'], ['light', 'Light'], ['dark', 'Dark']].map(([k, l]) => `<button data-theme-pick="${k}" class="${themePref() === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+    </div>
+    <div class="panel panel-pad space-y-2">
+      <div class="font-semibold text-white">Level</div>
+      <p class="text-sm text-ink-300">What the coach grades you against, in Puzzles and Play. Each level has its own ratings, and the coach always shows the other level's answer too.</p>
+      ${levelSwitch()}
     </div>
     <div class="panel panel-pad space-y-3">
       <div class="flex items-center gap-3">${icon('download', 'w-6 h-6 text-emerald-300')}<div class="font-semibold text-white">Offline</div></div>
@@ -73,6 +78,7 @@ export async function render(container) {
     status.textContent = st.have >= st.files.length ? `Downloaded: all ${st.files.length} files are available offline.` : `${st.have} of ${st.files.length} files available offline.`;
     bar.style.width = `${(100 * st.have) / st.files.length}%`;
   };
+  wireLevel(container, () => render(container));
   container.querySelectorAll('[data-theme-pick]').forEach(b => b.addEventListener('click', () => {
     setTheme(b.dataset.themePick);
     container.querySelectorAll('[data-theme-pick]').forEach(x => x.classList.toggle('on', x === b));

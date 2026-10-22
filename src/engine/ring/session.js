@@ -8,6 +8,7 @@
 import { newHand, act, board, pot, potShown, live, posOf, menu, legal } from './game.js';
 import { randomPlayer, playerPolicyAll, context, newHeroStats, keyedMenu, tableTiers } from './players.js';
 import { ringCoach } from './coach.js';
+import { otherGrade } from '../level.js';
 import { comboIndex } from '../hu/equity.js';
 import { classify, cardStr } from '../hu/hand.js';
 
@@ -26,13 +27,14 @@ export function depthFor(mode, rand = Math.random) {
 
 export const heroDepth = (mode) => (mode === 'deep' ? 200 : 100);
 
-export function createTable({ n = 6, coachMode = 'decision', level = 'medium', stacks = 'even', rand = Math.random } = {}) {
+export function createTable({ n = 6, coachMode = 'decision', level = 'medium', stacks = 'even', coachLevel = 2, rand = Math.random } = {}) {
   const used = new Set();
   const tiers = tableTiers(level, n, rand);
   const players = [null, ...tiers.map(tier => randomPlayer(rand, used, tier))];
   for (const p of players) if (p) { p.hud = { hands: 0, vpip: 0, pfr: 0 }; p.depth = depthFor(stacks, rand); }
   return {
     n, coachMode, level, stacks, players, used,
+    coachLevel, // 1 baseline: graded as if everyone played solid (Pro, not adjusting to you) · 2 exploit
     btn: Math.floor(rand() * n),
     handNo: 0,
     stats: newHeroStats(),
@@ -70,9 +72,21 @@ export const heroToAct = (t) => t.s && !t.s.done && t.s.toAct === HERO;
 const nodeKey = (t) => `${t.handNo}:${t.s.log.length}`;
 export const coachReady = (t) => (heroToAct(t) && t.pending?.key === nodeKey(t) ? t.pending.k : null);
 
+/**
+ * Level 1's table: the same people and cards, but everyone else plays the baseline (a Pro who
+ * doesn't adjust to you), so the coach prices the solid play. Level 2 uses the real table.
+ */
+export function baselineTable(t) {
+  if (t._base?.hand !== t.handNo || t._base.n !== t.players.length) {
+    t._base = { hand: t.handNo, n: t.players.length, table: { ...t, players: t.players.map((p, i) => (i === HERO || !p ? p : { ...p, mix: { pro: 1 }, learn: 0 })) } };
+  }
+  return t._base.table;
+}
+export const coachTable = (t, level = t.coachLevel ?? 2) => (level === 1 ? baselineTable(t) : t);
+
 export function coachNow(t) {
   if (!heroToAct(t)) return null;
-  if (t.pending?.key !== nodeKey(t)) t.pending = { key: nodeKey(t), k: ringCoach(t.s, HERO, t, t.snap) };
+  if (t.pending?.key !== nodeKey(t)) t.pending = { key: nodeKey(t), k: ringCoach(t.s, HERO, coachTable(t), t.snap) };
   return t.pending.k;
 }
 
@@ -104,6 +118,12 @@ export function heroAct(t, idx) {
   const s = t.s;
   const opt = k.options[idx];
   const d = gradeDecision(s, k, idx);
+  if (s.street > 0) {
+    // the other level's verdict, so the coach can show both
+    const other = (t.coachLevel ?? 2) === 1 ? 2 : 1;
+    d.other = otherGrade(ringCoach(s, HERO, coachTable(t, other), t.snap), idx, pot(s), other);
+  }
+  d.level = t.coachLevel ?? 2;
   t.decisions.push(d);
   track(t, s, HERO, opt);
   t.s = act(s, opt);

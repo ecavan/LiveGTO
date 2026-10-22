@@ -21,37 +21,59 @@
     }
    },
    {
-    "note": "folds to flop bets less than most players",
+    "note": "calls flop c-bets more than most players",
     "streets": [
      "flop"
     ],
-    "facing": "bet",
+    "role": [
+     "vs_cbet"
+    ],
     "scale": {
-     "fold": 0.836
+     "fold": 0.768
+    }
+   },
+   {
+    "streets": [
+     "flop"
+    ],
+    "role": [
+     "vs_bet"
+    ],
+    "scale": {
+     "fold": 0.851
     }
    },
    {
     "streets": [
      "turn"
     ],
-    "facing": "bet",
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
     "scale": {
-     "fold": 0.912
+     "fold": 0.866
     }
    },
    {
     "streets": [
      "river"
     ],
-    "facing": "bet",
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
     "scale": {
-     "fold": 1.16
+     "fold": 1.182
     }
    },
    {
-    "facing": "bet",
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
     "scale": {
-     "raise": 2.049
+     "raise": 1.805
     }
    },
    {
@@ -62,7 +84,7 @@
      "aggr"
     ],
     "scale": {
-     "aggressive": 1.22
+     "aggressive": 1.24
     }
    },
    {
@@ -74,7 +96,7 @@
      "aggr"
     ],
     "scale": {
-     "aggressive": 1.061
+     "aggressive": 1.071
     }
    },
    {
@@ -83,16 +105,16 @@
      "donk"
     ],
     "scale": {
-     "aggressive": 10.22
+     "aggressive": 9.787
     }
    },
    {
-    "note": "bets most times he is checked to",
+    "note": "bets 4 times in 10 when checked to on the turn",
     "role": [
      "free"
     ],
     "scale": {
-     "aggressive": 1.19
+     "aggressive": 1.233
     }
    },
    {
@@ -106,7 +128,7 @@
      "air"
     ],
     "scale": {
-     "aggressive": 0.623
+     "aggressive": 0.651
     }
    }
   ]
@@ -139,37 +161,60 @@
     }
    },
    {
-    "note": "folds to bets more than anyone: 7 flop bets in 10",
+    "note": "folds to a flop c-bet 6 times in 10",
     "streets": [
      "flop"
     ],
-    "facing": "bet",
+    "role": [
+     "vs_cbet"
+    ],
     "scale": {
-     "fold": 1.219
+     "fold": 0.921
+    }
+   },
+   {
+    "note": "folds to other flop bets 3 times in 4",
+    "streets": [
+     "flop"
+    ],
+    "role": [
+     "vs_bet"
+    ],
+    "scale": {
+     "fold": 1.431
     }
    },
    {
     "streets": [
      "turn"
     ],
-    "facing": "bet",
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
     "scale": {
-     "fold": 1.52
+     "fold": 1.695
     }
    },
    {
     "streets": [
      "river"
     ],
-    "facing": "bet",
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
     "scale": {
-     "fold": 1.861
+     "fold": 1.911
     }
    },
    {
-    "facing": "bet",
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
     "scale": {
-     "raise": 2.443
+     "raise": 1.234
     }
    },
    {
@@ -180,7 +225,7 @@
      "aggr"
     ],
     "scale": {
-     "aggressive": 1.483
+     "aggressive": 1.478
     }
    },
    {
@@ -192,7 +237,7 @@
      "aggr"
     ],
     "scale": {
-     "aggressive": 1.037
+     "aggressive": 1.029
     }
    },
    {
@@ -200,7 +245,7 @@
      "donk"
     ],
     "scale": {
-     "aggressive": 3.045
+     "aggressive": 3.237
     }
    },
    {
@@ -209,7 +254,7 @@
      "free"
     ],
     "scale": {
-     "aggressive": 0.61
+     "aggressive": 0.638
     }
    },
    {
@@ -223,51 +268,73 @@
      "air"
     ],
     "scale": {
-     "aggressive": 0.19
+     "aggressive": 0.244
     }
    }
   ]
  },
- "reg": {
-  "name": "Reg",
-  "description": "A typical online regular (tight-aggressive): c-bets a lot, gives up when called, folds\nwhen he is beaten. Solid, but more predictable than an expert.",
+ "passive": {
+  "name": "Passive",
+  "description": "Tight-passive. Plays a normal number of hands but rarely raises: limps, calls, and folds\nwhen he misses. When he bets or raises he has it.",
   "rules": [
    {
     "streets": [
      "flop"
     ],
-    "facing": "bet",
+    "role": [
+     "vs_cbet"
+    ],
     "scale": {
-     "fold": 1.171
+     "fold": 0.964
     }
    },
    {
-    "note": "folds to turn and river bets more than most players",
+    "note": "folds to a donk bet or a stab 2 times in 3",
+    "streets": [
+     "flop"
+    ],
+    "role": [
+     "vs_bet"
+    ],
+    "scale": {
+     "fold": 1.12
+    }
+   },
+   {
+    "note": "folds to turn bets half the time",
     "streets": [
      "turn"
     ],
-    "facing": "bet",
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
     "scale": {
-     "fold": 1.532
+     "fold": 1.172
     }
    },
    {
     "streets": [
      "river"
     ],
-    "facing": "bet",
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
     "scale": {
-     "fold": 1.958
+     "fold": 1.511
     }
    },
    {
-    "facing": "bet",
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
     "scale": {
-     "raise": 2.505
+     "raise": 1.528
     }
    },
    {
-    "note": "c-bets the flop two times in three",
     "streets": [
      "flop"
     ],
@@ -275,7 +342,7 @@
      "aggr"
     ],
     "scale": {
-     "aggressive": 1.389
+     "aggressive": 1.331
     }
    },
    {
@@ -287,7 +354,7 @@
      "aggr"
     ],
     "scale": {
-     "aggressive": 0.887
+     "aggressive": 1.072
     }
    },
    {
@@ -295,7 +362,7 @@
      "donk"
     ],
     "scale": {
-     "aggressive": 2.914
+     "aggressive": 4.185
     }
    },
    {
@@ -303,11 +370,11 @@
      "free"
     ],
     "scale": {
-     "aggressive": 0.811
+     "aggressive": 0.816
     }
    },
    {
-    "note": "bluffs the river rarely: about 1 in 10 called river bets",
+    "note": "seldom bluffs the river: about 1 in 10 called river bets",
     "streets": [
      "river"
     ],
@@ -317,14 +384,356 @@
      "air"
     ],
     "scale": {
-     "aggressive": 0.522
+     "aggressive": 0.492
+    }
+   }
+  ]
+ },
+ "pro": {
+  "name": "Pro",
+  "description": "Plays like Pluribus, the poker AI: the baseline, calibrated to its stats.",
+  "rules": [
+   {
+    "streets": [
+     "flop"
+    ],
+    "role": [
+     "vs_cbet"
+    ],
+    "scale": {
+     "fold": 0.701
+    }
+   },
+   {
+    "streets": [
+     "flop"
+    ],
+    "role": [
+     "vs_bet"
+    ],
+    "scale": {
+     "fold": 0.81
+    }
+   },
+   {
+    "streets": [
+     "turn"
+    ],
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
+    "scale": {
+     "fold": 1.025
+    }
+   },
+   {
+    "streets": [
+     "river"
+    ],
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
+    "scale": {
+     "fold": 1.206
+    }
+   },
+   {
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
+    "scale": {
+     "raise": 1.176
+    }
+   },
+   {
+    "streets": [
+     "flop"
+    ],
+    "role": [
+     "aggr"
+    ],
+    "scale": {
+     "aggressive": 1.164
+    }
+   },
+   {
+    "streets": [
+     "turn",
+     "river"
+    ],
+    "role": [
+     "aggr"
+    ],
+    "scale": {
+     "aggressive": 0.815
+    }
+   },
+   {
+    "role": [
+     "donk"
+    ],
+    "scale": {
+     "aggressive": 0.705
+    }
+   },
+   {
+    "role": [
+     "free"
+    ],
+    "scale": {
+     "aggressive": 1.058
+    }
+   },
+   {
+    "streets": [
+     "river"
+    ],
+    "facing": "none",
+    "hands": [
+     "weak",
+     "air"
+    ],
+    "scale": {
+     "aggressive": 1.851
+    }
+   }
+  ]
+ },
+ "reg": {
+  "name": "Reg",
+  "description": "A modern regular (tight-aggressive): raises first in, 3-bets more than the old-school reg,\nc-bets often and folds when he meets resistance. Solid, but more predictable than an expert.",
+  "rules": [
+   {
+    "streets": [
+     "flop"
+    ],
+    "role": [
+     "vs_cbet"
+    ],
+    "scale": {
+     "fold": 0.852
+    }
+   },
+   {
+    "streets": [
+     "flop"
+    ],
+    "role": [
+     "vs_bet"
+    ],
+    "scale": {
+     "fold": 1.05
+    }
+   },
+   {
+    "note": "folds to turn and river bets more than most players",
+    "streets": [
+     "turn"
+    ],
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
+    "scale": {
+     "fold": 1.406
+    }
+   },
+   {
+    "streets": [
+     "river"
+    ],
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
+    "scale": {
+     "fold": 2.14
+    }
+   },
+   {
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
+    "scale": {
+     "raise": 1.412
+    }
+   },
+   {
+    "note": "c-bets the flop 6 times in 10",
+    "streets": [
+     "flop"
+    ],
+    "role": [
+     "aggr"
+    ],
+    "scale": {
+     "aggressive": 1.286
+    }
+   },
+   {
+    "streets": [
+     "turn",
+     "river"
+    ],
+    "role": [
+     "aggr"
+    ],
+    "scale": {
+     "aggressive": 0.974
+    }
+   },
+   {
+    "role": [
+     "donk"
+    ],
+    "scale": {
+     "aggressive": 1.881
+    }
+   },
+   {
+    "role": [
+     "free"
+    ],
+    "scale": {
+     "aggressive": 0.884
+    }
+   },
+   {
+    "note": "about 1 in 6 of his called river bets is a bluff",
+    "streets": [
+     "river"
+    ],
+    "facing": "none",
+    "hands": [
+     "weak",
+     "air"
+    ],
+    "scale": {
+     "aggressive": 0.687
+    }
+   }
+  ]
+ },
+ "shark": {
+  "name": "Shark",
+  "description": "A strong human pro (the pros who played Pluribus): close to the baseline, a little more\naggressive and harder to push off a hand.",
+  "rules": [
+   {
+    "streets": [
+     "flop"
+    ],
+    "role": [
+     "vs_cbet"
+    ],
+    "scale": {
+     "fold": 0.782
+    }
+   },
+   {
+    "streets": [
+     "flop"
+    ],
+    "role": [
+     "vs_bet"
+    ],
+    "scale": {
+     "fold": 0.807
+    }
+   },
+   {
+    "streets": [
+     "turn"
+    ],
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
+    "scale": {
+     "fold": 1.127
+    }
+   },
+   {
+    "streets": [
+     "river"
+    ],
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
+    "scale": {
+     "fold": 1.872
+    }
+   },
+   {
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
+    "scale": {
+     "raise": 1.328
+    }
+   },
+   {
+    "streets": [
+     "flop"
+    ],
+    "role": [
+     "aggr"
+    ],
+    "scale": {
+     "aggressive": 1.111
+    }
+   },
+   {
+    "streets": [
+     "turn",
+     "river"
+    ],
+    "role": [
+     "aggr"
+    ],
+    "scale": {
+     "aggressive": 0.943
+    }
+   },
+   {
+    "role": [
+     "donk"
+    ],
+    "scale": {
+     "aggressive": 0.723
+    }
+   },
+   {
+    "role": [
+     "free"
+    ],
+    "scale": {
+     "aggressive": 0.918
+    }
+   },
+   {
+    "streets": [
+     "river"
+    ],
+    "facing": "none",
+    "hands": [
+     "weak",
+     "air"
+    ],
+    "scale": {
+     "aggressive": 0.921
     }
    }
   ]
  },
  "station": {
   "name": "Station",
-  "description": "Loose-passive calling station. Plays too many hands and calls a lot before the flop; after it he\nfolds a little less than most and checks hands he should bet. When he bets the river he usually\nhas it. The most common profitable opponent at $1/$2.",
+  "description": "Loose-passive and sticky. Plays a third of his hands, calls a lot before the flop, and goes to\nshowdown more than anyone. He checks hands he should bet; when he bets the river he usually has it.\nThe most common profitable opponent at $1/$2.",
   "rules": [
    {
     "note": "hates folding a pair to a normal bet",
@@ -363,37 +772,60 @@
     }
    },
    {
+    "note": "folds to a flop c-bet only about half the time",
     "streets": [
      "flop"
     ],
-    "facing": "bet",
+    "role": [
+     "vs_cbet"
+    ],
     "scale": {
-     "fold": 1.008
+     "fold": 0.852
     }
    },
    {
-    "note": "folds to bets a little less than most players",
+    "streets": [
+     "flop"
+    ],
+    "role": [
+     "vs_bet"
+    ],
+    "scale": {
+     "fold": 0.944
+    }
+   },
+   {
+    "note": "calls turn bets more than most: folds 4 in 10",
     "streets": [
      "turn"
     ],
-    "facing": "bet",
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
     "scale": {
-     "fold": 1.433
+     "fold": 1.063
     }
    },
    {
     "streets": [
      "river"
     ],
-    "facing": "bet",
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
     "scale": {
-     "fold": 2.602
+     "fold": 1.905
     }
    },
    {
-    "facing": "bet",
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
     "scale": {
-     "raise": 1.735
+     "raise": 1.148
     }
    },
    {
@@ -404,7 +836,7 @@
      "aggr"
     ],
     "scale": {
-     "aggressive": 1.429
+     "aggressive": 1.345
     }
    },
    {
@@ -416,16 +848,16 @@
      "aggr"
     ],
     "scale": {
-     "aggressive": 1.229
+     "aggressive": 1.252
     }
    },
    {
-    "note": "bets into the preflop raiser more than most (about 1 flop in 6)",
+    "note": "bets into the preflop raiser about 1 flop in 7",
     "role": [
      "donk"
     ],
     "scale": {
-     "aggressive": 5.346
+     "aggressive": 4.904
     }
    },
    {
@@ -433,11 +865,11 @@
      "free"
     ],
     "scale": {
-     "aggressive": 1.161
+     "aggressive": 0.934
     }
    },
    {
-    "note": "does bluff the river sometimes: about 1 in 7 of his called river bets",
+    "note": "rarely bluffs the river: about 1 in 7 called river bets",
     "streets": [
      "river"
     ],
@@ -447,7 +879,7 @@
      "air"
     ],
     "scale": {
-     "aggressive": 0.585
+     "aggressive": 0.503
     }
    }
   ]
@@ -549,37 +981,60 @@
     }
    },
    {
-    "note": "calls flop and turn bets more than most players",
+    "note": "calls a flop c-bet about half the time",
     "streets": [
      "flop"
     ],
-    "facing": "bet",
+    "role": [
+     "vs_cbet"
+    ],
     "scale": {
-     "fold": 0.758
+     "fold": 0.772
     }
    },
    {
     "streets": [
+     "flop"
+    ],
+    "role": [
+     "vs_bet"
+    ],
+    "scale": {
+     "fold": 0.725
+    }
+   },
+   {
+    "note": "calls turn bets more than anyone: folds 4 in 10",
+    "streets": [
      "turn"
     ],
-    "facing": "bet",
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
     "scale": {
-     "fold": 0.766
+     "fold": 0.729
     }
    },
    {
     "streets": [
      "river"
     ],
-    "facing": "bet",
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
     "scale": {
-     "fold": 1.022
+     "fold": 1.01
     }
    },
    {
-    "facing": "bet",
+    "role": [
+     "vs_cbet",
+     "vs_bet"
+    ],
     "scale": {
-     "raise": 1.539
+     "raise": 1.267
     }
    },
    {
@@ -590,7 +1045,7 @@
      "aggr"
     ],
     "scale": {
-     "aggressive": 2.673
+     "aggressive": 2.764
     }
    },
    {
@@ -602,16 +1057,16 @@
      "aggr"
     ],
     "scale": {
-     "aggressive": 2.279
+     "aggressive": 2.33
     }
    },
    {
-    "note": "bets into the preflop raiser often (about 1 flop in 5)",
+    "note": "bets into the preflop raiser about 1 flop in 5",
     "role": [
      "donk"
     ],
     "scale": {
-     "aggressive": 6.289
+     "aggressive": 6.072
     }
    },
    {
@@ -619,7 +1074,7 @@
      "free"
     ],
     "scale": {
-     "aggressive": 1.89
+     "aggressive": 1.931
     }
    },
    {
@@ -633,7 +1088,7 @@
      "air"
     ],
     "scale": {
-     "aggressive": 0.863
+     "aggressive": 0.799
     }
    }
   ]

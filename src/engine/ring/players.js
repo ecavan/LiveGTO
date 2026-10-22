@@ -9,7 +9,7 @@
  */
 import { PREFLOP_RANK } from '../hu/preflopRank.js';
 import { ALL_COMBOS, handType, CLASSES } from '../hu/hand.js';
-import { BASE_OPEN, BASE_FACING, sizeBucket, applyProfile, streetRole } from '../hu/bots.js';
+import { BASE_OPEN, BASE_FACING, sizeBucket, applyProfile, streetRole, facingRole } from '../hu/bots.js';
 import { classesOn, HT } from '../hu/policy.js';
 import { N } from '../hu/equity.js';
 import { menu, legal, board, pot, posOf, live } from './game.js';
@@ -34,26 +34,27 @@ const PCT_OF = Float64Array.from(HT, k => PCT[k]);
 const ARCH = {
   whale: { name: 'Whale', profile: 'whale', learn: 0.2, ramp: 200, blurb: 'plays half his hands, limps and calls, chases draws' },
   station: { name: 'Station', profile: 'station', learn: 0.25, ramp: 180, blurb: 'plays too many hands and calls a lot; his river bets are mostly value' },
+  passive: { name: 'Passive', profile: 'passive', learn: 0.3, ramp: 150, blurb: 'tight-passive: a normal number of hands, rarely raises; limps and calls, folds when he misses' },
   nit: { name: 'Nit', profile: 'nit', learn: 0.35, ramp: 140, blurb: 'tight and scared; folds to pressure; big bets are the nuts' },
   maniac: { name: 'Maniac', profile: 'maniac', learn: 0.3, ramp: 160, blurb: 'raises and bluffs relentlessly' },
-  reg: { name: 'Reg', profile: 'reg', learn: 0.5, ramp: 90, blurb: 'solid, sensible ranges; c-bets a lot and gives up when called' },
-  shark: { name: 'Shark', profile: 'gto', learn: 0.7, ramp: 60, blurb: 'tight-aggressive, adjusts to you quickly' },
-  pro: { name: 'Pro', profile: 'gto', learn: 1, ramp: 30, blurb: 'a strong regular: disciplined ranges, reads you fast and exploits it' },
+  reg: { name: 'Reg', profile: 'reg', learn: 0.5, ramp: 90, blurb: 'tight-aggressive: raises first in, 3-bets, c-bets, and folds to resistance' },
+  shark: { name: 'Shark', profile: 'shark', learn: 0.7, ramp: 60, blurb: 'tight-aggressive, adjusts to you quickly' },
+  pro: { name: 'Pro', profile: 'pro', learn: 1, ramp: 30, blurb: 'a strong regular: disciplined ranges, reads you fast and exploits it' },
 };
 export const ARCHETYPES = Object.fromEntries(Object.entries(ARCH).map(([k, a]) => [k, { ...a, pre: PREFLOP[k] }]));
 
 /**
  * Table difficulty: which kinds of players fill the seats.
- *   easy    only fish (whales, stations, nits, maniacs, and blends of them)
+ *   easy    only fish (whales, stations, passive players, nits, maniacs, and blends of them)
  *   medium  one strong player (a shark or a pro) and one reg; the rest fish
  *   hard    three strong players (mostly pros) and one reg; the rest fish
  */
 export const LEVELS = {
-  easy: { name: 'Easy', blurb: 'All fish: whales, stations, nits and the odd maniac. Learn to take their money.', strong: 0, regs: 0 },
+  easy: { name: 'Easy', blurb: 'All fish: whales, stations, passive players, nits and the odd maniac. Learn to take their money.', strong: 0, regs: 0 },
   medium: { name: 'Medium', blurb: 'One shark or pro and one solid reg among the fish. Pick your spots.', strong: 1, regs: 1 },
   hard: { name: 'Hard', blurb: 'Three strong players who read you fast, one reg, and whoever is left over.', strong: 3, regs: 1 },
 };
-const FISH = { station: 0.35, whale: 0.25, nit: 0.25, maniac: 0.15 };
+const FISH = { station: 0.28, passive: 0.22, whale: 0.2, nit: 0.18, maniac: 0.12 };
 
 /** Seat tiers for a table of `n` (you included): 'strong' | 'reg' | 'fish', shuffled. */
 export function tableTiers(level, n, rand = Math.random) {
@@ -66,7 +67,7 @@ export function tableTiers(level, n, rand = Math.random) {
   return tiers;
 }
 /** A live $1/$2 pool. */
-const POOL = { station: 0.28, whale: 0.14, nit: 0.2, reg: 0.2, maniac: 0.06, shark: 0.12 };
+const POOL = { station: 0.2, passive: 0.16, whale: 0.12, nit: 0.14, reg: 0.2, maniac: 0.06, shark: 0.12 };
 const NAMES = ['Mike', 'Tony', 'Sal', 'Dave', 'Rick', 'Linda', 'Joe', 'Frank', 'Vinny', 'Steve', 'Carl', 'Rosa', 'Eddie', 'Bobby', 'Gus', 'Nate', 'Maria', 'Jin', 'Omar', 'Pete', 'Hank', 'Dee', 'Marco', 'Lou'];
 
 function pick(rand, weights) {
@@ -84,7 +85,7 @@ export function randomPlayer(rand = Math.random, used = new Set(), tier = null) 
   const pool = tier === 'fish' ? FISH : tier === 'reg' ? { reg: 1 } : tier === 'strong' ? { pro: 0.6, shark: 0.4 } : POOL;
   const main = pick(rand, pool);
   const mix = { [main]: 1 };
-  const blendPool = tier === 'fish' ? FISH : tier === 'reg' ? { nit: 0.4, station: 0.4, shark: 0.2 } : tier === 'strong' ? { pro: 0.5, shark: 0.5 } : POOL;
+  const blendPool = tier === 'fish' ? FISH : tier === 'reg' ? { nit: 0.3, passive: 0.25, station: 0.25, shark: 0.2 } : tier === 'strong' ? { pro: 0.5, shark: 0.5 } : POOL;
   if (rand() < (tier === 'reg' ? 0.35 : 0.5)) {
     const options = Object.fromEntries(Object.entries(blendPool).filter(([k]) => k !== main));
     if (Object.keys(options).length) {
@@ -226,7 +227,7 @@ function postflopArch(a, s, seat, cls, ctx) {
     fraction = L.callAmount / Math.max(0.01, pot(s) - L.callAmount - excess);
     base = { ...BASE_FACING[sizeBucket(fraction)][c] };
   }
-  const role = L.facing ? null : streetRole(s, seat);
+  const role = L.facing ? facingRole(s) : streetRole(s, seat);
   if (!L.facing) base = { ...BASE_OPEN[role][c] };
   let mix = applyProfile(a.profile, base, { street, facing: L.facing, fraction, cls: c, handType: null, role });
   // multiway: bluff less, give up weak hands more

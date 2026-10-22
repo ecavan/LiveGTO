@@ -4,7 +4,10 @@
  * Distractors are the classic wrong formulas, so a wrong pick tells you *which* mistake you made.
  */
 import { evaluate, category, CAT, ALL_COMBOS, handType, cardStr, rank, suit } from './hu/hand.js';
-import { BUCKETS, BUCKET, BUCKET_PLAN, bucketsOn, bucketWhy } from './buckets.js';
+import { BUCKETS, BUCKET, BUCKET_PLAN, bucketWhy, bucketOf as handBucket, boardKind, BOARD_KINDS } from './buckets.js';
+import { RFI_RANGES, FACING_OPEN } from './ranges.js';
+import { planFor, PLAN_VILLAINS, ACT_NAME } from './plans.js';
+import { getLevel } from './level.js';
 
 const pct = (x, d = 0) => `${(100 * x).toFixed(d)}%`;
 const pick = (rand, arr) => arr[Math.floor(rand() * arr.length)];
@@ -290,37 +293,59 @@ function feelQ(rand) {
 
 /** The buckets people mix up, for distractors. */
 const NEAR = {
-  nutted: ['vulnerable', 'strong', 'fdraw'], vulnerable: ['nutted', 'strong', 'medium'], strong: ['vulnerable', 'medium', 'nutted'],
-  medium: ['strong', 'weak', 'eqair'], weak: ['medium', 'eqair', 'air'], fdraw: ['sdraw', 'eqair', 'vulnerable'],
-  sdraw: ['eqair', 'fdraw', 'weak'], eqair: ['air', 'sdraw', 'weak'], air: ['eqair', 'weak', 'medium'],
+  nuts: ['value', 'draw', 'catcher'], value: ['nuts', 'catcher', 'draw'], catcher: ['value', 'eqair', 'air'],
+  draw: ['eqair', 'value', 'catcher'], eqair: ['air', 'draw', 'catcher'], air: ['eqair', 'catcher', 'draw'],
 };
 
-/** Name the bucket of a real hand on a real flop or turn. */
+/** Preflop spots you'd really be in, with the range you'd have (the charts in ranges.js). */
+const SPOTS = [
+  ...Object.entries(RFI_RANGES).filter(([p]) => p !== 'SB').map(([p, set]) => ({ set, line: `You opened ${p === 'BTN' ? 'on the button' : `from ${p}`} and got called.` })),
+  ...Object.entries(FACING_OPEN).filter(([, r]) => r.call.size).map(([k, r]) => {
+    const [hero, opener] = k.split('|');
+    const who = { UTG: 'a UTG', MP: 'an MP', CO: 'a CO', BTN: 'a button', SB: 'a small blind' }[opener] ?? `a ${opener}`;
+    return { set: r.call, line: `You called ${who} open ${hero === 'BTN' ? 'on the button' : `in the ${hero}`}.` };
+  }),
+];
+
+/**
+ * Name the bucket of a hand you'd really have: a hand from your preflop range in a real spot, on
+ * a random flop or turn. A bucket is picked first (so draws and equity air come up as often as
+ * pairs), then a spot and a board where your range has a hand in it. Then the plan for that
+ * bucket on that kind of board, at your level.
+ */
 function bucketQ(rand) {
   const turn = rand() < 0.35;
-  const bd = deal(rand, turn ? 4 : 3);
-  const b = bucketsOn(bd);
-  // pick a bucket first (so draws and equity air come up as often as pairs), then a hand in it
-  const present = BUCKETS.map((B, k) => k).filter(k => b.some(x => x === k));
-  const k = pick(rand, present);
-  const idx = [];
-  for (let i = 0; i < b.length; i++) if (b[i] === k) idx.push(i);
-  const hole = ALL_COMBOS[pick(rand, idx)];
-  const key = BUCKETS[k].key;
+  const want = pick(rand, BUCKETS).key;
+  let hole, bd, spot;
+  for (let tries = 0; tries < 400; tries++) {
+    spot = pick(rand, SPOTS);
+    const keys = [...spot.set];
+    const k = pick(rand, keys);
+    const combos = ALL_COMBOS.filter(c => handType(c) === k);
+    hole = pick(rand, combos);
+    bd = deal(rand, turn ? 4 : 3, hole);
+    if (handBucket(hole, bd) === want) break;
+  }
+  const key = handBucket(hole, bd);
   const r = mc(rand, BUCKET[key].name, NEAR[key].map(x => BUCKET[x].name));
-  const plan = BUCKET_PLAN[key];
+  const kind = boardKind(bd);
+  const level = getLevel();
+  const vil = level === 2 ? pick(rand, Object.keys(PLAN_VILLAINS)) : null;
+  const say = (pl) => (pl ? `<b>${ACT_NAME[pl.act] ?? pl.act}</b>` : '—');
+  const row = (lv) => `checked to you ${say(planFor(lv, kind, 'bet', key))} · facing a bet ${say(planFor(lv, kind, 'facing', key))}`;
   return {
-    prompt: `What kind of hand is this on the ${turn ? 'turn' : 'flop'}?`,
+    prompt: `${spot.line} What kind of hand is this on the ${turn ? 'turn' : 'flop'}?`,
     hole, board: bd,
     ...r,
     explain: `<b>${BUCKET[key].name}</b>: ${bucketWhy(hole, bd)}.
-      <div class="mt-2"><span class="text-ink-400">Heads-up:</span> ${plan.hu}</div>
-      <div><span class="text-ink-400">Multiway:</span> ${plan.mw}</div>`,
+      <div class="mt-2"><span class="text-ink-400">On a ${BOARD_KINDS[kind].name.toLowerCase()} board, Level 1 (baseline):</span> ${row('gto')}</div>
+      ${vil ? `<div><span class="text-ink-400">Level 2, against a ${PLAN_VILLAINS[vil]}:</span> ${row(vil)}</div>` : ''}
+      <div><span class="text-ink-400">Multiway:</span> ${BUCKET_PLAN[key].mw}</div>`,
   };
 }
 
 export const DRILLS = {
-  bucket: { name: 'Bucket your hand', blurb: 'Monster, pair, draw, or air? Name it, then see the plan.', gen: bucketQ, group: 'Hand reading' },
+  bucket: { name: 'Bucket your hand', blurb: 'A hand you\'d really have: nuts, value, bluff-catcher, draw or air? Then the plan.', gen: bucketQ, group: 'Hand reading' },
   feel: { name: 'Bet-size feel', blurb: 'Dollar bets at table speed: size and price in 8 seconds.', gen: feelQ, group: 'Speed', timed: 8 },
   potodds: { name: 'Pot odds', blurb: 'Equity you need to call a bet.', gen: potOdds, group: 'Price' },
   ev: { name: 'EV of a call', blurb: 'Win × equity − risk × (1 − equity).', gen: evCallQ, group: 'Price' },

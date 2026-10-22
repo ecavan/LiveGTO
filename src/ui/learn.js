@@ -8,6 +8,7 @@
  *   #learn/formulas            formula sheet
  *   #learn/playbook            exploit playbook
  *   #learn/buckets             hand buckets: sort your hand after the flop
+ *   #learn/types               player types: their HUD stats, how to spot and beat them
  */
 import { icon } from './kit.js';
 import { DRILLS } from '../engine/drills.js';
@@ -21,6 +22,7 @@ export async function render(container, params = []) {
   if (sub === 'range') { window.location.hash = 'puzzles/buckets'; return undefined; }
   if (sub === 'preflop') return (await import('./learn/preflop.js')).render(container, rest);
   if (sub === 'buckets') return (await import('./learn/buckets.js')).render(container, rest);
+  if (sub === 'types') return (await import('./learn/types.js')).render(container, rest);
   if (sub === 'formulas') return (await import('./learn/formulas.js')).render(container, rest);
   if (sub === 'playbook') {
     container.innerHTML = `<div class="page max-w-4xl space-y-4"><a href="#learn" class="btn btn-quiet text-sm">${icon('back', 'w-4 h-4')} Learn</a><div id="pb"></div></div>`;
@@ -54,7 +56,8 @@ async function home(container) {
     <section class="space-y-3">
       <h2 class="text-lg font-semibold text-white">Hand reading, ranges and preflop</h2>
       <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        ${tile('#learn/buckets', 'grid', 'Hand buckets', 'Sort your hand after the flop: monster, pair, draw, air with equity or dead air, and the plan for each.')}
+        ${tile('#learn/buckets', 'grid', 'Hand buckets', 'Six buckets after the flop (nuts, value, bluff-catcher, draw, air with equity, air) and the plan for each, by board.')}
+        ${tile('#learn/types', 'bot', 'Player types', 'Whale, station, nit, reg…: their real HUD stats, how to spot them live, how to beat them.')}
         ${tile('#puzzles/buckets', 'grid', 'Range buckets', 'Your whole range in a real spot: one plan for your monsters, pairs, draws and air. In Puzzles.')}
         ${tile('#learn/preflop', 'target', 'Preflop trainer', 'Raise, call or fold from every seat, live 9-handed charts.')}
         ${tile('#learn/formulas', 'learn', 'Formula sheet', 'Every number you use at the table, on one page.')}
