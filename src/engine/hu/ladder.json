@@ -4,32 +4,25 @@
  "w0": 25,
  "elo": {
   "pro": 2000,
-  "reg": 1600,
-  "whale": 1100,
-  "maniac": 1410,
-  "station": 1490,
-  "nit": 1550,
-  "shark": 1780
+  "whale": 1200,
+  "station": 1440,
+  "nit": 1750,
+  "maniac": 1770,
+  "reg": 1660,
+  "shark": 1960
  },
  "results": {
   "pro": {
-   "reg": 45.4,
-   "whale": 225.9,
-   "maniac": 86.8,
-   "station": 67.2,
-   "nit": 53.1
+   "whale": 169.6,
+   "station": 79.2,
+   "nit": 22.8,
+   "maniac": 19.6,
+   "reg": 34.3
   },
   "shark": {
-   "reg": 40.1,
-   "nit": 18.8,
-   "station": 8.4
-  },
-  "ci": {
-   "reg": 84,
-   "whale": 72.3,
-   "maniac": 87.2,
-   "station": 60.9,
-   "nit": 45
+   "reg": -23.1,
+   "nit": 51,
+   "station": 91.1
   }
  }
 }

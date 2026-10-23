@@ -340,21 +340,23 @@ bets from looser players, multiway, with weaker hands, so they got their own fit
 ## Heads-up ratings
 
 The heads-up bots share the postflop baseline and profiles, so the Elo ladder was played again
-(`scripts/ladder.mjs`: the Pro against each bot, 6,000 duplicate hands; ±45–90bb/100 at 95%):
+after the 2026 refit (`scripts/ladder.mjs`: the Pro against each bot, and the Shark against three,
+6,000 duplicate hands with two different deals each, averaged):
 
-| Bot | Before | After |
-|---|---|---|
-| Whale | 860 | 1100 |
-| Maniac | 920 | 1410 |
-| Station | 1380 | 1490 |
-| Nit | 1560 | 1550 |
-| Reg | 1690 | 1600 |
-| Shark | 1660 | 1780 |
-| Pro | 2000 | 2000 |
+| Bot | Pro's win rate (bb/100) | Before | After |
+|---|---|---|---|
+| Whale | 170 | 1100 | 1200 |
+| Station | 79 | 1490 | 1440 |
+| Reg | 34 | 1600 | 1660 |
+| Nit | 23 | 1550 | 1750 |
+| Maniac | 20 | 1410 | 1770 |
+| Shark | (vs Reg −23, Nit +51, Station +91) | 1780 | 1960 |
+| Pro | | 2000 | 2000 |
 
-The fish are less wild than they were, so they lose less. The heads-up Reg keeps the Pluribus
-baseline: the fitted Reg profile is a 6-max online regular, who folds far too much heads-up (the
-Pro beat him by about 110bb/100). He plays at the live table, where he belongs.
+Each matchup is still worth about ±35–65bb/100 at 95% (two deals of 6,000 hands), so the bots
+between Reg and Shark are within about ±150 Elo of each other: treat Reg, Nit and Maniac as one tier.
+The big moves are real. The Maniac no longer folds to raises like a calling station (the fold
+knobs now apply only to bets, not raises), so heads-up he is much harder to push around.
 
 ## Checks against Pluribus
 
