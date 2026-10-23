@@ -30,6 +30,7 @@ export function makeSession(v, prev = null) {
   const buyin = num(v.buyin), cashout = num(v.cashout), hours = num(v.hours);
   const stakes = String(v.stakes || '').trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v.date || '')) return { error: 'Pick a date.' };
+  if (v.date > today()) return { error: 'That date is in the future.' };
   if (!stakes || !bbOf(stakes)) return { error: 'Enter the stakes, like 1/2 or 2/5.' };
   if (!(buyin > 0)) return { error: 'Enter what you bought in for.' };
   if (!(cashout >= 0)) return { error: 'Enter what you cashed out (0 if you lost it all).' };

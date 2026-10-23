@@ -96,7 +96,7 @@ function setup(container) {
     <div class="flex items-end justify-between gap-4 flex-wrap">
       <div><div class="h-sec">Play</div><h1 class="h-title">Choose your opponent</h1>
         <p class="muted mt-1 text-sm">Heads-up, ${st.huStack ?? 100}bb, button vs big blind. Every decision is graded at your level; the coach shows the other level's answer too.</p></div>
-      <div class="flex items-end gap-3 flex-wrap">${playTabs('')}<div class="stat min-w-[150px]"><div class="k">Play rating · ${LEVELS[getLevel()].short}</div><div class="v text-amber-200">${mine ? mine.rating : '—'}</div>
+      <div class="flex items-end gap-3 flex-wrap max-w-full">${playTabs('')}<div class="stat min-w-[150px]"><div class="k">Play rating · ${LEVELS[getLevel()].short}</div><div class="v text-amber-200">${mine ? mine.rating : '—'}</div>
         <div class="s">${mine ? `${mine.hands} rated hands` : 'play a session to get rated'}</div></div></div>
     </div>
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">

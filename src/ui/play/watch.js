@@ -117,7 +117,7 @@ function draw(container) {
   container.innerHTML = `<div class="page">
     <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
       <div class="text-sm text-ink-300"><b class="text-white">${a.name}</b> vs <b class="text-white">${b.name}</b> · ${m.s.done ? `hand ${m.handNo} done` : `playing hand ${m.handNo}`}</div>
-      <div class="flex items-center gap-2">${playTabs('watch')}<button id="w-new" class="btn btn-quiet text-sm">Change bots</button></div>
+      <div class="flex items-center gap-2 flex-wrap max-w-full">${playTabs('watch')}<button id="w-new" class="btn btn-quiet text-sm">Change bots</button></div>
     </div>
     <div class="grid lg:grid-cols-[minmax(0,1fr)_400px] gap-5 lg:grid-flow-dense items-start">
       <div class="space-y-4 min-w-0">

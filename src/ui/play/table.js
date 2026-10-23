@@ -174,9 +174,9 @@ function sessionPanel() {
   const learners = t.players.filter(Boolean).map(p => adjustment(p, st)).reduce((a, b) => Math.max(a, b), 0);
   return `<div class="panel panel-pad space-y-3">
     <div class="grid grid-cols-3 gap-2">
-      ${stat('Hands', sum.hands)}
-      ${stat('Result', `<span class="${tone(sum.net)}">${fmtBB(sum.net, { sign: true })}</span>`)}
-      ${stat('EV lost', sum.hands ? `−${sum.evLost.toFixed(1)}` : '0', `${pct(sum.accuracy)} good`)}
+      ${stat('Hands', sum.hands, '', '!text-xl')}
+      ${stat('Result', `<span class="${tone(sum.net)}">${fmtBB(sum.net, { sign: true })}</span>`, '', '!text-xl')}
+      ${stat('EV lost', sum.evLost >= 0.05 ? `−${sum.evLost.toFixed(1)}` : '0', `${pct(sum.accuracy)} good`, '!text-xl')}
     </div>
     <div class="text-xs text-ink-300">You: VPIP <b class="text-white">${pct(sum.vpip)}</b> · PFR <b class="text-white">${pct(sum.pfr)}</b>. ${read}${learners > 0.05 ? ` The sharpest player has adjusted ${pct(learners)} to you.` : ''}</div>
     ${disc('Who is at the table', `<div class="space-y-1.5">${t.players.map((p, i) => (p ? `<div class="flex justify-between gap-2 text-sm"><span class="text-white">${esc(p.name)}</span>
@@ -357,8 +357,8 @@ function review(container) {
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       ${stat('Decisions', pct(sum.accuracy), `${sum.blunders} blunders · ${sum.mistakes} mistakes`)}
-      ${stat('EV lost', `−${sum.evLost.toFixed(1)}bb`, `${sum.lossPer100}bb/100`, 'text-rose-200')}
-      ${stat('Result', `<span class="${tone(sum.net)}">${fmtBB(sum.net, { sign: true })}</span>`, `${sum.hands} hands · ${sum.bbPer100}bb/100`)}
+      ${stat('EV lost', `−${sum.evLost.toFixed(1)}bb`, `${Math.round(sum.lossPer100)}bb/100`, 'text-rose-200')}
+      ${stat('Result', `<span class="${tone(sum.net)}">${fmtBB(sum.net, { sign: true })}</span>`, `${sum.hands} hands · ${fmtBB(Math.round(sum.bbPer100), { sign: true })}/100`)}
       ${stat('Your style', `${pct(sum.vpip)} / ${pct(sum.pfr)}`, 'VPIP / PFR (live winners: ~20 / 15)')}
     </div>
     <div class="panel panel-pad space-y-2"><div class="h-sec">The table</div>

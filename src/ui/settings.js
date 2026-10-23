@@ -36,6 +36,7 @@ function reset(kind) {
     if (kind === 'puzzles') {
       const st = JSON.parse(localStorage.getItem('livegto.puzzles.v1') || '{}');
       Object.assign(st, { rating: 1000, played: 0, solved: 0, history: [], seen: [], levels: {} });
+      delete st.buckets; // the bucket question's score on puzzles
       localStorage.setItem('livegto.puzzles.v1', JSON.stringify(st));
     } else {
       localStorage.removeItem({ drills: 'livegto.drills.v1', play: 'livegto.play.v2', learn: 'livegto.learn.v1', hands: 'livegto.hands.v1', sessions: 'livegto.sessions.v1' }[kind]);

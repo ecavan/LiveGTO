@@ -98,7 +98,7 @@ function loadError(container, e) {
         ${it ? '<button id="pz-drop" class="btn">Remove it from the queue</button>' : ''}
         ${mode !== 'rated' ? '<a class="btn" href="#puzzles/buckets">Buckets drill (works offline)</a>' : ''}</div>
     </div></div>`;
-  container.querySelector('#pz-retry').addEventListener('click', () => { cur[mode] = null; navigate(mode === 'rated' ? 'puzzles' : `puzzles/${mode}`); });
+  container.querySelector('#pz-retry').addEventListener('click', () => { cur[mode] = null; navigate(mode === 'rated' ? 'puzzles' : mode === 'drill' ? `puzzles/drill/${drill.leak}` : `puzzles/${mode}`); });
   container.querySelector('#pz-drop')?.addEventListener('click', () => {
     stats.queue = (stats.queue || []).filter(x => x.k !== it.k);
     saveStats(stats);
@@ -354,7 +354,7 @@ function draw(container) {
     <div>${puzzleTabs(mode === 'rated' ? '' : mode)}</div>
     ${mode === 'review' && current ? `<p class="text-sm text-ink-400">Missed puzzles come back after ${INTERVALS.join(', ')} days. Solve one each time and it leaves the queue. Not rated.</p>` : ''}
     ${mode === 'daily' ? `<p class="text-sm text-ink-400">One spot a day, the same for everyone. Not rated: it counts toward your streak.</p>` : ''}
-    ${mode === 'drill' ? `<p class="text-sm text-ink-300">${esc(LEAK_DRILLS[drill.leak].want)} ${esc(LEAKS[drill.leak].fix)} <a href="#play/review" class="underline text-ink-400">Back to your leaks</a></p>` : ''}`;
+    ${mode === 'drill' ? `<p class="text-sm text-ink-300">${esc(LEAK_DRILLS[drill.leak].want)} <a href="#play/review" class="underline text-ink-400">Back to your leaks</a></p>` : ''}`;
   if (!current) {
     const empty = mode === 'review'
       ? `<div class="panel panel-pad text-center py-10 space-y-3">

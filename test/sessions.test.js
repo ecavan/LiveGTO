@@ -14,6 +14,7 @@ describe('live sessions', () => {
   it('validates the form', () => {
     expect(makeSession({ date: '2026-10-01', stakes: '1/2', buyin: '300', cashout: '0', hours: '4' }).session.cashout).toBe(0);
     expect(makeSession({ date: '', stakes: '1/2', buyin: 300, cashout: 0, hours: 4 }).error).toMatch(/date/);
+    expect(makeSession({ date: '2999-01-01', stakes: '1/2', buyin: 300, cashout: 0, hours: 4 }).error).toMatch(/future/);
     expect(makeSession({ date: '2026-10-01', stakes: 'x', buyin: 300, cashout: 0, hours: 4 }).error).toMatch(/stakes/);
     expect(makeSession({ date: '2026-10-01', stakes: '1/2', buyin: '', cashout: 0, hours: 4 }).error).toMatch(/bought in/);
     expect(makeSession({ date: '2026-10-01', stakes: '1/2', buyin: 300, cashout: '', hours: 4 }).error).toMatch(/cashed out/);

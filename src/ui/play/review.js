@@ -78,7 +78,7 @@ function home(container) {
     <div class="flex items-end justify-between gap-4 flex-wrap">
       <div><div class="h-sec">Play</div><h1 class="h-title">Review</h1>
         <p class="muted mt-1 text-sm max-w-2xl">Game review, like chess: replay your hands, find the better move, and see where your EV goes.</p></div>
-      <div class="flex items-center gap-2 flex-wrap"><a href="#play/review/log" class="btn btn-primary">${icon('pen', 'w-4 h-4')} Log a live hand</a>${playTabs('review')}</div>
+      <div class="flex items-center gap-2 flex-wrap max-w-full"><a href="#play/review/log" class="btn btn-primary">${icon('pen', 'w-4 h-4')} Log a live hand</a>${playTabs('review')}</div>
     </div>
     ${!hands.length ? empty : `
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -87,7 +87,7 @@ function home(container) {
       ${stat('Decisions', rep.spots, `${sessions.length} session${sessions.length === 1 ? '' : 's'}`)}
       ${stat('Result', `<span class="${tone(hands.reduce((a, h) => a + (h.net ?? 0), 0))}">${fmtBB(hands.reduce((a, h) => a + (h.net ?? 0), 0), { sign: true })}</span>`, 'all stored hands')}
     </div>
-    <div class="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5 items-start">
+    <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5 items-start">
       <div class="space-y-2">
         <div class="flex items-baseline justify-between"><div class="h-sec">Your leaks</div><span class="text-xs text-ink-400">cost per 100 hands</span></div>
         ${leaks}

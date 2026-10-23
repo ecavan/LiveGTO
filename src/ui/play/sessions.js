@@ -16,6 +16,7 @@ let range = 'all'; // all | year | 90
 
 const money = (x, { sign = false } = {}) => `${sign && x > 0 ? '+' : x < 0 ? '−' : ''}$${Math.abs(Math.round(x)).toLocaleString()}`;
 const tone = (x) => (x > 0 ? 'text-emerald-300' : x < 0 ? 'text-rose-300' : '');
+const bbh = (x) => `${x < 0 ? '−' : ''}${Math.abs(x).toFixed(1)}`;
 const hrs = (h) => (h < 10 ? h.toFixed(1) : Math.round(h).toString());
 const fmtDate = (d) => new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 
@@ -27,6 +28,7 @@ function inRange(s) {
 
 export function render(container) {
   clearInterval(tick);
+  editing = null;
   draw(container);
   return () => clearInterval(tick);
 }
@@ -110,7 +112,7 @@ function draw(container) {
   const byCasino = groupBy(list, 'casino');
   const table = (rows, label) => (rows.length < 2 ? '' : `<div class="panel panel-pad"><div class="h-sec mb-2">By ${label}</div>
     <table class="w-full text-sm num"><thead><tr class="text-left text-[11px] uppercase tracking-wide text-ink-400"><th class="pb-1 font-semibold">${label}</th><th class="font-semibold text-right">Hours</th><th class="font-semibold text-right">Profit</th><th class="font-semibold text-right">$/h</th><th class="font-semibold text-right">bb/h</th></tr></thead>
-    <tbody>${rows.map(r => `<tr class="border-t border-ink-800"><td class="py-1.5 text-white">${esc(r.key)}</td><td class="text-right">${hrs(r.hours)}</td><td class="text-right ${tone(r.net)}">${money(r.net, { sign: true })}</td><td class="text-right ${tone(r.perHour)}">${money(r.perHour, { sign: true })}</td><td class="text-right">${r.bbPerHour.toFixed(1)}</td></tr>`).join('')}</tbody></table></div>`);
+    <tbody>${rows.map(r => `<tr class="border-t border-ink-800"><td class="py-1.5 text-white">${esc(r.key)}</td><td class="text-right">${hrs(r.hours)}</td><td class="text-right whitespace-nowrap ${tone(r.net)}">${money(r.net, { sign: true })}</td><td class="text-right whitespace-nowrap ${tone(r.perHour)}">${money(r.perHour, { sign: true })}</td><td class="text-right whitespace-nowrap">${bbh(r.bbPerHour)}</td></tr>`).join('')}</tbody></table></div>`);
 
   container.innerHTML = `<div class="page space-y-5 fade-up">
     <div class="flex items-end justify-between gap-4 flex-wrap">
@@ -118,13 +120,13 @@ function draw(container) {
         <p class="muted mt-1 text-sm max-w-2xl">Your live results: profit, $ an hour and big blinds an hour, over time and by stakes and casino. Kept on this device; export a copy now and then.</p></div>
       ${playTabs('sessions')}
     </div>
-    ${run ? runningCard(run) : editing ? form(editRow) : `${startCard()}<div class="flex gap-2 flex-wrap"><button id="ss-new" class="btn">${icon('pen', 'w-4 h-4')} Add a past session</button>${all.length ? '<button id="ss-csv" class="btn btn-quiet">Export CSV</button>' : ''}</div>`}
-    ${!t ? (all.filter(s => !s.running).length ? '<p class="text-sm text-ink-400">No sessions in this period.</p>' : '') : `
-    <div class="flex justify-end"><div class="seg">${[['all', 'All time'], ['year', 'This year'], ['90', '90 days']].map(([v, l]) => `<button data-range="${v}" class="px-3 py-1.5 rounded-lg text-sm font-medium ${v === range ? 'bg-ink-700 text-white shadow-card' : 'text-ink-300 hover:text-ink-100'}">${l}</button>`).join('')}</div></div>
+    ${editing ? form(editRow) : run ? runningCard(run) : `${startCard()}<div class="flex gap-2 flex-wrap"><button id="ss-new" class="btn">${icon('pen', 'w-4 h-4')} Add a past session</button>${all.length ? '<button id="ss-csv" class="btn btn-quiet">Export CSV</button>' : ''}</div>`}
+    ${all.some(s => !s.running) ? `<div class="flex justify-end"><div class="seg">${[['all', 'All time'], ['year', 'This year'], ['90', '90 days']].map(([v, l]) => `<button data-range="${v}" class="px-3 py-1.5 rounded-lg text-sm font-medium ${v === range ? 'bg-ink-700 text-white shadow-card' : 'text-ink-300 hover:text-ink-100'}">${l}</button>`).join('')}</div></div>` : ''}
+    ${!t ? (all.some(s => !s.running) ? '<p class="text-sm text-ink-400">No sessions in this period.</p>' : '') : `
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       ${stat('Profit', `<span class="${tone(t.net)}">${money(t.net, { sign: true })}</span>`, `${t.n} session${t.n === 1 ? '' : 's'} · ${hrs(t.hours)} hours`)}
       ${stat('Per hour', `<span class="${tone(t.perHour)}">${money(t.perHour, { sign: true })}</span>`, t.ci != null ? `±${money(t.ci)} (95%)` : 'needs 2+ sessions for a range')}
-      ${stat('Big blinds / hour', t.bbPerHour.toFixed(1), 'each session in its own blinds')}
+      ${stat('Big blinds / hour', bbh(t.bbPerHour), 'each session in its own blinds')}
       ${stat('Winning sessions', `${Math.round(t.winRate * 100)}%`, `best ${money(profit(t.best), { sign: true })} · worst ${money(profit(t.worst), { sign: true })}`)}
     </div>
     ${t.ci != null ? `<p class="text-xs text-ink-400">Live poker swings: your sessions vary by about ${money(t.sdHour)} an hour, so after ${hrs(t.hours)} hours your real rate is somewhere around ${money(t.perHour - t.ci, { sign: true })} to ${money(t.perHour + t.ci, { sign: true })} an hour. The range halves every time your hours quadruple.</p>` : ''}

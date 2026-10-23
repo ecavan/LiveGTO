@@ -222,7 +222,7 @@ export function sessionPanel(sess, sum) {
     ${read ? `<div class="text-xs rounded-lg bg-ink-850 border border-ink-700 px-3 py-2 text-ink-200">He reads you as <b class="text-amber-200">${read.name}</b> (${pct(read.p)})${read.adapt < 0.999 ? ` and has shifted ${pct(read.adapt)} of his play to exploit it` : ''}.</div>` : ''}
     <div class="grid grid-cols-3 gap-2">
       ${stat('Hands', `${sum.hands}${sess.length ? `<span class="text-ink-400 text-base">/${sess.length}</span>` : ''}`)}
-      ${stat('EV lost', sum.hands ? `−${sum.evLost.toFixed(1)}` : '0', 'by your decisions', sum.evLost > 0 ? 'text-rose-300' : '')}
+      ${stat('EV lost', sum.evLost >= 0.05 ? `−${sum.evLost.toFixed(1)}` : '0', 'by your decisions', sum.evLost > 0 ? 'text-rose-300' : '')}
       ${stat('Rating', sum.rating ?? '—', sum.rating ? 'this session' : 'after 5 hands')}
     </div>
     <div class="grid grid-cols-2 gap-2">
@@ -243,7 +243,8 @@ export function handRecap(sess, h, { showDecisions = true } = {}) {
   const decisions = showDecisions && h.decisions.length ? `<div class="space-y-2">${h.decisions.map((d, i) => decisionRow(d, i, { botName: AGENTS[sess.botId].name })).join('')}</div>` : '';
   const quality = h.evLost > 0.005
     ? `<span class="text-rose-300">Your decisions cost ${fmtBB(h.evLost)} of EV.</span>`
-    : `<span class="text-emerald-300">No EV lost: every decision was best or fine.</span>`;
+    : !h.decisions.length ? '<span class="text-ink-300">You had no decision this hand.</span>'
+      : `<span class="text-emerald-300">No EV lost: every decision was best or fine.</span>`;
   const luck = Math.abs(h.luck) >= 0.05 ? ` All-in luck: <b class="${h.luck > 0 ? 'text-emerald-300' : 'text-rose-300'}">${fmtBB(h.luck, { sign: true })}</b> (you had ${pct(h.allinEq)} when the money went in).` : '';
   return `<div class="space-y-3 fade-up">
     <div class="verdict ${won ? 'v-best' : lost ? 'v-mistake' : 'v-fine'}">
@@ -288,7 +289,7 @@ export function reviewHtml(sess, sum, pastSessions) {
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       ${stat('Played like', sum.rating ?? '—', sum.rating ? `EV lost ${sum.lossPer100.toFixed(1)}bb/100` : 'play 5+ hands', 'text-amber-200')}
       ${stat('Best or good', pct(sum.accuracy), `of your decisions · ${sum.blunders} blunders · ${sum.mistakes} mistakes`)}
-      ${stat('Result', `<span class="${tone(sum.net)}">${fmtBB(sum.net, { sign: true })}</span>`, `${sum.hands} hands · ${sum.bbPer100.toFixed(0)}bb/100`)}
+      ${stat('Result', `<span class="${tone(sum.net)}">${fmtBB(sum.net, { sign: true })}</span>`, `${sum.hands} hands · ${fmtBB(Math.round(sum.bbPer100), { sign: true })}/100`)}
       ${stat('Luck', `<span class="${tone(sum.luck)}">${fmtBB(sum.luck, { sign: true })}</span>`, `all-in adjusted: ${fmtBB(sum.adjusted, { sign: true })}`)}
     </div>
     <div class="panel panel-pad">
@@ -366,6 +367,6 @@ export function rangeViewHtml(v, heroHole) {
 
 /** Heads-up · Live table · Watch · Review */
 export function playTabs(active) {
-  return `<div class="seg overflow-x-auto max-w-full">${[['', 'Heads-up'], ['table', 'Live table'], ['watch', 'Watch'], ['review', 'Review'], ['sessions', 'Sessions']].map(([v, l]) =>
-    `<a href="#play${v ? '/' + v : ''}" class="px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap ${v === active ? 'bg-ink-700 text-white shadow-card' : 'text-ink-300 hover:text-ink-100'}">${l}</a>`).join('')}</div>`;
+  return `<div class="seg overflow-x-auto max-w-full gap-0 sm:gap-1">${[['', 'Heads-up'], ['table', 'Live table'], ['watch', 'Watch'], ['review', 'Review'], ['sessions', 'Sessions']].map(([v, l]) =>
+    `<a href="#play${v ? '/' + v : ''}" class="px-2 sm:px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap ${v === active ? 'bg-ink-700 text-white shadow-card' : 'text-ink-300 hover:text-ink-100'}">${l}</a>`).join('')}</div>`;
 }

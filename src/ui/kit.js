@@ -84,7 +84,7 @@ export function optionLabel(label, fmt = fmtBB) {
 export function fmtBB(x, { sign = false } = {}) {
   const v = Math.round(x * 100) / 100;
   const s = Number.isInteger(v) ? String(v) : v.toFixed(Math.abs(v) >= 10 ? 1 : 2).replace(/\.?0+$/, '');
-  return `${sign && v > 0 ? '+' : ''}${s}bb`;
+  return `${sign && v > 0 ? '+' : ''}${s.replace('-', '−')}bb`;
 }
 
 /** Segmented control. items: [{ v, label }] */
@@ -108,11 +108,13 @@ export const stat = (k, v, s = '', tone = '') =>
 /** EV bars for a set of options: [{ label, ev }], index of best, fine indices, chosen index. */
 export function evBars(options, { best, fine = [], chosen = -1 }) {
   const evs = options.map(o => o.ev);
-  const mx = Math.max(...evs), mn = Math.min(...evs, 0);
+  // measured from the best play, as the verdict is (an overbet shove can show more EV: a model
+  // artifact that is never the benchmark, see bestNatural)
+  const mx = options[best] ? options[best].ev : Math.max(...evs), mn = Math.min(...evs, 0);
   return `<div class="space-y-2">${options.map((o, i) => {
-    const w = Math.max(3, (100 * (o.ev - mn)) / Math.max(0.01, mx - mn));
+    const w = Math.max(3, (100 * (Math.min(o.ev, mx) - mn)) / Math.max(0.01, mx - mn));
     const col = i === best ? 'bg-emerald-400' : fine.includes(i) ? 'bg-sky-400' : 'bg-ink-400';
-    const loss = mx - o.ev;
+    const loss = Math.max(0, mx - o.ev);
     return `<div class="evrow">
       <div class="truncate ${i === chosen ? 'text-white font-semibold' : 'text-ink-300'}">${i === chosen ? '▸ ' : ''}${esc(optionLabel(o.label))}</div>
       <div class="evbar"><i class="${col}" style="width:${w}%"></i></div>
