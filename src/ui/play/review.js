@@ -67,6 +67,7 @@ function home(container) {
       <span class="evbar mt-1.5 block"><i style="width:${Math.max(3, (100 * l.lost) / maxLost)}%;background:#f43f5e"></i></span></span>`,
     `<p class="text-ink-200">${esc(l.fix)}</p>
      <p class="text-xs text-ink-400">${l.count} time${l.count === 1 ? '' : 's'} · ${fmtBB(l.lost)} of EV in total.</p>
+     <a class="btn btn-primary btn-sm" href="${l.key.startsWith('pre-') ? '#learn/preflop' : `#puzzles/drill/${l.key}`}">${icon('target', 'w-4 h-4')} ${l.key.startsWith('pre-') ? 'Practise preflop' : 'Drill this leak'}</a>
      <div class="space-y-1.5 pt-1">${l.examples.map(e => `<a href="#play/review/h/${e.id}/${e.at}" class="flex items-center gap-2 text-sm rounded-lg bg-ink-850 border border-ink-700 px-3 py-2 hover:border-ink-500">
        <span>${handText(byRank(e.hole).map(cardStr))}</span><span class="text-ink-400">${e.board.length ? 'on ' + handText(e.board.map(cardStr)) : STREET[e.street]}</span>
        <span class="truncate text-ink-300">· ${esc(e.label)} <span class="text-ink-500">(best: ${esc(e.best)})</span></span>

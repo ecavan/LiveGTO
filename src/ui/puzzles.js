@@ -5,7 +5,9 @@
 import {
   PROFILES, candidates, families, pickPuzzle, key, grade, updateRating, explain,
   cellLabel, cellOf, loadStats, saveStats, queueMiss, queueResult, dueItems, dailyPick, dailyStreak, dailyAt, setDaily, today, dayRand, INTERVALS,
+  LEAK_DRILLS, pickDrill,
 } from '../engine/puzzles.js';
+import { LEAKS } from '../engine/history.js';
 import { getIndex, getRecord, getFile } from '../engine/library.js';
 import { getLevel } from '../engine/level.js';
 import { pct } from '../engine/potmath.js';
@@ -20,8 +22,9 @@ import { navigate } from '../router.js';
 
 let index = null;
 let stats = loadStats();
-let mode = 'rated'; // rated | daily | review
-const cur = { rated: null, daily: null, review: null }; // { cand, record, puzzle, view, answered, gridTab }
+let mode = 'rated'; // rated | daily | review | drill
+const cur = { rated: null, daily: null, review: null, drill: null };
+let drill = null; // { leak, n, right }: the leak drill in progress (counts toward your rating) // { cand, record, puzzle, view, answered, gridTab }
 let current = null;
 let practiceAll = false;
 let keyHandler = null;
@@ -38,7 +41,12 @@ export async function render(container, params = []) {
     navigate('puzzles');
     return undefined;
   }
-  mode = m === 'daily' || m === 'review' ? m : 'rated';
+  if (m === 'drill') {
+    const leak = params[1];
+    if (!LEAK_DRILLS[leak]) { navigate('play/review'); return undefined; }
+    if (drill?.leak !== leak) { drill = { leak, n: 0, right: 0 }; cur.drill = null; }
+  }
+  mode = m === 'daily' || m === 'review' || m === 'drill' ? m : 'rated';
   stats = loadStats();
   container.innerHTML = `<div class="page text-ink-400">Loading puzzles…</div>`;
   try {
@@ -49,7 +57,7 @@ export async function render(container, params = []) {
   }
   try {
     if (mode === 'daily') { if (!cur.daily || cur.daily.date !== today() || cur.daily.level !== getLevel()) await next(); }
-    else if (!cur[mode] || cur[mode].answered || (mode === 'review' && cur[mode].gen) || cur[mode].gen?.answered || (mode === 'rated' && cur.rated.level !== getLevel())) await next();
+    else if (!cur[mode] || cur[mode].answered || (mode === 'review' && cur[mode].gen) || cur[mode].gen?.answered || ((mode === 'rated' || mode === 'drill') && cur[mode].level !== getLevel())) await next();
   } catch (e) {
     return loadError(container, e);
   }
@@ -137,6 +145,11 @@ async function next() {
     const it = pool.find(x => x.k !== skip) || pool[0];
     reviewItem = it || null;
     cur.review = !it ? null : it.id.startsWith('gen:') ? { gen: it, cand: { id: it.id, i: it.i } } : await load({ id: it.id, file: it.file, i: it.i, rating: it.rating });
+  } else if (mode === 'drill') {
+    const seen = new Set(stats.seen);
+    const cand = await pickDrill(index, drill.leak, { level: getLevel(), rating: stats.rating, seen, loadRecord: getRecord });
+    cur.drill = cand ? await load(cand) : null;
+    if (cur.drill) cur.drill.level = getLevel();
   } else {
     cur.rated = await nextRated();
     if (cur.rated) cur.rated.level = getLevel(); // switching level elsewhere makes it stale
@@ -321,7 +334,7 @@ function rangePanel(r, p) {
 
 function draw(container) {
   const acc = stats.played ? Math.round((100 * stats.solved) / stats.played) : 0;
-  const title = { rated: 'Find the best play', daily: 'Daily puzzle', review: 'Your missed puzzles' }[mode];
+  const title = { rated: 'Find the best play', daily: 'Daily puzzle', review: 'Your missed puzzles', drill: `Drill: ${LEAKS[drill?.leak]?.name || ''}` }[mode];
   const q = stats.queue || [];
   const statsHtml = mode === 'daily'
     ? `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Streak</div><div class="text-2xl font-semibold num text-amber-200">${dailyStreak(stats)}<span class="text-sm text-ink-400"> day${dailyStreak(stats) === 1 ? '' : 's'}</span></div></div>`
@@ -329,7 +342,9 @@ function draw(container) {
       ? `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Due</div><div class="text-2xl font-semibold num text-rose-200">${dueItems(stats).length}</div></div>
          <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">In queue</div><div class="text-2xl font-semibold num">${q.length}</div></div>`
       : `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Rating · L${stats.level}</div><div class="text-2xl font-semibold num text-emerald-300">${stats.rating}</div></div>
-         <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Solved</div><div class="text-2xl font-semibold num">${acc}%</div></div>`;
+         ${mode === 'drill'
+    ? `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">This drill</div><div class="text-2xl font-semibold num">${drill.right}/${drill.n}</div></div>`
+    : `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Solved</div><div class="text-2xl font-semibold num">${acc}%</div></div>`}`;
   const header = `<div class="flex items-end justify-between gap-4 flex-wrap">
     <div><div class="h-sec">Puzzles</div><h1 class="h-title">${title}</h1>${mode !== 'review' ? `<div class="mt-2">${levelSwitch({ blurb: false })}</div>` : ''}</div>
     <div class="flex gap-5 text-right items-end">
@@ -338,13 +353,15 @@ function draw(container) {
     </div></div>
     <div>${puzzleTabs(mode === 'rated' ? '' : mode)}</div>
     ${mode === 'review' && current ? `<p class="text-sm text-ink-400">Missed puzzles come back after ${INTERVALS.join(', ')} days. Solve one each time and it leaves the queue. Not rated.</p>` : ''}
-    ${mode === 'daily' ? `<p class="text-sm text-ink-400">One spot a day, the same for everyone. Not rated: it counts toward your streak.</p>` : ''}`;
+    ${mode === 'daily' ? `<p class="text-sm text-ink-400">One spot a day, the same for everyone. Not rated: it counts toward your streak.</p>` : ''}
+    ${mode === 'drill' ? `<p class="text-sm text-ink-300">${esc(LEAK_DRILLS[drill.leak].want)} ${esc(LEAKS[drill.leak].fix)} <a href="#play/review" class="underline text-ink-400">Back to your leaks</a></p>` : ''}`;
   if (!current) {
     const empty = mode === 'review'
       ? `<div class="panel panel-pad text-center py-10 space-y-3">
           <div class="text-lg font-semibold text-white">${q.length ? 'Nothing due right now' : 'No missed puzzles'}</div>
           <p class="text-sm text-ink-300 max-w-md mx-auto">${q.length ? `${q.length} puzzle${q.length > 1 ? 's' : ''} will come back over the next days.` : 'Every puzzle you miss comes back here the next day, then after 3 and 7 days, until you get it right.'}</p>
           ${q.length ? '<button id="practice-all" class="btn btn-primary">Practise them now anyway</button>' : '<a href="#puzzles" class="btn btn-primary">Rated puzzles</a>'}</div>`
+      : mode === 'drill' ? `<p class="text-ink-400 pt-6">No spots for this drill at this level.</p>`
       : `<p class="text-ink-400 pt-6">No puzzles match these filters. The texture and villain filters only apply to turn and river spots, so try clearing one.</p>`;
     container.innerHTML = `<div class="page space-y-4">${header}${mode === 'rated' ? filterPanel() : ''}${empty}</div>`;
     wire(container);
@@ -381,7 +398,7 @@ function draw(container) {
 
 function wire(container) {
   wireFilters(container, () => { cur.rated = null; navigate('puzzles'); });
-  wireLevel(container, () => { cur.rated = null; filters.profile = ''; stats = loadStats(); navigate(mode === 'daily' ? 'puzzles/daily' : 'puzzles'); });
+  wireLevel(container, () => { cur.rated = null; filters.profile = ''; stats = loadStats(); navigate(mode === 'daily' ? 'puzzles/daily' : mode === 'drill' ? `puzzles/drill/${drill.leak}` : 'puzzles'); });
   container.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', (e) => {
     // the second tap of a double tap on a bucket lands on the play buttons that replace them
     if (e.detail && performance.now() - (current?.bkAt || 0) < 400) return;
@@ -401,7 +418,7 @@ function wire(container) {
     draw(container);
     container.querySelectorAll('details').forEach((d, i) => { if (open[i]) d.open = true; });
   }));
-  container.querySelector('#pz-next')?.addEventListener('click', () => { navigate(mode === 'review' ? 'puzzles/review' : 'puzzles'); });
+  container.querySelector('#pz-next')?.addEventListener('click', () => { navigate(mode === 'review' ? 'puzzles/review' : mode === 'drill' ? `puzzles/drill/${drill.leak}` : 'puzzles'); });
   container.querySelector('#practice-all')?.addEventListener('click', async () => { practiceAll = true; cur.review = null; navigate('puzzles/review'); });
 }
 
@@ -410,7 +427,8 @@ function answer(container, choice) {
   const { record: r, puzzle: p, cand } = current;
   const g = grade(p, r, choice);
   const k = key(cand);
-  if (mode === 'rated') {
+  if (mode === 'drill') { drill.n++; if (g.correct) drill.right++; }
+  if (mode === 'rated' || mode === 'drill') {
     const before = stats.rating;
     stats.rating = updateRating(stats.rating, p.rating, g.correct, stats.played);
     stats.played += 1;

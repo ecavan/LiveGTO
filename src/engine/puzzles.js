@@ -349,3 +349,56 @@ export function dailyStreak(stats, now = new Date()) {
   while (done[today(d)]) { n++; d.setDate(d.getDate() - 1); }
   return n;
 }
+
+// ---------------------------------------------------------------- leak drills
+
+const actType = (a) => (a.startsWith('bet') ? 'bet' : a.startsWith('raise') ? 'raise' : a === 'all-in' ? 'allin' : a);
+const aggressive = (t) => t === 'bet' || t === 'raise' || t === 'allin';
+
+/**
+ * Drills for the leaks in the hand-history report (history.js LEAKS): which library spots train
+ * each, and what a "target" spot looks like (one where the right play is the one the leak gets
+ * wrong). A drill mixes target spots with others from the same decision, and its blurb doesn't say
+ * which way most of them go, so the answer isn't given away. Preflop leaks are trained in the preflop trainer instead.
+ */
+export const LEAK_DRILLS = {
+  overfold: { decision: 'facing', want: 'You face a bet. Compare the price with his range before you let it go.', target: (p, r) => actType(r.actions_short[p.answer]) !== 'fold' },
+  overcall: { decision: 'facing', want: 'You face a bet. Ask what he bets here with, not what you hope he has.', target: (p, r) => actType(r.actions_short[p.answer]) === 'fold' },
+  'missed-raise': { decision: 'facing', want: 'You face a bet with a hand that might be worth more than a call.', target: (p, r) => ['raise', 'allin'].includes(actType(r.actions_short[p.answer])) },
+  overraise: { decision: 'facing', want: 'You face a bet with a hand you might raise. Raise only if worse hands call or better ones fold.', target: (p, r) => actType(r.actions_short[p.answer]) === 'call' },
+  'missed-value': { decision: 'betting', want: 'Checked to you with a decent hand. Bet if worse hands call.', target: (p, r) => aggressive(actType(r.actions_short[p.answer])) && p.eq >= 0.5 },
+  'missed-bluff': { decision: 'betting', want: 'Checked to you with a weak hand. Bet if he folds enough.', target: (p, r) => aggressive(actType(r.actions_short[p.answer])) && p.eq < 0.5 },
+  'thin-value': { decision: 'betting', want: 'Checked to you with a medium hand. Bet only if worse hands call.', target: (p, r) => actType(r.actions_short[p.answer]) === 'check' && p.eq >= 0.5 },
+  'bad-bluff': { decision: 'betting', want: 'Checked to you with a weak hand. Bluff only if he folds enough.', target: (p, r) => actType(r.actions_short[p.answer]) === 'check' && p.eq < 0.5 },
+  sizing: { decision: '', want: 'Spots where the size of your bet or raise matters.', target: (p, r) => aggressive(actType(r.actions_short[p.answer])) && r.actions_short.some((a, i) => i !== p.answer && aggressive(actType(a)) && !p.fine.includes(i)) },
+};
+export const TARGET_SHARE = 0.65;
+
+/**
+ * The next drill puzzle for a leak: candidates near your rating from the spots the drill uses,
+ * loaded until one is a target (about 65% of the time) or a non-target. loadRecord(cand) → record.
+ */
+export async function pickDrill(index, leak, { level, rating, seen = new Set(), loadRecord, rand = Math.random }) {
+  const d = LEAK_DRILLS[leak];
+  if (!d) return null;
+  const cands = candidates(index, { level, decision: d.decision || undefined });
+  if (!cands.length) return null;
+  const wantTarget = rand() < TARGET_SHARE;
+  const tried = new Set(seen);
+  let fallback = null;
+  for (let t = 0; t < 40; t++) {
+    const c = pickPuzzle(cands, rating, tried, rand);
+    if (!c) break;
+    tried.add(key(c));
+    const r = await loadRecord(c);
+    const p = r?.puzzles?.[c.i];
+    if (!p) continue;
+    const isT = d.target(p, r);
+    if (isT === wantTarget) return c;
+    // the record is loaded anyway: look for a match among its other hands
+    const j = r.puzzles.findIndex((q, i) => i !== c.i && !tried.has(key({ ...c, i })) && d.target(q, r) === wantTarget && Math.abs(q.rating - rating) < 500);
+    if (j >= 0) return { ...c, i: j, rating: r.puzzles[j].rating };
+    fallback ||= c;
+  }
+  return fallback;
+}

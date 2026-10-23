@@ -366,6 +366,6 @@ export function rangeViewHtml(v, heroHole) {
 
 /** Heads-up · Live table · Watch · Review */
 export function playTabs(active) {
-  return `<div class="seg">${[['', 'Heads-up'], ['table', 'Live table'], ['watch', 'Watch'], ['review', 'Review']].map(([v, l]) =>
-    `<a href="#play${v ? '/' + v : ''}" class="px-3 py-1.5 rounded-lg text-sm font-medium ${v === active ? 'bg-ink-700 text-white shadow-card' : 'text-ink-300 hover:text-ink-100'}">${l}</a>`).join('')}</div>`;
+  return `<div class="seg overflow-x-auto max-w-full">${[['', 'Heads-up'], ['table', 'Live table'], ['watch', 'Watch'], ['review', 'Review'], ['sessions', 'Sessions']].map(([v, l]) =>
+    `<a href="#play${v ? '/' + v : ''}" class="px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap ${v === active ? 'bg-ink-700 text-white shadow-card' : 'text-ink-300 hover:text-ink-100'}">${l}</a>`).join('')}</div>`;
 }

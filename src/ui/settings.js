@@ -28,6 +28,7 @@ const RESETS = {
   play: { label: 'Reset Play sessions', what: 'your Play rating, sessions, and what the bots remember about you' },
   learn: { label: 'Reset lesson progress', what: 'which course steps you have done' },
   hands: { label: 'Clear hand history', what: 'every stored hand (game review, leaks, your logged live hands)' },
+  sessions: { label: 'Clear live sessions', what: 'every casino session in Play → Sessions (export a CSV first if you want to keep them)' },
 };
 
 function reset(kind) {
@@ -37,7 +38,7 @@ function reset(kind) {
       Object.assign(st, { rating: 1000, played: 0, solved: 0, history: [], seen: [], levels: {} });
       localStorage.setItem('livegto.puzzles.v1', JSON.stringify(st));
     } else {
-      localStorage.removeItem({ drills: 'livegto.drills.v1', play: 'livegto.play.v2', learn: 'livegto.learn.v1', hands: 'livegto.hands.v1' }[kind]);
+      localStorage.removeItem({ drills: 'livegto.drills.v1', play: 'livegto.play.v2', learn: 'livegto.learn.v1', hands: 'livegto.hands.v1', sessions: 'livegto.sessions.v1' }[kind]);
     }
   } catch { /* ignore */ }
 }

@@ -29,6 +29,7 @@ export async function render(container, params = []) {
   if (params[0] === 'watch') return (await import('./play/watch.js')).render(container, params.slice(1));
   if (params[0] === 'table') return (await import('./play/table.js')).render(container, params.slice(1));
   if (params[0] === 'review') return (await import('./play/review.js')).render(container, params.slice(1));
+  if (params[0] === 'sessions') return (await import('./play/sessions.js')).render(container, params.slice(1));
   if (params[0] === 'new') {
     // back to the opponents: bank the session you were in (rating, and the bot's memory of you)
     if (sess && sess.hands.length) recordSession();
