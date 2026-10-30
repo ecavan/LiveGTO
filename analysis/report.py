@@ -31,7 +31,8 @@ ROWS = [
     ('FoldTo3Bet', 'Folds to a 3-bet'), ('CBetFlop', 'C-bets the flop'), ('DonkFlop', 'Donk-bets the flop'),
     ('FoldToCBetFlop', 'Folds to a flop c-bet'), ('FoldToStabFlop', 'Folds to another flop bet'),
     ('FoldToBetFlop', 'Folds to a flop bet'), ('FoldToBetTurn', 'Folds to a turn bet'), ('FoldToBetRiver', 'Folds to a river bet'),
-    ('CheckRaiseFlop', 'Check-raises the flop'), ('WTSD', 'Goes to showdown (WTSD)'), ('AFq', 'Aggression (AFq)'),
+    ('CheckRaiseFlop', 'Check-raises the flop'), ('FoldToRaise', 'Folds to a raise after betting'), ('ReraiseVsRaise', 'Re-raises a raise'),
+    ('WTSD', 'Goes to showdown (WTSD)'), ('AFq', 'Aggression (AFq)'),
     ('air_in_river_bets', 'Air in his called river bets'),
 ]
 for a in ['whale', 'station', 'passive', 'nit', 'maniac', 'reg', 'shark', 'pro']:
