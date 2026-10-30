@@ -98,13 +98,24 @@ What surprised me:
    to and river bluffing. Rules can depend on whose street it is (`role`), in the app and in the
    solver: not facing a bet `aggr` / `donk` / `free`; facing one `vs_cbet` (the c-bet), `vs_bet`
    (any other first bet) or `vs_raise`. The folding knobs only touch first bets, like the HUD
-   stats they are fitted to; facing a raise stays the baseline (an earlier fit scaled folding to
-   raises too, which made raise-bluffing a Nit on the river look right). New profiles: **Reg**,
+   stats they are fitted to. New profiles: **Reg**,
    **Passive** (tight-passive), and calibration-only **Shark** and **Pro**, fitted to the pros
    and to Pluribus (on the plain baseline they folded to flop bets 60% of the time, against 46%).
 4. Two character rules were dropped because the data contradicts them: "the Station calls
    instead of raising" and "the Nit only raises the nuts" (both raise c-bets about as often as
    everyone else, 11–14%). The notes the puzzles show under "How he plays" now come from the data.
+5. **Facing a raise is fitted too** (`vs_raise` rules, knobs `fold_raise` and `reraise`). The
+   first calibration left raises at the baseline because its HUD had no stat for them, and an
+   earlier guess at scaling them had made raise-bluffing a Nit on the river look right. The HUD
+   now counts, for each player, what he does the first time his bet or raise is raised on a
+   street (`FoldToRaise`, `CallRaise`, `ReraiseVsRaise`, pooled over streets), and the two knobs
+   are fitted to it like the others. The real players fold to a raise far less than the baseline
+   assumed, and the fish least of all: the Station folds 23% of the time, the Whale 32%, the Nit
+   34%, the Maniac 37%, against 45–51% for the Reg, Shark and Pro. The Station re-raises as often
+   as anyone (13%); the Shark re-raises half as often as the baseline. The puzzle library was
+   solved again on the refitted profiles, so the exploits that depend on how a raise is received
+   (raising draws into a Station, folding the nuts to a Nit's raise, raise-bluffing a Maniac)
+   are priced against the data.
 
 ## A 2026 Reg
 
@@ -130,212 +141,225 @@ number sits between two real populations. The fish, the Shark and the Pro are un
 ## Before, after, and the real players
 
 Ring bots, 6-handed, 40,000 hands, measured with the same code as the real hands. "Before" is
-the previous calibration (its Station was typed by VPIP alone and its Reg was the 2009 reg).
-"Real" for the Shark is the pros in the Pluribus games; for the Pro, Pluribus itself.
+the previous calibration (the same fit, but facing a raise left at the baseline); the two "raise"
+rows are the ones this fit added. "Real" for the Shark is the pros in the Pluribus games; for
+the Pro, Pluribus itself.
 
 ### Whale (vs HandHQ whales)
 
 | Stat | Before | After | Real |
 |---|---|---|---|
-| Plays (VPIP) | 54% | 55% | 55% |
+| Plays (VPIP) | 55% | 54% | 55% |
 | Raises preflop (PFR) | 12% | 12% | 12% |
 | Open-limps | 45% | 45% | 45% |
 | Opens UTG | 14% | 14% | 13% |
-| Opens on the button | 20% | 22% | 20% |
+| Opens on the button | 22% | 20% | 20% |
 | 3-bets | 4% | 4% | 4% |
 | Cold-calls an open | 38% | 38% | 38% |
-| BB folds to an open | 41% | 42% | 41% |
-| Folds to a 3-bet | 22% | 18% | 21% |
-| C-bets the flop | 64% | 69% | 66% |
-| Donk-bets the flop | 21% | 19% | 20% |
-| Folds to a flop c-bet | 48% | 50% | 50% |
-| Folds to another flop bet | 51% | 48% | 49% |
-| Folds to a flop bet | 49% | 49% | 49% |
-| Folds to a turn bet | 41% | 40% | 40% |
-| Folds to a river bet | 54% | 54% | 53% |
-| Check-raises the flop | 9% | 8% | 6% |
-| Goes to showdown (WTSD) | 32% | 32% | 32% |
-| Aggression (AFq) | 27% | 28% | 28% |
-| Air in his called river bets | 23% | 22% | 21% |
+| BB folds to an open | 42% | 41% | 41% |
+| Folds to a 3-bet | 18% | 20% | 21% |
+| C-bets the flop | 69% | 68% | 66% |
+| Donk-bets the flop | 19% | 21% | 20% |
+| Folds to a flop c-bet | 50% | 50% | 50% |
+| Folds to another flop bet | 48% | 49% | 49% |
+| Folds to a flop bet | 49% | 50% | 49% |
+| Folds to a turn bet | 40% | 42% | 40% |
+| Folds to a river bet | 54% | 53% | 53% |
+| Check-raises the flop | 8% | 7% | 6% |
+| Folds to a raise after betting | 35% | 30% | 32% |
+| Re-raises a raise | 14% | 10% | 10% |
+| Goes to showdown (WTSD) | 32% | 31% | 32% |
+| Aggression (AFq) | 28% | 28% | 28% |
+| Air in his called river bets | 22% | 21% | 21% |
 
 ### Station (vs HandHQ stations)
 
 | Stat | Before | After | Real |
 |---|---|---|---|
-| Plays (VPIP) | 35% | 35% | 36% |
+| Plays (VPIP) | 35% | 34% | 36% |
 | Raises preflop (PFR) | 10% | 10% | 10% |
-| Open-limps | 24% | 25% | 26% |
-| Opens UTG | 11% | 11% | 11% |
-| Opens on the button | 22% | 19% | 18% |
+| Open-limps | 25% | 24% | 26% |
+| Opens UTG | 11% | 12% | 11% |
+| Opens on the button | 19% | 18% | 18% |
 | 3-bets | 3% | 3% | 3% |
-| Cold-calls an open | 22% | 23% | 22% |
+| Cold-calls an open | 23% | 22% | 22% |
 | BB folds to an open | 61% | 61% | 61% |
-| Folds to a 3-bet | 33% | 23% | 26% |
-| C-bets the flop | 64% | 61% | 60% |
-| Donk-bets the flop | 17% | 14% | 15% |
-| Folds to a flop c-bet | 55% | 48% | 48% |
-| Folds to another flop bet | 56% | 54% | 53% |
-| Folds to a flop bet | 56% | 51% | 51% |
-| Folds to a turn bet | 46% | 40% | 40% |
-| Folds to a river bet | 55% | 50% | 50% |
-| Check-raises the flop | 10% | 7% | 7% |
-| Goes to showdown (WTSD) | 30% | 34% | 37% |
-| Aggression (AFq) | 26% | 22% | 23% |
-| Air in his called river bets | 16% | 13% | 14% |
+| Folds to a 3-bet | 23% | 28% | 26% |
+| C-bets the flop | 61% | 63% | 60% |
+| Donk-bets the flop | 14% | 16% | 15% |
+| Folds to a flop c-bet | 48% | 50% | 48% |
+| Folds to another flop bet | 54% | 52% | 53% |
+| Folds to a flop bet | 51% | 51% | 51% |
+| Folds to a turn bet | 40% | 41% | 40% |
+| Folds to a river bet | 50% | 51% | 50% |
+| Check-raises the flop | 7% | 9% | 7% |
+| Folds to a raise after betting | 31% | 21% | 23% |
+| Re-raises a raise | 12% | 12% | 13% |
+| Goes to showdown (WTSD) | 34% | 35% | 37% |
+| Aggression (AFq) | 22% | 22% | 23% |
+| Air in his called river bets | 13% | 13% | 14% |
 
 ### Passive (vs HandHQ tight-passive players)
 
 | Stat | Before | After | Real |
 |---|---|---|---|
-| Plays (VPIP) | — | 22% | 22% |
-| Raises preflop (PFR) | — | 8% | 9% |
-| Open-limps | — | 12% | 12% |
-| Opens UTG | — | 9% | 9% |
-| Opens on the button | — | 20% | 20% |
-| 3-bets | — | 3% | 3% |
-| Cold-calls an open | — | 14% | 13% |
-| BB folds to an open | — | 77% | 76% |
-| Folds to a 3-bet | — | 41% | 40% |
-| C-bets the flop | — | 63% | 64% |
-| Donk-bets the flop | — | 12% | 12% |
-| Folds to a flop c-bet | — | 53% | 55% |
-| Folds to another flop bet | — | 67% | 66% |
-| Folds to a flop bet | — | 61% | 62% |
-| Folds to a turn bet | — | 49% | 52% |
-| Folds to a river bet | — | 56% | 58% |
-| Check-raises the flop | — | 10% | 7% |
-| Goes to showdown (WTSD) | — | 30% | 29% |
-| Aggression (AFq) | — | 24% | 24% |
-| Air in his called river bets | — | 11% | 10% |
+| Plays (VPIP) | 22% | 22% | 22% |
+| Raises preflop (PFR) | 8% | 8% | 9% |
+| Open-limps | 12% | 11% | 12% |
+| Opens UTG | 9% | 9% | 9% |
+| Opens on the button | 20% | 21% | 20% |
+| 3-bets | 3% | 3% | 3% |
+| Cold-calls an open | 14% | 13% | 13% |
+| BB folds to an open | 77% | 77% | 76% |
+| Folds to a 3-bet | 41% | 40% | 40% |
+| C-bets the flop | 63% | 62% | 64% |
+| Donk-bets the flop | 12% | 12% | 12% |
+| Folds to a flop c-bet | 53% | 56% | 55% |
+| Folds to another flop bet | 67% | 66% | 66% |
+| Folds to a flop bet | 61% | 62% | 62% |
+| Folds to a turn bet | 49% | 55% | 52% |
+| Folds to a river bet | 56% | 57% | 58% |
+| Check-raises the flop | 10% | 6% | 7% |
+| Folds to a raise after betting | 33% | 38% | 32% |
+| Re-raises a raise | 9% | 13% | 13% |
+| Goes to showdown (WTSD) | 30% | 29% | 29% |
+| Aggression (AFq) | 24% | 23% | 24% |
+| Air in his called river bets | 11% | 9% | 10% |
 
 ### Nit (vs HandHQ nits)
 
 | Stat | Before | After | Real |
 |---|---|---|---|
-| Plays (VPIP) | 13% | 12% | 13% |
-| Raises preflop (PFR) | 8% | 8% | 9% |
+| Plays (VPIP) | 12% | 12% | 13% |
+| Raises preflop (PFR) | 8% | 9% | 9% |
 | Open-limps | 2% | 2% | 2% |
 | Opens UTG | 8% | 8% | 8% |
-| Opens on the button | 20% | 21% | 20% |
-| 3-bets | 3% | 4% | 3% |
+| Opens on the button | 21% | 20% | 20% |
+| 3-bets | 4% | 4% | 3% |
 | Cold-calls an open | 5% | 5% | 5% |
-| BB folds to an open | 87% | 87% | 88% |
-| Folds to a 3-bet | 46% | 51% | 51% |
-| C-bets the flop | 68% | 69% | 67% |
-| Donk-bets the flop | 10% | 12% | 10% |
-| Folds to a flop c-bet | 68% | 59% | 59% |
-| Folds to another flop bet | 72% | 73% | 76% |
-| Folds to a flop bet | 71% | 68% | 71% |
-| Folds to a turn bet | 60% | 65% | 62% |
-| Folds to a river bet | 61% | 58% | 63% |
-| Check-raises the flop | 9% | 7% | 5% |
-| Goes to showdown (WTSD) | 28% | 27% | 28% |
-| Aggression (AFq) | 25% | 23% | 23% |
-| Air in his called river bets | 6% | 8% | 5% |
+| BB folds to an open | 87% | 88% | 88% |
+| Folds to a 3-bet | 51% | 48% | 51% |
+| C-bets the flop | 69% | 69% | 67% |
+| Donk-bets the flop | 12% | 10% | 10% |
+| Folds to a flop c-bet | 59% | 59% | 59% |
+| Folds to another flop bet | 73% | 74% | 76% |
+| Folds to a flop bet | 68% | 69% | 71% |
+| Folds to a turn bet | 65% | 64% | 62% |
+| Folds to a river bet | 58% | 68% | 63% |
+| Check-raises the flop | 7% | 5% | 5% |
+| Folds to a raise after betting | 39% | 36% | 34% |
+| Re-raises a raise | 10% | 18% | 18% |
+| Goes to showdown (WTSD) | 27% | 28% | 28% |
+| Aggression (AFq) | 23% | 24% | 23% |
+| Air in his called river bets | 8% | 3% | 5% |
 
 ### Maniac (vs HandHQ maniacs)
 
 | Stat | Before | After | Real |
 |---|---|---|---|
-| Plays (VPIP) | 48% | 48% | 49% |
-| Raises preflop (PFR) | 25% | 24% | 27% |
+| Plays (VPIP) | 48% | 47% | 49% |
+| Raises preflop (PFR) | 24% | 24% | 27% |
 | Open-limps | 16% | 16% | 16% |
-| Opens UTG | 30% | 29% | 30% |
-| Opens on the button | 49% | 48% | 50% |
-| 3-bets | 7% | 7% | 8% |
-| Cold-calls an open | 30% | 30% | 30% |
-| BB folds to an open | 48% | 48% | 48% |
-| Folds to a 3-bet | 32% | 34% | 35% |
-| C-bets the flop | 68% | 69% | 67% |
-| Donk-bets the flop | 30% | 31% | 28% |
-| Folds to a flop c-bet | 51% | 46% | 48% |
-| Folds to another flop bet | 47% | 53% | 51% |
-| Folds to a flop bet | 49% | 50% | 49% |
-| Folds to a turn bet | 42% | 40% | 42% |
-| Folds to a river bet | 52% | 51% | 53% |
-| Check-raises the flop | 13% | 12% | 10% |
-| Goes to showdown (WTSD) | 28% | 28% | 30% |
+| Opens UTG | 29% | 29% | 30% |
+| Opens on the button | 48% | 48% | 50% |
+| 3-bets | 7% | 8% | 8% |
+| Cold-calls an open | 30% | 29% | 30% |
+| BB folds to an open | 48% | 47% | 48% |
+| Folds to a 3-bet | 34% | 34% | 35% |
+| C-bets the flop | 69% | 68% | 67% |
+| Donk-bets the flop | 31% | 29% | 28% |
+| Folds to a flop c-bet | 46% | 46% | 48% |
+| Folds to another flop bet | 53% | 51% | 51% |
+| Folds to a flop bet | 50% | 48% | 49% |
+| Folds to a turn bet | 40% | 40% | 42% |
+| Folds to a river bet | 51% | 54% | 53% |
+| Check-raises the flop | 12% | 11% | 10% |
+| Folds to a raise after betting | 48% | 35% | 37% |
+| Re-raises a raise | 9% | 10% | 11% |
+| Goes to showdown (WTSD) | 28% | 29% | 30% |
 | Aggression (AFq) | 36% | 36% | 37% |
-| Air in his called river bets | 25% | 22% | 25% |
+| Air in his called river bets | 22% | 23% | 25% |
 
 ### Reg (vs halfway between the 2009 HandHQ regs and the 2019 pros against Pluribus)
 
 | Stat | Before | After | Real |
 |---|---|---|---|
-| Plays (VPIP) | 18% | 22% | 23% |
-| Raises preflop (PFR) | 14% | 16% | 17% |
-| Open-limps | 0% | 1% | 1% |
-| Opens UTG | 14% | 16% | 16% |
-| Opens on the button | 35% | 38% | 39% |
-| 3-bets | 5% | 6% | 6% |
-| Cold-calls an open | 8% | 9% | 8% |
-| BB folds to an open | 82% | 62% | 63% |
-| Folds to a 3-bet | 57% | 54% | 52% |
-| C-bets the flop | 66% | 61% | 59% |
-| Donk-bets the flop | 9% | 6% | 5% |
-| Folds to a flop c-bet | 63% | 48% | 50% |
-| Folds to another flop bet | 65% | 61% | 59% |
-| Folds to a flop bet | 64% | 55% | 56% |
-| Folds to a turn bet | 59% | 56% | 55% |
-| Folds to a river bet | 60% | 61% | 60% |
-| Check-raises the flop | 11% | 8% | 9% |
-| Goes to showdown (WTSD) | 26% | 29% | 29% |
-| Aggression (AFq) | 29% | 27% | 26% |
-| Air in his called river bets | 10% | 20% | 17% |
+| Plays (VPIP) | 22% | 22% | 23% |
+| Raises preflop (PFR) | 16% | 16% | 17% |
+| Open-limps | 1% | 1% | 1% |
+| Opens UTG | 16% | 15% | 16% |
+| Opens on the button | 38% | 37% | 39% |
+| 3-bets | 6% | 6% | 6% |
+| Cold-calls an open | 9% | 9% | 8% |
+| BB folds to an open | 62% | 64% | 63% |
+| Folds to a 3-bet | 54% | 52% | 52% |
+| C-bets the flop | 61% | 60% | 59% |
+| Donk-bets the flop | 6% | 4% | 5% |
+| Folds to a flop c-bet | 48% | 50% | 50% |
+| Folds to another flop bet | 61% | 60% | 59% |
+| Folds to a flop bet | 55% | 55% | 56% |
+| Folds to a turn bet | 56% | 55% | 55% |
+| Folds to a river bet | 61% | 62% | 60% |
+| Check-raises the flop | 8% | 10% | 9% |
+| Folds to a raise after betting | 36% | 47% | 45% |
+| Re-raises a raise | 9% | 10% | 10% |
+| Goes to showdown (WTSD) | 29% | 29% | 29% |
+| Aggression (AFq) | 27% | 26% | 26% |
+| Air in his called river bets | 20% | 13% | 17% |
 
 ### Shark (vs the pros against Pluribus)
 
 | Stat | Before | After | Real |
 |---|---|---|---|
-| Plays (VPIP) | 27% | 26% | 27% |
-| Raises preflop (PFR) | 19% | 18% | 18% |
+| Plays (VPIP) | 26% | 27% | 27% |
+| Raises preflop (PFR) | 18% | 19% | 18% |
 | Open-limps | 2% | 2% | 2% |
-| Opens UTG | 18% | 18% | 18% |
-| Opens on the button | 44% | 43% | 43% |
+| Opens UTG | 18% | 19% | 18% |
+| Opens on the button | 43% | 46% | 43% |
 | 3-bets | 8% | 8% | 8% |
-| Cold-calls an open | 8% | 7% | 7% |
-| BB folds to an open | 45% | 44% | 44% |
-| Folds to a 3-bet | 43% | 42% | 46% |
-| C-bets the flop | 47% | 52% | 52% |
-| Donk-bets the flop | 2% | 2% | 1% |
-| Folds to a flop c-bet | 59% | 47% | 46% |
-| Folds to another flop bet | 60% | 44% | 48% |
-| Folds to a flop bet | 59% | 46% | 46% |
-| Folds to a turn bet | 47% | 50% | 52% |
-| Folds to a river bet | 42% | 60% | 60% |
-| Check-raises the flop | 6% | 9% | 10% |
-| Goes to showdown (WTSD) | 30% | 31% | 30% |
+| Cold-calls an open | 7% | 7% | 7% |
+| BB folds to an open | 44% | 43% | 44% |
+| Folds to a 3-bet | 42% | 44% | 46% |
+| C-bets the flop | 52% | 52% | 52% |
+| Donk-bets the flop | 2% | 1% | 1% |
+| Folds to a flop c-bet | 47% | 44% | 46% |
+| Folds to another flop bet | 44% | 50% | 48% |
+| Folds to a flop bet | 46% | 47% | 46% |
+| Folds to a turn bet | 50% | 52% | 52% |
+| Folds to a river bet | 60% | 56% | 60% |
+| Check-raises the flop | 9% | 13% | 10% |
+| Folds to a raise after betting | 38% | 49% | 51% |
+| Re-raises a raise | 8% | 6% | 6% |
+| Goes to showdown (WTSD) | 31% | 31% | 30% |
 | Aggression (AFq) | 24% | 24% | 25% |
-| Air in his called river bets | 24% | 20% | 24% |
+| Air in his called river bets | 20% | 27% | 24% |
 
 ### Pro (vs Pluribus)
 
 | Stat | Before | After | Real |
 |---|---|---|---|
 | Plays (VPIP) | 28% | 28% | 27% |
-| Raises preflop (PFR) | 20% | 20% | 18% |
+| Raises preflop (PFR) | 20% | 19% | 18% |
 | Open-limps | 2% | 2% | 2% |
 | Opens UTG | 18% | 18% | 18% |
-| Opens on the button | 42% | 42% | 42% |
-| 3-bets | 6% | 7% | 7% |
-| Cold-calls an open | 10% | 9% | 9% |
-| BB folds to an open | 52% | 52% | 50% |
-| Folds to a 3-bet | 52% | 47% | 50% |
-| C-bets the flop | 46% | 54% | 54% |
-| Donk-bets the flop | 3% | 1% | 2% |
-| Folds to a flop c-bet | 60% | 41% | 45% |
-| Folds to another flop bet | 59% | 48% | 47% |
-| Folds to a flop bet | 60% | 44% | 46% |
-| Folds to a turn bet | 45% | 47% | 48% |
-| Folds to a river bet | 43% | 48% | 50% |
-| Check-raises the flop | 6% | 9% | 9% |
-| Goes to showdown (WTSD) | 31% | 31% | 31% |
-| Aggression (AFq) | 24% | 27% | 27% |
-| Air in his called river bets | 24% | 38% | 35% |
-
-The Shark and the Pro fold to flop bets like the pros now (46% and 44%, against 61% and 60% on
-the plain baseline): the baseline matches Pluribus by hand class, but at a live table they face
-bets from looser players, multiway, with weaker hands, so they got their own fitted knobs.
+| Opens on the button | 42% | 41% | 42% |
+| 3-bets | 7% | 6% | 7% |
+| Cold-calls an open | 9% | 10% | 9% |
+| BB folds to an open | 52% | 50% | 50% |
+| Folds to a 3-bet | 47% | 50% | 50% |
+| C-bets the flop | 54% | 53% | 54% |
+| Donk-bets the flop | 1% | 2% | 2% |
+| Folds to a flop c-bet | 41% | 49% | 45% |
+| Folds to another flop bet | 48% | 48% | 47% |
+| Folds to a flop bet | 44% | 48% | 46% |
+| Folds to a turn bet | 47% | 47% | 48% |
+| Folds to a river bet | 48% | 54% | 50% |
+| Check-raises the flop | 9% | 10% | 9% |
+| Folds to a raise after betting | 41% | 46% | 50% |
+| Re-raises a raise | 9% | 10% | 7% |
+| Goes to showdown (WTSD) | 31% | 29% | 31% |
+| Aggression (AFq) | 27% | 26% | 27% |
+| Air in his called river bets | 38% | 36% | 35% |
 
 ## Heads-up ratings
 

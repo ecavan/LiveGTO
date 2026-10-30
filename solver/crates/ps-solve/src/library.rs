@@ -98,8 +98,21 @@ fn plan(aggressor: &str) -> (Lines, Lines, Decisions) {
 }
 
 /// Tiny deterministic RNG (xorshift) so the library is reproducible without a dependency.
+/// One stream per flop, seeded from the family seed and the flop (splitmix64 of their hash), so
+/// a resumed build (finished flops skipped) samples the same runouts as an uninterrupted one.
 struct Rng(u64);
 impl Rng {
+    fn for_flop(seed: u64, flop: &str) -> Rng {
+        let mut h = seed.max(1) ^ 0x9E37_79B9_7F4A_7C15;
+        for b in flop.bytes() {
+            h = (h ^ b as u64).wrapping_mul(0x100_0000_01B3);
+        }
+        // splitmix64 finaliser; xorshift needs a nonzero state
+        let mut z = h.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        Rng((z ^ (z >> 31)).max(1))
+    }
     fn next(&mut self) -> u64 {
         self.0 ^= self.0 << 13;
         self.0 ^= self.0 >> 7;
@@ -450,9 +463,9 @@ pub fn build(
             .collect::<Result<_>>()?;
         let profs: Vec<Profile> = profiles.iter().map(|(_, p)| p.clone()).collect();
         let opts = Options { worst_case: false, ..Options::default() };
-        let mut rng = Rng(fam.seed.max(1));
         let pos = [fam.oop_pos.as_str(), fam.ip_pos.as_str()];
         for flop in fam.flops.iter().take(only_flops.unwrap_or(usize::MAX)) {
+            let mut rng = Rng::for_flop(fam.seed, flop);
             let file = format!("{}_{}.json", fam.id, flop);
             let path = out_dir.join(&file);
             if path.exists() {

@@ -23,8 +23,11 @@ cargo run --release -p ps-cli -- library library/families.toml --out ../public/l
 
 **Library build time.** Each flop is one coarse flop solve, then turn and river analyses for 5
 profiles. That takes a few minutes per flop on a laptop, and the build is resumable: finished flop
-files are skipped. Edit `library/families.toml` to add flops or families, then rebuild and commit
-`public/library/`.
+files are skipped, and the runouts are sampled from a stream seeded per flop (family `seed` and
+the flop), so a resumed build writes the same turns and rivers as an uninterrupted one. Edit
+`library/families.toml` to add flops or families, then rebuild and commit `public/library/`.
+(The library shipped in Oct 2026 was built with the older per-family stream across several
+resumes, so its runouts differ from what a fresh build samples; the records themselves are exact.)
 
 **Memory.** The flop tree in `library.rs` is deliberately coarse (about 1 GB compressed). A richer tree
 (two c-bet sizes, turn and river raises) needs 2–4 GB.

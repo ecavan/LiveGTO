@@ -32,6 +32,8 @@ python3 -I analysis/fit_base.py out/base_plur.json out/base_all.json > out/base.
 python3 -I analysis/fit_postflop_loop.py out/targets.json out/sd_targets.json out/fitpost 6 40000
 python3 -I analysis/profiles_fit.py write out/fitpost/knobs.json solver/profiles && node scripts/export-profiles.mjs
 #    FIT_ONLY=reg (either loop) refits only those archetypes and leaves the rest as they are
+#    to refit from the current profiles instead of from 1.0 (e.g. after adding a knob):
+#    python3 -I analysis/knobs_from_profiles.py solver/profiles > out/knobs0.json, then pass it as a 6th argument
 python3 -I analysis/types_json.py out/targets.json out/sd_targets.json > src/content/types.json   # Learn → Player types
 # after rebuilding the library (solver/README.md): the plan per bucket, board and level
 node scripts/build-plans.mjs
@@ -58,4 +60,5 @@ python3 -I analysis/solver_check.py out/plur/decisions.tsv public/library   # so
 | `fit_preflop.py`, `fit_preflop_loop.py` | Fit the ring archetypes' preflop numbers |
 | `baseline.py`, `fit_base.py` | Pluribus's play by hand class and role → the bots' postflop baseline |
 | `profiles_fit.py`, `fit_postflop_loop.py` | Fit the villain profiles' calibration rules |
+| `knobs_from_profiles.py` | Recovers the fitted knobs from the profiles, to start a refit where the last one ended |
 | `pluribus.py`, `solver_check.py`, `dump-charts.mjs` | The checks against Pluribus |
