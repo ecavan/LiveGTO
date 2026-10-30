@@ -121,7 +121,7 @@ export function coach(s, hero, agentOrId, opts = {}) {
   const g = sp && gradeWithPlan(options, sp, { myBet, pot: P, facing: L.facing, natural: (i) => options[i].type !== 'allin' || options[i].to - myBet <= 2.5 * P + 1e-9, nominal: Math.max(0.25, 0.05 * P) });
   if (g) {
     best = g.best; fine = g.fine; losses = g.losses;
-    solid = { source: sp.source, role: sp.role, level, kind: sp.kind, bucket: sp.bucket, share: g.share, chart: g.chart, cats: g.cats, modelBest: bestNatural(options, myBet, P), text: planSentence(sp, g.share), detail: planDetail(sp, g.share) };
+    solid = { source: sp.source, role: sp.role, level, kind: sp.kind, bucket: sp.bucket, share: g.share, chart: g.chart, cats: g.cats, modelBest: bestNatural(options, myBet, P), split: g.split, rule: g.rule, text: planSentence(sp, g.share, g), detail: planDetail(sp, g.share) };
   }
   return {
     street: s.street,

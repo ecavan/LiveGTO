@@ -79,7 +79,8 @@ describe('solid grading', () => {
     const options = [{ type: 'fold', ev: 0 }, { type: 'call', to: 5, ev: 1.2 }, { type: 'raise', to: 15, ev: 2.5 }];
     const g = gradeWithPlan(options, { dist: { fold: 0.5, call: 0.35, raise: 0.15 } }, { myBet: 0, pot: 10, facing: true, nominal: 0.5 });
     expect(g.chart).toEqual(['fold', 'call']);
-    expect(g.best).toBe(0);
+    expect(g.best).toBe(0); // a split between two cheap lines: the more common one
+    expect(g.split).toBe(true);
     expect(g.fine).toEqual([0, 1]);
     expect(g.losses[0]).toBe(0);
     expect(g.losses[1]).toBe(0);
@@ -88,6 +89,26 @@ describe('solid grading', () => {
     expect(g2.fine).toEqual([0]);
     expect(g2.losses[1]).toBe(0.5); // the model says calling beats folding; off the plan still costs the nominal
     expect(CHART_MIN).toBe(0.25);
+  });
+
+  it('a split resolves to the cheap line unless the aggressive one is worth clearly more', () => {
+    const ctx = { myBet: 0, pot: 10, facing: true, nominal: 0.5 };
+    const close = [{ type: 'fold', ev: 0 }, { type: 'call', to: 5, ev: 0.3 }, { type: 'raise', to: 15, ev: 0.9 }];
+    // fold 55%, raise 45%, EVs 1bb apart: fold, raising is fine
+    const g = gradeWithPlan(close, { dist: { fold: 0.55, raise: 0.45 } }, ctx);
+    expect(g.best).toBe(0);
+    expect(g.rule).toBe('cheap');
+    expect(g.fine).toEqual([0, 2]);
+    // the same split, but raising is worth 3bb more: raise is the play, fold stays fine
+    const clear = [{ type: 'fold', ev: 0 }, { type: 'call', to: 5, ev: 0.3 }, { type: 'raise', to: 15, ev: 3 }];
+    const g2 = gradeWithPlan(clear, { dist: { fold: 0.55, raise: 0.45 } }, ctx);
+    expect(g2.best).toBe(2);
+    expect(g2.rule).toBe('ev');
+    expect(g2.fine).toEqual([0, 2]);
+    // a clear majority is the play whatever the model says
+    const g3 = gradeWithPlan(clear, { dist: { fold: 0.7, raise: 0.3 } }, ctx);
+    expect(g3.best).toBe(0);
+    expect(g3.split).toBe(false);
   });
 
   it('multiway: bluffs are off the plan, bluff-catchers fold to a big bet', () => {

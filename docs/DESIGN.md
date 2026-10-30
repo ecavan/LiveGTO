@@ -395,10 +395,14 @@ blunder (best: donk-bet 75%) and a river shove with king-high the best play. Gra
   (Station, Nit, Maniac, Whale); against a Reg, a Shark or a Pro there is nothing to exploit, so
   the GTO plan, and at the live table the one opponent's main archetype. Multiway: the written
   multiway plan (bluff much less, fold bluff-catchers to big bets).
-- On the plan: any play the solver takes at least 25% of the time there — best is its first play,
-  the rest are fine and cost nothing. A play it takes 10–25% of the time is a small mistake (the
-  nominal, up to 4× it); one it hardly ever takes costs what the model says, at least the nominal
-  (max(0.25bb, 5% of the pot)).
+- On the plan: any play the solver takes at least 25% of the time there is fine and costs
+  nothing. One of them is *the* play (§2: one action, never frequencies): a clear majority (65%+)
+  is it; a split resolves to the cheap line (check, call, fold) unless the EV model says an
+  aggressive play on the plan is worth clearly more (1bb or a tenth of the pot). A simple strategy
+  you can execute every time, at the cost of a little edge in close spots. A play the solver takes
+  10–25% of the time is a small mistake (the nominal, up to 4× it); one it hardly ever takes costs
+  what the model says, at least the nominal (max(0.25bb, 5% of the pot)). The frequencies behind
+  the verdict are under "Why".
 - Two roles the library never solves have rules: leading into the aggressor (the solver almost
   never does; against a fish, a lead with a strong hand is on the plan) and facing a raise.
 - The card still shows the model's own favourite when it differs: at Level 1 as what a best

@@ -27,6 +27,9 @@ import { bucketOf, boardKind, BUCKET } from './buckets.js';
 export const CHART_MIN = 0.25;
 /** A play the plan takes less often than this is off the plan (costs the model's loss, at least the nominal). */
 const RARE = 0.1;
+/** Under this share the plan is a split: one play is named by the simple rule below. */
+export const SPLIT = 0.65;
+const PASSIVE = new Set(['check', 'call', 'fold']);
 
 /** Multiway (two or more opponents): the written plan in buckets.js, as shares. */
 export const MULTIWAY_PLAN = {
@@ -114,7 +117,23 @@ export function gradeWithPlan(options, plan, { myBet, pot, facing, natural = () 
     if (b < 0) options.forEach((o, i) => { if (cats[i] === cat && (b < 0 || o.ev > options[b].ev)) b = i; });
     return b;
   };
-  const best = bestIn(chart[0]);
+  // One action, never frequencies. A clear majority is the play. A split (the first play under
+  // SPLIT) resolves to the cheap line (check, call, fold) when one is on the plan, unless the EV
+  // model says an aggressive play on the plan is worth clearly more (1bb or a tenth of the pot):
+  // a simple strategy you can execute every time, at the cost of a little edge in close spots.
+  let lead = chart[0];
+  const split = share[lead] < SPLIT && chart.length > 1;
+  let rule = null;
+  if (split) {
+    const cheap = chart.find(k => PASSIVE.has(k));
+    if (cheap) {
+      const evOf = (k) => options[bestIn(k)].ev;
+      const strong = chart.filter(k => !PASSIVE.has(k) && evOf(k) - evOf(cheap) > Math.max(1, 0.1 * pot)).sort((a, b) => evOf(b) - evOf(a))[0];
+      lead = strong || cheap;
+      rule = strong ? 'ev' : 'cheap';
+    }
+  }
+  const best = bestIn(lead);
   const fine = [];
   options.forEach((o, i) => { if (chart.includes(cats[i]) && (natural(i) || o.ev >= options[bestIn(cats[i])].ev - 1e-9)) fine.push(i); });
   const ref = options[best].ev;
@@ -126,7 +145,7 @@ export function gradeWithPlan(options, plan, { myBet, pot, facing, natural = () 
     // one it hardly ever takes costs what the model says, and at least the nominal
     return Math.round(100 * (s >= RARE ? Math.max(nominal, Math.min(model, 4 * nominal)) : Math.max(nominal, model))) / 100;
   });
-  return { best, fine, losses, cats, chart, share, planBest: chart[0] };
+  return { best, fine, losses, cats, chart: [lead, ...chart.filter(k => k !== lead)], share, planBest: lead, split, rule };
 }
 
 const SOURCE_NAME = { gto: 'the solid play', multiway: 'the multiway plan', donk: 'the solid play', vs_raise: 'the solid play', station: 'the play against a Station', nit: 'the play against a Nit', maniac: 'the play against a Maniac', whale: 'the play against a Whale' };
@@ -147,13 +166,17 @@ export function planWhere(plan) {
  * big is fine too (the size of the pot and what is behind decide)." The numbers behind it go in
  * planDetail, for "Why".
  */
-export function planSentence(plan, share) {
+export function planSentence(plan, share, g = null) {
   if (!plan) return '';
-  const ranked = Object.entries(share).sort((a, b) => b[1] - a[1]);
-  const chart = ranked.filter(([, v]) => v >= CHART_MIN).map(([k]) => k);
-  if (!chart.length) chart.push(ranked[0][0]);
+  let chart = g?.chart;
+  if (!chart) {
+    const ranked = Object.entries(share).sort((a, b) => b[1] - a[1]);
+    chart = ranked.filter(([, v]) => v >= CHART_MIN).map(([k]) => k);
+    if (!chart.length) chart.push(ranked[0][0]);
+  }
   const [first, ...rest] = chart;
-  const also = rest.length ? ` ${rest.map(k => cap(CAT_NAME[k] || k)).join(' or ')} ${rest.length > 1 ? 'are' : 'is'} fine too (the size of the bet and what is behind decide).` : '';
+  const why = g?.rule === 'cheap' ? ' a close spot: keep it simple and cheap.' : g?.rule === 'ev' ? ' a close spot, and this one is worth clearly more here.' : '';
+  const also = rest.length ? ` ${rest.map(k => cap(CAT_NAME[k] || k)).join(' or ')} ${rest.length > 1 ? 'are' : 'is'} fine too${why ? ':' + why : '.'}` : '';
   return `${planWhere(plan)}: ${SOURCE_NAME[plan.source] || plan.source} is ${CAT_NAME[first] || first}.${also}`;
 }
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
