@@ -7,56 +7,66 @@ aggressive and harder to push off a hand."""
 # calibration (fitted to real players)
 streets = ["flop"]
 role = ["vs_cbet"]
-scale = { fold = 0.782 }
+scale = { fold = 0.755 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["flop"]
 role = ["vs_bet"]
-scale = { fold = 0.807 }
+scale = { fold = 0.848 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["turn"]
 role = ["vs_cbet", "vs_bet"]
-scale = { fold = 1.127 }
+scale = { fold = 1.117 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["river"]
 role = ["vs_cbet", "vs_bet"]
-scale = { fold = 1.872 }
+scale = { fold = 1.9 }
 
 [[rules]]
 # calibration (fitted to real players)
 role = ["vs_cbet", "vs_bet"]
-scale = { raise = 1.328 }
+scale = { raise = 1.274 }
+
+[[rules]]
+# calibration (fitted to real players)
+role = ["vs_raise"]
+scale = { fold = 1.265 }
+
+[[rules]]
+# calibration (fitted to real players)
+role = ["vs_raise"]
+scale = { raise = 0.566 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["flop"]
 role = ["aggr"]
-scale = { aggressive = 1.111 }
+scale = { aggressive = 1.091 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["turn", "river"]
 role = ["aggr"]
-scale = { aggressive = 0.943 }
+scale = { aggressive = 0.927 }
 
 [[rules]]
 # calibration (fitted to real players)
 role = ["donk"]
-scale = { aggressive = 0.723 }
+scale = { aggressive = 0.402 }
 
 [[rules]]
 # calibration (fitted to real players)
 role = ["free"]
-scale = { aggressive = 0.918 }
+scale = { aggressive = 0.935 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["river"]
 facing = "none"
 hands = ["weak", "air"]
-scale = { aggressive = 0.921 }
+scale = { aggressive = 1.053 }

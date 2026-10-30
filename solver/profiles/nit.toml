@@ -19,56 +19,66 @@ scale = { aggressive = 0.6 }
 note = "folds to a flop c-bet 6 times in 10"
 streets = ["flop"]
 role = ["vs_cbet"]
-scale = { fold = 0.921 }
+scale = { fold = 0.889 }
 
 [[rules]]
 note = "folds to other flop bets 3 times in 4"
 streets = ["flop"]
 role = ["vs_bet"]
-scale = { fold = 1.431 }
+scale = { fold = 1.475 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["turn"]
 role = ["vs_cbet", "vs_bet"]
-scale = { fold = 1.695 }
+scale = { fold = 1.546 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["river"]
 role = ["vs_cbet", "vs_bet"]
-scale = { fold = 1.911 }
+scale = { fold = 2.012 }
 
 [[rules]]
 # calibration (fitted to real players)
 role = ["vs_cbet", "vs_bet"]
-scale = { raise = 1.234 }
+scale = { raise = 1.077 }
+
+[[rules]]
+note = "his bets are strong, so a raise folds him only 1 time in 3 (and he re-raises 1 in 5)"
+role = ["vs_raise"]
+scale = { fold = 0.844 }
+
+[[rules]]
+# calibration (fitted to real players)
+role = ["vs_raise"]
+scale = { raise = 1.274 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["flop"]
 role = ["aggr"]
-scale = { aggressive = 1.478 }
+scale = { aggressive = 1.486 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["turn", "river"]
 role = ["aggr"]
-scale = { aggressive = 1.029 }
+scale = { aggressive = 1.041 }
 
 [[rules]]
 # calibration (fitted to real players)
 role = ["donk"]
-scale = { aggressive = 3.237 }
+scale = { aggressive = 2.753 }
 
 [[rules]]
 note = "rarely bets when checked to"
 role = ["free"]
-scale = { aggressive = 0.638 }
+scale = { aggressive = 0.696 }
 
 [[rules]]
 note = "almost never bluffs the river: about 1 in 20 called river bets"
 streets = ["river"]
 facing = "none"
 hands = ["weak", "air"]
-scale = { aggressive = 0.244 }
+scale = { aggressive = 0.224 }

@@ -6,56 +6,66 @@ Plays like Pluribus, the poker AI: the baseline, calibrated to its stats."""
 # calibration (fitted to real players)
 streets = ["flop"]
 role = ["vs_cbet"]
-scale = { fold = 0.701 }
+scale = { fold = 0.807 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["flop"]
 role = ["vs_bet"]
-scale = { fold = 0.81 }
+scale = { fold = 0.82 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["turn"]
 role = ["vs_cbet", "vs_bet"]
-scale = { fold = 1.025 }
+scale = { fold = 1.027 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["river"]
 role = ["vs_cbet", "vs_bet"]
-scale = { fold = 1.206 }
+scale = { fold = 1.331 }
 
 [[rules]]
 # calibration (fitted to real players)
 role = ["vs_cbet", "vs_bet"]
-scale = { raise = 1.176 }
+scale = { raise = 1.116 }
+
+[[rules]]
+# calibration (fitted to real players)
+role = ["vs_raise"]
+scale = { fold = 1.268 }
+
+[[rules]]
+# calibration (fitted to real players)
+role = ["vs_raise"]
+scale = { raise = 0.957 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["flop"]
 role = ["aggr"]
-scale = { aggressive = 1.164 }
+scale = { aggressive = 1.174 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["turn", "river"]
 role = ["aggr"]
-scale = { aggressive = 0.815 }
+scale = { aggressive = 0.826 }
 
 [[rules]]
 # calibration (fitted to real players)
 role = ["donk"]
-scale = { aggressive = 0.705 }
+scale = { aggressive = 0.788 }
 
 [[rules]]
 # calibration (fitted to real players)
 role = ["free"]
-scale = { aggressive = 1.058 }
+scale = { aggressive = 1.047 }
 
 [[rules]]
 # calibration (fitted to real players)
 streets = ["river"]
 facing = "none"
 hands = ["weak", "air"]
-scale = { aggressive = 1.851 }
+scale = { aggressive = 1.648 }
