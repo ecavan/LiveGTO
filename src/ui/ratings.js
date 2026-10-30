@@ -5,17 +5,12 @@ import { loadStats } from '../engine/puzzles.js';
 import { loadRaw, KEYS } from '../store.js';
 import { icon } from './kit.js';
 import { getLevel, LEVELS } from '../engine/level.js';
+import { poolRating } from '../engine/hu/session.js';
 
 export function playRatingNow(level = getLevel()) {
   const store = loadRaw(KEYS.play, { sessions: [] });
-  let hands = 0, sum = 0;
-  for (const p of [...store.sessions].reverse()) {
-    if (p.rating == null || p.hands < 5 || (p.level ?? 2) !== level) continue;
-    sum += p.rating * p.hands;
-    hands += p.hands;
-    if (hands >= 1000) break;
-  }
-  return hands ? Math.round(sum / hands) : null;
+  const r = poolRating([...store.sessions].reverse().filter(p => p.edgeN >= 1 && (p.level ?? 2) === level));
+  return r ? r.rating : null;
 }
 
 export function renderRatings(el) {

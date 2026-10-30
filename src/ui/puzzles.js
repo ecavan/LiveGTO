@@ -16,7 +16,7 @@ import { pokerTable, icon, esc, verdict, disc, rangeGrid, fmtBB, lossKind, optio
 import { ids } from '../engine/hu/hand.js';
 import { puzzleTabs } from './puzzles/tabs.js';
 import { filters, filterPanel as sharedFilters, wireFilters, libraryOnly } from './puzzles/filters.js';
-import { planFromClasses, CLASS_AS_BUCKET } from '../engine/buckets.js';
+import { planFromClasses, CLASS_AS_BUCKET, BUCKET, bucketOf, bucketWhy } from '../engine/buckets.js';
 import { bucketPlanHtml, bucketStepHtml, gradeBucket, recordBucket } from './buckets.js';
 import { navigate } from '../router.js';
 
@@ -280,8 +280,16 @@ function libraryPlan(r, p) {
   const typeOf = (a) => (/^fold/i.test(a) ? 'fold' : /^check/i.test(a) ? 'check' : /^call/i.test(a) ? 'call' : /^all-in/i.test(a) ? 'allin' : /^raise/i.test(a) ? 'raise' : 'bet');
   const options = r.actions.map((a, i) => ({ type: typeOf(a), label: r.actions_short[i].replace(/^\w/, c => c.toUpperCase()) }));
   const hero = CLASS_AS_BUCKET[p.class]?.key;
-  return bucketPlanHtml({ rows: planFromClasses(r.classes), options, board: current.view.board.map(c => '23456789TJQKA'.indexOf(c[0]) * 4 + 'cdhs'.indexOf(c[1])) }, {
-    hero, note: `From the solve: the share of each class that plays each way against ${esc(r.villain.name)}.`,
+  const board = current.view.board.map(c => '23456789TJQKA'.indexOf(c[0]) * 4 + 'cdhs'.indexOf(c[1]));
+  // the rows are the solver's classes; where your bucket (board-aware) disagrees, say so rather than hide it
+  let mismatch = '';
+  try {
+    const hole = [p.cards.slice(0, 2), p.cards.slice(2, 4)].map(c => '23456789TJQKA'.indexOf(c[0]) * 4 + 'cdhs'.indexOf(c[1]));
+    const bk = bucketOf(hole, board);
+    if (hero && bk !== hero && !(hero === 'catcher' && bk === 'draw')) mismatch = `The solver files your hand with ${esc(CLASS_AS_BUCKET[p.class].name.toLowerCase())}; by the buckets it is <b>${esc(BUCKET[bk].name)}</b> (${esc(bucketWhy(hole, board))}). The row shows what the solver did with its whole class, so read it with that in mind.`;
+  } catch { /* leave it */ }
+  return bucketPlanHtml({ rows: planFromClasses(r.classes), options, board }, {
+    hero, note: `${mismatch ? `${mismatch} ` : ''}From the solve: the share of each class that plays each way against ${esc(r.villain.name)}.`,
   });
 }
 
@@ -380,7 +388,7 @@ function draw(container) {
       <div class="space-y-4 min-w-0">
         ${tableHtml(r, current.view)}
         <div class="text-center text-ink-200">You have <b class="text-white">${esc(p.hand)}</b>. What's your play?</div>
-        ${bucketStepHtml(current.bk, { stats, facing: r.to_call > 0, villain: r.villain.profile })}
+        ${bucketStepHtml(current.bk, { stats, facing: r.to_call > 0, villain: r.villain.profile, showPlan: !!answered })}
         ${answered || !current.bk ? '' : actionButtons(r)}
       </div>
       <div class="space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">

@@ -5,7 +5,7 @@
 import { esc } from './kit.js';
 import { pct } from '../engine/potmath.js';
 import { BUCKET, BUCKETS, BUCKET_PLAN, boardLine, bucketOf, bucketWhy, boardKind, BOARD_KINDS } from '../engine/buckets.js';
-import { planFor, PLAN_VILLAINS, ACT_NAME } from '../engine/plans.js';
+import { planFor, PLAN_VILLAINS, planText, planActs } from '../engine/plans.js';
 import { getLevel } from '../engine/level.js';
 
 export const ACT_COL = { fold: '#64748b', check: '#38bdf8', call: '#0ea5e9', bet: '#10b981', raise: '#f59e0b', allin: '#f43f5e' };
@@ -104,7 +104,7 @@ export function recordBucket(stats, g) {
 function planLine(g, { multiway, facing, villain }) {
   if (multiway || !g.kind) return `Plan multiway: ${esc(BUCKET_PLAN[g.key].mw)}`;
   const dec = facing ? 'facing' : 'bet';
-  const say = (lv) => { const pl = planFor(lv, g.kind, dec, g.key); return pl ? `<b class="text-ink-100">${ACT_NAME[pl.act] ?? pl.act}</b>` : null; };
+  const say = (lv) => { const pl = planFor(lv, g.kind, dec, g.key); return pl ? `<b class="text-ink-100">${esc(planText(pl))}</b>${planActs(pl).split ? ' <span class="text-ink-500">(split)</span>' : ''}` : null; };
   const base = say('gto');
   if (!base) return `Plan: ${esc(BUCKET_PLAN[g.key].hu)}`;
   const where = `${BOARD_KINDS[g.kind].name.toLowerCase()} board, ${facing ? 'facing a bet' : 'checked to you or first in'}`;
@@ -112,8 +112,12 @@ function planLine(g, { multiway, facing, villain }) {
   return `Plan with ${esc(BUCKET[g.key].name.toLowerCase())} on a ${where}: baseline ${base}${vil ? ` · against a ${PLAN_VILLAINS[villain]} ${vil}` : ''}.`;
 }
 
-/** Step 1 of a postflop puzzle: the bucket buttons (keys 1–9), or the result once picked. */
-export function bucketStepHtml(g, { multiway = false, stats = null, facing = false, villain = null } = {}) {
+/**
+ * Step 1 of a postflop puzzle: the bucket buttons (keys 1–9), or the result once picked. The
+ * plan line for the bucket is shown only once the play has been answered (showPlan), so naming
+ * the bucket doesn't hand over the answer.
+ */
+export function bucketStepHtml(g, { multiway = false, stats = null, facing = false, villain = null, showPlan = true } = {}) {
   if (!g) {
     return `<div id="bk-ask" class="panel panel-pad space-y-2.5">
       <div class="text-sm text-ink-100"><b class="text-white">First: what kind of hand is this?</b> <span class="text-ink-400">Then pick your play.</span></div>
@@ -129,5 +133,5 @@ export function bucketStepHtml(g, { multiway = false, stats = null, facing = fal
       : `<span class="text-rose-300 font-semibold">You said ${esc(BUCKET[g.pick]?.name ?? g.pick)}.</span> <span class="text-ink-300">It's</span>`;
   return `<div class="rounded-lg px-3 py-2 text-sm ${g.right ? 'bg-emerald-500/10 border border-emerald-500/30' : g.skipped ? 'bg-ink-850 border border-ink-700' : 'bg-rose-500/10 border border-rose-500/30'}">
     ${head} <b style="color:${BCOL[g.key]}">${esc(B.name)}</b>: <span class="text-ink-200">${esc(g.why)}</span>.
-    <div class="text-xs text-ink-400 mt-1">${planLine(g, { multiway, facing, villain })}${acc}</div></div>`;
+    <div class="text-xs text-ink-400 mt-1">${showPlan ? planLine(g, { multiway, facing, villain }) : 'Now pick your play.'}${acc}</div></div>`;
 }

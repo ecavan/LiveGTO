@@ -15,11 +15,16 @@ const r2 = (x) => Math.round(x * 100) / 100;
 export const loadSessions = () => loadRaw(KEY, { sessions: [] }).sessions || [];
 export const saveSessions = (sessions) => save(KEY, { sessions });
 
-/** The big blind of a stakes string: '1/2' → 2, '2/5' → 5, '1/2/5' → 5, '$5/$10' → 10. */
+/** The big blind of a stakes string: '1/2' → 2, '2/5' → 5, '1/2/5' → 5, '$5/$10' → 10, '.25/.50' → 0.5. */
 export function bbOf(stakes) {
-  const nums = String(stakes || '').match(/\d+(\.\d+)?/g);
-  return nums ? Number(nums[nums.length - 1]) : null;
+  const nums = String(stakes || '').match(/\d*\.?\d+/g);
+  if (!nums) return null;
+  const bb = Number(nums[nums.length - 1]);
+  return bb > 0 ? bb : null;
 }
+
+/** Sessions shorter than this don't enter $/hour: ten minutes at a table says nothing about a rate. */
+export const MIN_RATE_HOURS = 0.5;
 
 const id = () => `s${Date.now().toString(36)}${Math.floor(Math.random() * 1e4).toString(36)}`;
 export const today = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -67,19 +72,23 @@ export function totals(sessions) {
   if (!n) return null;
   const hours = done.reduce((a, s) => a + s.hours, 0);
   const net = done.reduce((a, s) => a + profit(s), 0);
-  const bbNet = done.reduce((a, s) => a + profit(s) / s.bb, 0);
-  const perHour = net / hours;
+  // rates come from sessions long enough to mean something; profit and counts from all of them
+  const rated = done.filter(s => s.hours >= MIN_RATE_HOURS);
+  const rHours = rated.reduce((a, s) => a + s.hours, 0);
+  const rNet = rated.reduce((a, s) => a + profit(s), 0);
+  const bbNet = rated.reduce((a, s) => a + profit(s) / s.bb, 0);
+  const perHour = rHours > 0 ? rNet / rHours : 0;
   // hourly standard deviation, weighting each session by its hours
-  const v = done.reduce((a, s) => a + s.hours * ((profit(s) / s.hours - perHour) ** 2), 0) / hours;
-  const sdHour = n > 1 ? Math.sqrt(v) : null;
+  const v = rHours > 0 ? rated.reduce((a, s) => a + s.hours * ((profit(s) / s.hours - perHour) ** 2), 0) / rHours : 0;
+  const sdHour = rated.length > 1 ? Math.sqrt(v) : null;
   return {
-    n, hours: r2(hours), net: r2(net), perHour: r2(perHour), bbPerHour: r2(bbNet / hours),
+    n, hours: r2(hours), net: r2(net), perHour: r2(perHour), bbPerHour: r2(rHours > 0 ? bbNet / rHours : 0), ratedHours: r2(rHours), shortSessions: n - rated.length,
     winRate: done.filter(s => profit(s) > 0).length / n,
     best: done.reduce((a, s) => (profit(s) > profit(a) ? s : a)),
     worst: done.reduce((a, s) => (profit(s) < profit(a) ? s : a)),
     sdHour: sdHour == null ? null : r2(sdHour),
     // 95% interval for your true $/hour (normal approximation)
-    ci: sdHour == null ? null : r2(1.96 * sdHour / Math.sqrt(hours)),
+    ci: sdHour == null ? null : r2(1.96 * sdHour / Math.sqrt(rHours)),
   };
 }
 

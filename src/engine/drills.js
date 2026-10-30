@@ -6,7 +6,7 @@
 import { evaluate, category, CAT, ALL_COMBOS, handType, cardStr, rank, suit } from './hu/hand.js';
 import { BUCKETS, BUCKET, BUCKET_PLAN, bucketWhy, bucketOf as handBucket, boardKind, BOARD_KINDS } from './buckets.js';
 import { RFI_RANGES, FACING_OPEN } from './ranges.js';
-import { planFor, PLAN_VILLAINS, ACT_NAME } from './plans.js';
+import { planFor, PLAN_VILLAINS, ACT_NAME, planText } from './plans.js';
 import { getLevel } from './level.js';
 
 const pct = (x, d = 0) => `${(100 * x).toFixed(d)}%`;
@@ -331,7 +331,7 @@ function bucketQ(rand) {
   const kind = boardKind(bd);
   const level = getLevel();
   const vil = level === 2 ? pick(rand, Object.keys(PLAN_VILLAINS)) : null;
-  const say = (pl) => (pl ? `<b>${ACT_NAME[pl.act] ?? pl.act}</b>` : '—');
+  const say = (pl) => (pl ? `<b>${planText(pl)}</b>` : '—');
   const row = (lv) => `checked to you ${say(planFor(lv, kind, 'bet', key))} · facing a bet ${say(planFor(lv, kind, 'facing', key))}`;
   return {
     prompt: `${spot.line} What kind of hand is this on the ${turn ? 'turn' : 'flop'}?`,

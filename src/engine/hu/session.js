@@ -6,10 +6,17 @@
  *   luck = actual result − (equity when the money went in × pot − what the hero put in)
  * so a lucky 3-high shove that got called and hit shows up as luck, not skill.
  *
- * Rating: EV lost per 100 hands → a performance rating (ratingFromLoss, calibrated against the
- * bot ladder by scripts/calibrate.mjs).
+ * Rating (duplicate-corrected): after every hand the same deal is replayed with a clone of the bot
+ * in your seat, against the bot. Your edge on the deal is your result minus the clone's, so the
+ * cards cancel and what is left is how much better (or worse) you played the hand than the bot
+ * would have. Over a session that is D bb/100, which goes onto the bot ladder's own scale:
+ *     Elo = Elo(bot) ± 900·log10(1 + |D|/25)
+ * so beating the Reg by 25bb/100 puts you one band above him. Folding every hand or shoving every
+ * hand both lose to the clone by hundreds of bb/100, which is the point: the old rating (EV lost
+ * per decision against the coach's model, ratingFromLoss) ranked fold-everything above the Pro.
+ * The EV-lost number stays as decision quality; it no longer rates you.
  */
-import { newHand, act, board, pot, BTN, BB } from './game.js';
+import { newHand, act, board, pot, BTN, BB, rng } from './game.js';
 import { createAgent, choose, handEnded, eloOf } from './agents.js';
 import { coach } from './coach.js';
 import { evaluate, cardStr } from './hand.js';
@@ -45,7 +52,33 @@ export function startHand(sess, rand = Math.random) {
   sess.allin = null;
   sess.pending = null;
   sess.handNo += 1;
+  // the bot's read of you as the hand starts: the clone plays with it, and the villain in the replay too
+  sess.modelAtStart = structuredClone(sess.agent.model);
   return sess.s;
+}
+
+/**
+ * Replay this hand's deal with a clone of the bot in the hero's seat and the bot (as it was when
+ * the hand started) in its own seat. Returns the clone's net result from the hero's seat, or null
+ * if the replay failed. Deterministic: the clone's dice come from the hand number.
+ */
+export function cloneReplay(sess) {
+  const s0 = sess.s;
+  if (!s0?.done) return null;
+  try {
+    const model = sess.modelAtStart ? structuredClone(sess.modelAtStart) : structuredClone(sess.agent.model);
+    const clone = { ...sess.agent, model: structuredClone(model) };
+    const villain = { ...sess.agent, model };
+    const rand = rng(1013904223 + sess.handNo * 2654435761);
+    let s = newHand({ stacks: s0.start, holes: s0.holes, board: s0.runout, rand });
+    let guard = 0;
+    while (!s.done && guard++ < 40) {
+      const who = s.toAct === sess.hero ? clone : villain;
+      s = act(s, choose(who, s, rand));
+    }
+    if (!s.done) return null;
+    return { net: s.result.net[sess.hero], log: s.log, showdown: s.result.showdown };
+  } catch { return null; }
 }
 
 export const heroToAct = (sess) => sess.s && !sess.s.done && sess.s.toAct === sess.hero;
@@ -179,6 +212,7 @@ export function endHand(sess) {
     luck = net - expected;
   }
   const evLost = sess.decisions.reduce((a, d) => a + d.loss, 0);
+  const clone = cloneReplay(sess);
   const h = {
     no: sess.handNo,
     hero: sess.hero,
@@ -193,6 +227,9 @@ export function endHand(sess) {
     evLost: Math.round(evLost * 100) / 100,
     decisions: sess.decisions,
     pot: s.result.pot,
+    // duplicate: what the bot would have made from your seat with your cards, and your edge over it
+    cloneNet: clone ? Math.round(clone.net * 100) / 100 : null,
+    edge: clone ? Math.round((net - clone.net) * 100) / 100 : null,
   };
   sess.hands.push(h);
   return h;
@@ -212,6 +249,8 @@ export function summary(sess) {
   const pre = all.filter(d => d.preflop);
   const good = all.filter(d => d.verdict === 'best' || d.verdict === 'fine').length;
   const lossPer100 = n ? (100 * evLost) / n : 0;
+  const dup = edgeStats(H.map(h => h.edge).filter(x => x != null));
+  const elo = eloOf(sess.botId);
   return {
     hands: n,
     net: round2(net),
@@ -226,10 +265,65 @@ export function summary(sess) {
     preAcc: pre.length ? pre.filter(d => d.verdict !== 'mistake' && d.verdict !== 'blunder').length / pre.length : 0,
     blunders: all.filter(d => d.verdict === 'blunder').length,
     mistakes: all.filter(d => d.verdict === 'mistake').length,
-    rating: n >= 5 ? ratingFromLoss(lossPer100) : null,
+    rating: dup.n >= 5 ? ratingFromEdge(dup.d, elo) : null,
+    ratingSe: dup.n >= 5 ? ratingSeFromEdge(dup.d, dup.se) : null,
+    edge: dup.d, // bb/100 over the bot on the same cards
+    edgeSe: dup.se,
+    edgeN: dup.n,
+    edgeSum: dup.sum,
+    edgeSq: dup.sq,
+    legacyRating: n >= 5 ? ratingFromLoss(lossPer100) : null,
     level: sess.level ?? 2,
-    botElo: eloOf(sess.botId),
+    botElo: elo,
   };
+}
+
+/** Mean edge in bb/100 with its standard error, from per-hand edges in bb. */
+export function edgeStats(edges) {
+  const n = edges.length;
+  if (!n) return { n: 0, d: 0, se: null, sum: 0, sq: 0 };
+  const sum = edges.reduce((a, x) => a + x, 0);
+  const sq = edges.reduce((a, x) => a + x * x, 0);
+  return edgeStatsFromSums(sum, sq, n);
+}
+export function edgeStatsFromSums(sum, sq, n) {
+  if (!n) return { n: 0, d: 0, se: null, sum: 0, sq: 0 };
+  const mean = sum / n;
+  const v = n > 1 ? Math.max(0, (sq - n * mean * mean) / (n - 1)) : 0;
+  return { n, d: round2(100 * mean), se: n > 1 ? round2(100 * Math.sqrt(v / n)) : null, sum, sq };
+}
+
+/**
+ * Pool session rows ({ bot, edgeSum, edgeSq, edgeN }) into one rating: the edge over all hands
+ * (newest first, up to `maxHands`) on a composite opponent whose Elo is the hands-weighted mean
+ * of the bots faced. Returns { rating, se, hands, edge, edgeSe } or null under 5 hands.
+ */
+export function poolRating(rows, maxHands = 1000) {
+  let n = 0, sum = 0, sq = 0, eloW = 0;
+  for (const r of rows) {
+    if (!r.edgeN) continue;
+    const take = Math.min(r.edgeN, maxHands - n);
+    if (take <= 0) break;
+    const f = take / r.edgeN;
+    n += take; sum += r.edgeSum * f; sq += r.edgeSq * f; eloW += eloOf(r.bot) * take;
+    if (n >= maxHands) break;
+  }
+  if (n < 5) return null;
+  const st = edgeStatsFromSums(sum, sq, n);
+  const botElo = eloW / n;
+  return { rating: ratingFromEdge(st.d, botElo), se: ratingSeFromEdge(st.d, st.se), hands: n, edge: st.d, edgeSe: st.se, botElo: Math.round(botElo) };
+}
+
+/** The ladder's squash: bb/100 against a bot → Elo relative to it (±900·log10(1 + |D|/25)). */
+export const ELO_PER_25 = 900;
+export function ratingFromEdge(d, botElo) {
+  const r = botElo + Math.sign(d) * ELO_PER_25 * Math.log10(1 + Math.abs(d) / 25);
+  return Math.round(Math.max(400, Math.min(2800, r)));
+}
+/** ± on the rating from ± on the edge (the squash's slope at D). */
+export function ratingSeFromEdge(d, se) {
+  if (se == null) return null;
+  return Math.round((ELO_PER_25 / Math.LN10) * se / (25 + Math.abs(d)));
 }
 
 const round2 = (x) => Math.round(x * 100) / 100;

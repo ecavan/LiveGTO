@@ -108,21 +108,28 @@ Three ratings, all on a chess-like scale:
 
   Beaten by 25bb/100 → ~1730; by 100 → ~1370; by 400 → ~890. Matches are *duplicate*: each deal is
   played twice with the seats swapped, which cancels most card luck.
-- **Your Play rating**. Results over a few hundred hands are mostly noise, so the rating uses the
-  EV you give up: every decision is graded by the coach against the bot's actual range and
-  strategy, and L = EV lost per 100 hands.
+- **Your Play rating** is duplicate-corrected, the way the ladder is. After every hand, the same
+  deal (your cards, his cards, the board, the seats) is replayed with a clone of the bot in your
+  seat against the bot as he was when the hand started (`cloneReplay` in `hu/session.js`). Your
+  *edge* on the deal is your result minus the clone's, in bb; the cards cancel and what is left is
+  how much better than the bot you played the hand. Over a session, D = the mean edge in bb/100,
+  and it goes on the ladder's own scale, anchored at the bot you faced:
 
   ```
-  R = a − b · log₂(1 + L / L₀)
+  R = Elo(bot) ± 900 · log₁₀(1 + |D| / 25)         SE(D) = 100 · sd(edge) / √n
   ```
 
-  a, b and L₀ are fitted by `scripts/calibrate.mjs`: each profile bot plays the Pro with the coach
-  grading its decisions exactly as it grades yours, and the fit maps each bot's L to its ladder
-  Elo. R(0) is pinned at 2100 (play the coach can't fault is above the Pro, who is exploitable).
-  Current fit: R = 2100 − 1020·log₂(1 + L/855), RMSE 175 Elo over the five profile bots
-  (`src/engine/hu/calibration.json`). Roughly: losing 100bb/100 of EV ≈ 1940, 300 ≈ 1660,
-  650 ≈ 1270, 1150 ≈ 850. Your Play rating is the hands-weighted average of your recent sessions
-  (up to 1,000 hands). It is an estimate: treat ±150 as noise.
+  Beat the Reg by 25bb/100 and you sit one band above him (1931). The ± shown is the squash's
+  slope times SE(D): about ±450 after 100 hands of ordinary play, ±300 after 400; shoving a lot
+  makes it wider. Across sessions the rating pools the last 1,000 hands (`poolRating`): one edge
+  over a composite opponent whose Elo is the hands-weighted mean of the bots faced.
+
+  Why not EV lost per decision (the previous rating, `ratingFromLoss`, still shown as decision
+  quality): it is bounded by the EV gap at each node, not by the money, and it inherits the coach's
+  one-street model, so folding every hand (−32bb/100 of "EV lost") rated 2059, above the Pro, and
+  shoving every hand rated 1793. With the duplicate rating, fold-everything rates about 1200
+  against the Reg and shove-everything 400–600 (`test/rating.test.js`). Against the adapting bots
+  the clone shares the bot's read of you at the start of each hand, so the comparison stays fair.
 
 Current ladder (duplicate matches, 6,000 hands per pair; Elo ± ~150 for the noisier pairs):
 

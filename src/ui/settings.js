@@ -5,6 +5,8 @@ import { icon, levelSwitch, wireLevel } from './kit.js';
 import { themePref, setTheme } from '../theme.js';
 
 const LIB_CACHE = 'puzzle-library';
+/** Every store the app keeps (settings, both ratings, progress, hands, sessions): all of it goes in a backup. */
+export const BACKUP_KEYS = ['livegto.settings.v1', 'livegto.play.v2', 'livegto.learn.v1', 'livegto.drills.v1', 'livegto.puzzles.v1', 'livegto.hands.v1', 'livegto.sessions.v1'];
 
 async function offlineStatus() {
   try {
@@ -65,8 +67,13 @@ export async function render(container) {
     </div>
     <div class="panel panel-pad space-y-3">
       <div class="font-semibold text-white">Your data</div>
-      <p class="text-sm text-ink-300">Ratings, lesson progress and sessions are stored on this device only.</p>
+      <p class="text-sm text-ink-300">Ratings, lesson progress, hand history and sessions are stored on this device only. Export a backup to move them to another device, or to keep them safe.</p>
       <div class="flex gap-2 flex-wrap">
+        <button class="btn btn-primary" id="bk-export">${icon('download', 'w-4 h-4')} Export backup</button>
+        <label class="btn cursor-pointer">Restore backup<input type="file" id="bk-import" accept="application/json" class="hidden"></label>
+      </div>
+      <div id="bk-msg" class="text-sm text-ink-300"></div>
+      <div class="flex gap-2 flex-wrap pt-2">
         ${Object.entries(RESETS).map(([k, r]) => `<button class="btn" data-reset="${k}">${r.label}</button>`).join('')}
       </div>
     </div>
@@ -81,6 +88,30 @@ export async function render(container) {
     bar.style.width = `${(100 * st.have) / st.files.length}%`;
   };
   wireLevel(container, () => render(container));
+  $('bk-export').addEventListener('click', () => {
+    const data = {};
+    for (const k of BACKUP_KEYS) { const v = localStorage.getItem(k); if (v != null) { try { data[k] = JSON.parse(v); } catch { data[k] = v; } } }
+    const blob = new Blob([JSON.stringify({ app: 'livegto', at: new Date().toISOString(), data })], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `livegto-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    $('bk-msg').textContent = `Backup of ${Object.keys(data).length} stores written.`;
+  });
+  $('bk-import').addEventListener('change', async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try {
+      const j = JSON.parse(await f.text());
+      const data = j.app === 'livegto' && j.data ? j.data : j;
+      const keys = Object.keys(data).filter(k => BACKUP_KEYS.includes(k));
+      if (!keys.length) throw new Error('not a LiveGTO backup');
+      if (!window.confirm(`Restore ${keys.length} stores from this backup? What is on this device now is replaced.`)) return;
+      for (const k of keys) localStorage.setItem(k, typeof data[k] === 'string' ? data[k] : JSON.stringify(data[k]));
+      location.reload();
+    } catch { $('bk-msg').textContent = 'That file is not a backup from this app.'; }
+  });
   container.querySelectorAll('[data-theme-pick]').forEach(b => b.addEventListener('click', () => {
     setTheme(b.dataset.themePick);
     container.querySelectorAll('[data-theme-pick]').forEach(x => x.classList.toggle('on', x === b));

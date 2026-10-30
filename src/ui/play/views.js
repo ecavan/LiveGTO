@@ -223,7 +223,7 @@ export function sessionPanel(sess, sum) {
     <div class="grid grid-cols-3 gap-2">
       ${stat('Hands', `${sum.hands}${sess.length ? `<span class="text-ink-400 text-base">/${sess.length}</span>` : ''}`)}
       ${stat('EV lost', sum.evLost >= 0.05 ? `−${sum.evLost.toFixed(1)}` : '0', 'by your decisions', sum.evLost > 0 ? 'text-rose-300' : '')}
-      ${stat('Rating', sum.rating ?? '—', sum.rating ? 'this session' : 'after 5 hands')}
+      ${stat('Rating', sum.rating ?? '—', sum.rating ? `${sum.edge >= 0 ? '+' : ''}${sum.edge}bb/100 vs him on your cards` : 'after 5 hands')}
     </div>
     <div class="grid grid-cols-2 gap-2">
       ${stat('Result', `<span class="${tone(sum.net)}">${fmtBB(sum.net, { sign: true })}</span>`)}
@@ -287,7 +287,7 @@ export function reviewHtml(sess, sum, pastSessions) {
       <div class="flex gap-2 flex-wrap"><a class="btn" href="#play/review/s/${sess.startedAt}">${icon('review', 'w-4 h-4')} Game review</a><button class="btn" id="rv-again">Play again</button><button class="btn btn-primary" id="rv-new">New session</button></div>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-      ${stat('Played like', sum.rating ?? '—', sum.rating ? `EV lost ${sum.lossPer100.toFixed(1)}bb/100` : 'play 5+ hands', 'text-amber-200')}
+      ${stat('Played like', sum.rating ? `${sum.rating}${sum.ratingSe != null ? ` <span class="text-base text-ink-400">± ${sum.ratingSe}</span>` : ''}` : '—', sum.rating ? `${sum.edge >= 0 ? '+' : ''}${sum.edge}bb/100 vs ${AGENTS[sess.botId].name} on the same cards · EV lost ${sum.lossPer100.toFixed(1)}bb/100` : 'play 5+ hands', 'text-amber-200')}
       ${stat('Best or good', pct(sum.accuracy), `of your decisions · ${sum.blunders} blunders · ${sum.mistakes} mistakes`)}
       ${stat('Result', `<span class="${tone(sum.net)}">${fmtBB(sum.net, { sign: true })}</span>`, `${sum.hands} hands · ${fmtBB(Math.round(sum.bbPer100), { sign: true })}/100`)}
       ${stat('Luck', `<span class="${tone(sum.luck)}">${fmtBB(sum.luck, { sign: true })}</span>`, `all-in adjusted: ${fmtBB(sum.adjusted, { sign: true })}`)}

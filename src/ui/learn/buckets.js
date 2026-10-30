@@ -6,7 +6,7 @@
  */
 import { icon, esc, cards, handText, levelSwitch, wireLevel } from '../kit.js';
 import { BUCKETS, BUCKET_PLAN, composition, bucketOf, bucketWhy, BUCKET, boardDangers, BOARD_KINDS } from '../../engine/buckets.js';
-import { planFor, planSpots, PLAN_VILLAINS, ACT_NAME, ACT_TIP } from '../../engine/plans.js';
+import { planFor, planSpots, PLAN_VILLAINS, ACT_NAME, ACT_TIP, planActs, SPLIT } from '../../engine/plans.js';
 import { getLevel } from '../../engine/level.js';
 import { ids, cardStr } from '../../engine/hu/hand.js';
 import { N } from '../../engine/hu/equity.js';
@@ -31,8 +31,9 @@ export function render(container) {
 /** One plan cell: the play, and the second play when it is close to a mix. */
 function cell(pl, base = null) {
   if (!pl) return '<span class="text-ink-500">—</span>';
-  const second = Object.entries(pl.dist).filter(([k]) => k !== pl.act).sort((a, b) => b[1] - a[1])[0];
-  const mixed = pl.p < 0.55 && second && second[1] >= 0.25;
+  const a = planActs(pl);
+  const second = a.split ? [a.acts[1]] : null;
+  const mixed = a.split;
   const chip = (a) => `<span class="inline-block rounded-md px-2 py-0.5 text-[13px] font-semibold text-white whitespace-nowrap" title="${esc(ACT_TIP[a] ?? '')}" style="background:${ACOL[a]}33;border:1px solid ${ACOL[a]}aa">${ACT_NAME[a] ?? a}</span>`;
   const changed = base && base.act !== pl.act;
   return `<div class="flex items-center gap-1 flex-wrap">${chip(pl.act)}${mixed ? `<span class="text-ink-400 text-xs">or</span>${chip(second[0])}` : ''}
@@ -108,7 +109,7 @@ function draw(container) {
       ${level === 2 ? `<div class="flex gap-2 flex-wrap items-center"><span class="text-xs text-ink-400">Against</span>${Object.entries(PLAN_VILLAINS).map(([k, n]) => `<button data-vil="${k}" class="btn ${k === villain ? 'btn-primary' : 'btn-quiet'} text-sm">${n}</button>`).join('')}</div>` : ''}
       <div class="flex items-center gap-3 flex-wrap"><div class="flex gap-1">${cards(c(b.cards), 'sm')}</div><span class="text-xs text-ink-400">${esc(BOARD_KINDS[kind].name)}: ${esc(BOARD_KINDS[kind].desc)}</span></div>
       ${planTable(level)}
-      <p class="text-[11px] text-ink-400">Heads-up, from ${planSpots().toLocaleString()} solved turn and river spots, grouped by the kind of flop. Bet small is under half the pot, bet big half the pot or more. "Or" means the solver splits those hands between two plays.</p>
+      <p class="text-[11px] text-ink-400">Heads-up, from ${planSpots().toLocaleString()} solved turn and river spots, grouped by the kind of flop. Bet small is under half the pot, bet big half the pot or more. "Or" means the solved spots don't agree on one play (the first is the most common one, but under ${Math.round(100 * SPLIT)}% of the time): the size of the bet and how much is behind usually decide, smaller and deeper towards the passive play.</p>
       <details class="disc"><summary>Multiway (two or more opponents)</summary><div class="body space-y-1.5">
         ${BUCKETS.map(B => `<div class="text-sm"><b class="text-white">${esc(B.name)}:</b> <span class="text-ink-200">${esc(BUCKET_PLAN[B.key].mw)}</span></div>`).join('')}
         <p class="text-xs text-ink-400 pt-1">With more players someone usually has something: bluff much less, bet your value bigger, and a bluff-catcher against one player is a fold against three.</p></div></details>
@@ -124,7 +125,7 @@ function draw(container) {
 
     <section class="panel panel-pad space-y-3">
       <h2 class="text-lg font-semibold text-white">Air isn't all the same</h2>
-      <p class="text-sm text-ink-300">"Air with equity" means no pair and no real draw, but cards that can still win: a gutshot, two overcards, or on the flop a backdoor flush or straight draw. Those are your bluffs: they win sometimes when called and can turn into a draw. Plain "Air" has none of that: check and fold unless the player folds far too much.</p>
+      <p class="text-sm text-ink-300">"Air with equity" means no pair and no real draw, but cards that can still win: a gutshot, two overcards (both cards above the board), or on the flop a backdoor draw: three to a flush with one of your cards, or three to a straight using both of your cards. One hole card three ranks from the board (K♦8♦ on A-Q-5) is not a backdoor draw here: it is plain Air. Those are your bluffs: they win sometimes when called and can turn into a draw. Plain "Air" has none of that: check and fold unless the player folds far too much.</p>
       ${journey()}
     </section>
 

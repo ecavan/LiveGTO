@@ -5,7 +5,7 @@
  *
  * Grading is by EV, never by frequency:
  *   - "best"    the one-action answer (highest EV vs this villain)
- *   - "fine"    within 1% of the pot of the best (the solver is indifferent)
+ *   - "fine"    within 2% of the pot (or 0.3bb) of the best: inside the solver's own noise
  *   - "mistake" anything else; the cost is shown in bb and % of the pot
  */
 import { requiredEquity, alpha, mdf, pct } from './potmath.js';
@@ -100,9 +100,18 @@ export function families(index) {
 
 // ---------------------------------------------------------------- grading
 
+/**
+ * How much EV a solve can be trusted to: a 20-minute discounted-CFR solve with node locking is
+ * exploitable by a few tenths of a percent of the pot, and one hand's action EV is noisier than the
+ * aggregate, so anything within FINE_PCT of the pot (or FINE_BB) of the best action is "fine"
+ * (the solver is indifferent), whatever the library's own `fine` list says.
+ */
+export const FINE_PCT = 0.02;
+export const FINE_BB = 0.3;
 export function grade(puzzle, record, choice) {
   const loss = -puzzle.ev[choice]; // ev is relative to the best action (best = 0)
-  const verdict = choice === puzzle.answer ? 'best' : puzzle.fine.includes(choice) ? 'fine' : 'mistake';
+  const noise = Math.max(FINE_PCT * (record.pot || 0), FINE_BB);
+  const verdict = choice === puzzle.answer ? 'best' : (puzzle.fine.includes(choice) || loss <= noise) ? 'fine' : 'mistake';
   return {
     verdict,
     correct: verdict !== 'mistake',

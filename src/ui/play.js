@@ -5,7 +5,7 @@
  *   coach "off":      a straight session, everything in the review
  */
 import {
-  createSession, startHand, heroToAct, coachNow, coachReady, heroAct, botAct, endHand, sessionOver, summary, coachAgent,
+  createSession, startHand, heroToAct, coachNow, coachReady, heroAct, botAct, endHand, sessionOver, summary, coachAgent, poolRating,
 } from '../engine/hu/session.js';
 import { getLevel, LEVELS } from '../engine/level.js';
 import { AGENTS, AGENT_IDS, eloOf, levelOf } from '../engine/hu/agents.js';
@@ -61,14 +61,9 @@ export function playStore() {
  * hands). Sessions from before levels existed were graded against the bot's real range: Level 2.
  */
 export function playRating(store = playStore(), level = getLevel()) {
-  let hands = 0, sum = 0;
-  for (const p of [...store.sessions].reverse()) {
-    if (p.rating == null || p.hands < 5 || (p.level ?? 2) !== level) continue;
-    sum += p.rating * p.hands;
-    hands += p.hands;
-    if (hands >= 1000) break;
-  }
-  return hands ? { rating: Math.round(sum / hands), hands } : null;
+  const rows = [...store.sessions].reverse().filter(p => p.edgeN >= 1 && (p.level ?? 2) === level);
+  const r = poolRating(rows);
+  return r ? { ...r } : null;
 }
 
 function recordSession() {
@@ -76,7 +71,8 @@ function recordSession() {
   if (!sum.hands) return;
   const store = playStore();
   // saved after every hand (closing the app mid-session loses nothing); one entry per session
-  const row = { at: sess.startedAt, bot: sess.botId, hands: sum.hands, net: sum.net, evLost: sum.evLost, rating: sum.rating, level: sum.level };
+  const row = { at: sess.startedAt, bot: sess.botId, hands: sum.hands, net: sum.net, evLost: sum.evLost, rating: sum.rating, level: sum.level,
+    edgeN: sum.edgeN, edgeSum: sum.edgeSum, edgeSq: sum.edgeSq, edge: sum.edge };
   const i = store.sessions.findIndex(x => x.at === sess.startedAt);
   if (i >= 0) store.sessions[i] = row; else store.sessions.push(row);
   store.sessions = store.sessions.slice(-200);
@@ -96,8 +92,8 @@ function setup(container) {
     <div class="flex items-end justify-between gap-4 flex-wrap">
       <div><div class="h-sec">Play</div><h1 class="h-title">Choose your opponent</h1>
         <p class="muted mt-1 text-sm">Heads-up, ${st.huStack ?? 100}bb, button vs big blind. Every decision is graded at your level; the coach shows the other level's answer too.</p></div>
-      <div class="flex items-end gap-3 flex-wrap max-w-full">${playTabs('')}<div class="stat min-w-[150px]"><div class="k">Play rating · ${LEVELS[getLevel()].short}</div><div class="v text-amber-200">${mine ? mine.rating : '—'}</div>
-        <div class="s">${mine ? `${mine.hands} rated hands` : 'play a session to get rated'}</div></div></div>
+      <div class="flex items-end gap-3 flex-wrap max-w-full">${playTabs('')}<div class="stat min-w-[150px]"><div class="k">Play rating · ${LEVELS[getLevel()].short}</div><div class="v text-amber-200">${mine ? `${mine.rating}${mine.se != null ? ` <span class="text-sm text-ink-400">± ${mine.se}</span>` : ''}` : '—'}</div>
+        <div class="s">${mine ? `${mine.hands} hands · ${mine.edge >= 0 ? '+' : ''}${mine.edge}bb/100 vs the bots on the same cards` : 'play a session to get rated'}</div></div></div>
     </div>
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
       ${bots.map(id => {
@@ -123,7 +119,7 @@ function setup(container) {
       </div>
       <div class="space-y-2"><div class="h-sec">Session</div>
         ${seg('length', [{ v: 0, label: 'Endless' }, { v: 25, label: '25 hands' }, { v: 50, label: '50' }, { v: 100, label: '100' }], st.length)}
-        <p class="text-xs text-ink-400">Your rating comes from the EV you give up per 100 hands, not from the cards. Luck is shown separately.</p>
+        <p class="text-xs text-ink-400">Your rating is duplicate-corrected: every hand is replayed with the bot in your seat holding your cards, and you are rated on how much better than him you did, in bb/100, on the bot ladder's scale. Folding everything or shoving everything rates far below him. EV lost per decision is shown separately as decision quality.</p>
       </div>
       <div class="space-y-2"><div class="h-sec">Stacks</div>
         ${seg('huStack', [{ v: 40, label: '40bb' }, { v: 100, label: '100bb' }, { v: 200, label: '200bb' }], st.huStack ?? 100)}

@@ -125,7 +125,7 @@ function draw(container) {
     ${!t ? (all.some(s => !s.running) ? '<p class="text-sm text-ink-400">No sessions in this period.</p>' : '') : `
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       ${stat('Profit', `<span class="${tone(t.net)}">${money(t.net, { sign: true })}</span>`, `${t.n} session${t.n === 1 ? '' : 's'} · ${hrs(t.hours)} hours`)}
-      ${stat('Per hour', `<span class="${tone(t.perHour)}">${money(t.perHour, { sign: true })}</span>`, t.ci != null ? `±${money(t.ci)} (95%)` : 'needs 2+ sessions for a range')}
+      ${stat('Per hour', `<span class="${tone(t.perHour)}">${money(t.perHour, { sign: true })}</span>`, t.ci != null ? `±${money(t.ci)} (95%)${t.shortSessions ? ` · ${t.shortSessions} short session${t.shortSessions === 1 ? '' : 's'} left out` : ''}` : t.shortSessions && !t.ratedHours ? 'sessions under 30 min don\'t make a rate' : 'needs 2+ sessions for a range')}
       ${stat('Big blinds / hour', bbh(t.bbPerHour), 'each session in its own blinds')}
       ${stat('Winning sessions', `${Math.round(t.winRate * 100)}%`, `best ${money(profit(t.best), { sign: true })} · worst ${money(profit(t.worst), { sign: true })}`)}
     </div>
