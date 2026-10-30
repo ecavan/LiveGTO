@@ -31,7 +31,13 @@ let navId = 0;
  * paint over the page you're on, and its cleanup runs at once. Timers in a view can check
  * `root.isConnected` to know whether their page is still showing.
  */
+const isChunkError = (e) => /dynamically imported module|Importing a module script failed|error loading dynamically imported module|Failed to fetch/i.test(String(e?.message || e));
+const RELOAD_KEY = 'livegto.chunkReload';
+const reloadedRecently = () => { try { return Date.now() - Number(sessionStorage.getItem(RELOAD_KEY) || 0) < 60000; } catch { return false; } };
+const markReload = () => { try { sessionStorage.setItem(RELOAD_KEY, String(Date.now())); } catch { /* private mode */ } };
+
 async function onRoute() {
+  if (window.__swUpdated) { window.__swUpdated = false; location.reload(); return; }
   const my = ++navId;
   const { name, params } = current();
   if (typeof cleanup === 'function') { try { cleanup(); } catch { /* ignore */ } }
@@ -51,6 +57,10 @@ async function onRoute() {
     c = await fn(root, params);
   } catch (e) {
     console.error(e);
+    // A page's code could not be fetched: after a deploy the app that is running is the old one,
+    // and its chunks are gone from the server (and from the updated service worker's cache). A
+    // reload gets the new app; one try, so a real outage still shows the message below.
+    if (my === navId && isChunkError(e) && !reloadedRecently()) { markReload(); location.reload(); return; }
     if (my === navId) root.innerHTML = `<div class="page text-center pt-16 space-y-3"><p class="text-ink-200">Something went wrong loading this page.</p><p class="text-xs text-ink-400">${String(e?.message || e).replace(/[<>&]/g, '')}</p><button class="btn" onclick="location.reload()">Reload</button></div>`;
     return;
   }

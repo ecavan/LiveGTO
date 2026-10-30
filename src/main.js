@@ -25,6 +25,12 @@ register('learn', lazy(() => import('./ui/learn.js')));
 register('puzzles', lazy(() => import('./ui/puzzles.js')));
 register('play', lazy(() => import('./ui/play.js')));
 register('settings', lazy(() => import('./ui/settings.js')));
+// After a deploy the updated service worker takes over while the old app is still running, whose
+// page chunks are gone from the server: the next page change reloads into the new app instead.
+if ('serviceWorker' in navigator) {
+  let had = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) window.__swUpdated = true; had = true; });
+}
 // old links
 for (const old of ['simulate', 'preflop', 'playbook', 'postflop']) {
   register(old, () => { window.location.hash = old === 'simulate' ? 'play' : old === 'postflop' ? 'puzzles' : `learn/${old}`; });
