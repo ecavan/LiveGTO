@@ -397,9 +397,10 @@ blunder (best: donk-bet 75%) and a river shove with king-high the best play. Gra
   multiway plan (bluff much less, fold bluff-catchers to big bets).
 - On the plan: any play the solver takes at least 25% of the time there is fine and costs
   nothing. One of them is *the* play (§2: one action, never frequencies): a clear majority (65%+)
-  is it; a split resolves to the cheap line (check, call, fold) unless the EV model says an
-  aggressive play on the plan is worth clearly more (1bb or a tenth of the pot). A simple strategy
-  you can execute every time, at the cost of a little edge in close spots. A play the solver takes
+  is it; a split resolves to the simple line (check, call, fold) unless the EV model says an
+  aggressive play on the plan is worth clearly more (5bb or a fifth of the pot, whichever is
+  larger). A simple strategy you can execute every time, at the cost of a little edge in close
+  spots: at $1/$2 a big blind is a dollar, and a strategy you can carry out is worth more. A play the solver takes
   10–25% of the time is a small mistake (the nominal, up to 4× it); one it hardly ever takes costs
   what the model says, at least the nominal (max(0.25bb, 5% of the pot)). The frequencies behind
   the verdict are under "Why".

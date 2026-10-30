@@ -99,8 +99,11 @@ describe('solid grading', () => {
     expect(g.best).toBe(0);
     expect(g.rule).toBe('cheap');
     expect(g.fine).toEqual([0, 2]);
-    // the same split, but raising is worth 3bb more: raise is the play, fold stays fine
-    const clear = [{ type: 'fold', ev: 0 }, { type: 'call', to: 5, ev: 0.3 }, { type: 'raise', to: 15, ev: 3 }];
+    // raising worth 3bb more is still not clearly more (5bb or a fifth of the pot): fold
+    const near = [{ type: 'fold', ev: 0 }, { type: 'call', to: 5, ev: 0.3 }, { type: 'raise', to: 15, ev: 3 }];
+    expect(gradeWithPlan(near, { dist: { fold: 0.55, raise: 0.45 } }, ctx).best).toBe(0);
+    // worth 6bb more: raise is the play, fold stays fine
+    const clear = [{ type: 'fold', ev: 0 }, { type: 'call', to: 5, ev: 0.3 }, { type: 'raise', to: 15, ev: 6 }];
     const g2 = gradeWithPlan(clear, { dist: { fold: 0.55, raise: 0.45 } }, ctx);
     expect(g2.best).toBe(2);
     expect(g2.rule).toBe('ev');

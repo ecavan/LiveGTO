@@ -30,6 +30,9 @@ const RARE = 0.1;
 /** Under this share the plan is a split: one play is named by the simple rule below. */
 export const SPLIT = 0.65;
 const PASSIVE = new Set(['check', 'call', 'fold']);
+/** In a split, the aggressive line must be worth this much more than the simple one to be the play. */
+export const CLEAR_BB = 5;
+export const CLEAR_POT = 0.2;
 
 /** Multiway (two or more opponents): the written plan in buckets.js, as shares. */
 export const MULTIWAY_PLAN = {
@@ -118,9 +121,11 @@ export function gradeWithPlan(options, plan, { myBet, pot, facing, natural = () 
     return b;
   };
   // One action, never frequencies. A clear majority is the play. A split (the first play under
-  // SPLIT) resolves to the cheap line (check, call, fold) when one is on the plan, unless the EV
-  // model says an aggressive play on the plan is worth clearly more (1bb or a tenth of the pot):
-  // a simple strategy you can execute every time, at the cost of a little edge in close spots.
+  // SPLIT) resolves to the simple line (check, call, fold) when one is on the plan, unless the EV
+  // model says an aggressive play on the plan is worth clearly more (CLEAR_BB or CLEAR_POT of the
+  // pot): a simple strategy you can execute every time, at the cost of a little edge in close
+  // spots. Deliberately conservative: a big blind here or there is cheap next to a strategy you
+  // can actually carry out at the table.
   let lead = chart[0];
   const split = share[lead] < SPLIT && chart.length > 1;
   let rule = null;
@@ -128,7 +133,7 @@ export function gradeWithPlan(options, plan, { myBet, pot, facing, natural = () 
     const cheap = chart.find(k => PASSIVE.has(k));
     if (cheap) {
       const evOf = (k) => options[bestIn(k)].ev;
-      const strong = chart.filter(k => !PASSIVE.has(k) && evOf(k) - evOf(cheap) > Math.max(1, 0.1 * pot)).sort((a, b) => evOf(b) - evOf(a))[0];
+      const strong = chart.filter(k => !PASSIVE.has(k) && evOf(k) - evOf(cheap) > Math.max(CLEAR_BB, CLEAR_POT * pot)).sort((a, b) => evOf(b) - evOf(a))[0];
       lead = strong || cheap;
       rule = strong ? 'ev' : 'cheap';
     }
