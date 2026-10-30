@@ -132,7 +132,7 @@ export function undo(L) {
 /** The table the coach sees: each seat's type as a player. */
 function tableOf(L, level = 2) {
   // Level 1 prices the solid play: everyone as a Pro, whatever you tagged them
-  return { players: L.types.map((t, i) => (i === HERO ? null : { name: `Seat ${i}`, mix: level === 1 ? { pro: 1 } : VILLAIN_TYPES[t]?.mix ?? VILLAIN_TYPES.unknown.mix, learn: 0, ramp: 120 })) };
+  return { baseline: level === 1, players: L.types.map((t, i) => (i === HERO ? null : { name: `Seat ${i}`, mix: level === 1 ? { pro: 1 } : VILLAIN_TYPES[t]?.mix ?? VILLAIN_TYPES.unknown.mix, learn: 0, ramp: 120 })) };
 }
 
 /**

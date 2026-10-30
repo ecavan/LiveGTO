@@ -100,7 +100,7 @@ export const coachAgent = (sess, level, s) => (level === 1 && s.street > 0 ? 're
 export function coachNow(sess) {
   if (!heroToAct(sess)) return null;
   const key = nodeKey(sess);
-  if (sess.pending?.key !== key) sess.pending = { key, k: coach(sess.s, sess.hero, coachAgent(sess, sess.level, sess.s)) };
+  if (sess.pending?.key !== key) sess.pending = { key, k: coach(sess.s, sess.hero, coachAgent(sess, sess.level, sess.s), { level: sess.level }) };
   return sess.pending.k;
 }
 
@@ -112,7 +112,8 @@ export function heroAct(sess, idx) {
   if (!opt) throw new Error(`no option ${idx}`);
   const best = k.options[k.best];
   let loss;
-  if (!k.preflop || k.evGraded) loss = Math.max(0, best.ev - opt.ev);
+  if (k.losses) loss = k.losses[idx]; // postflop: the plan's verdict, sized by the model (solid.js)
+  else if (!k.preflop || k.evGraded) loss = Math.max(0, best.ev - opt.ev);
   else if (k.fine.includes(idx)) loss = 0;
   else {
     // off the chart: the EV the chart play was worth over this one (model), at least a small cost
@@ -143,10 +144,11 @@ export function heroAct(sess, idx) {
     preflop: !!k.preflop && !k.evGraded,
     chart: k.chart,
     notes: k.notes,
+    solid: k.solid ?? null,
   };
   if (s.street > 0) {
     const other = sess.level === 1 ? 2 : 1;
-    d.other = otherGrade(coach(s, sess.hero, coachAgent(sess, other, s)), idx, pot(s), other);
+    d.other = otherGrade(coach(s, sess.hero, coachAgent(sess, other, s), { level: other }), idx, pot(s), other);
   }
   d.level = sess.level ?? 2;
   sess.decisions.push(d);
@@ -265,8 +267,7 @@ export function summary(sess) {
     preAcc: pre.length ? pre.filter(d => d.verdict !== 'mistake' && d.verdict !== 'blunder').length / pre.length : 0,
     blunders: all.filter(d => d.verdict === 'blunder').length,
     mistakes: all.filter(d => d.verdict === 'mistake').length,
-    rating: dup.n >= 5 ? ratingFromEdge(dup.d, elo) : null,
-    ratingSe: dup.n >= 5 ? ratingSeFromEdge(dup.d, dup.se) : null,
+    ...blendedRating(dup, elo, lossPer100),
     edge: dup.d, // bb/100 over the bot on the same cards
     edgeSe: dup.se,
     edgeN: dup.n,
@@ -299,19 +300,58 @@ export function edgeStatsFromSums(sum, sq, n) {
  * of the bots faced. Returns { rating, se, hands, edge, edgeSe } or null under 5 hands.
  */
 export function poolRating(rows, maxHands = 1000) {
-  let n = 0, sum = 0, sq = 0, eloW = 0;
+  let n = 0, sum = 0, sq = 0, eloW = 0, lost = 0, lostN = 0;
   for (const r of rows) {
     if (!r.edgeN) continue;
     const take = Math.min(r.edgeN, maxHands - n);
     if (take <= 0) break;
     const f = take / r.edgeN;
     n += take; sum += r.edgeSum * f; sq += r.edgeSq * f; eloW += eloOf(r.bot) * take;
+    if (r.evLost != null && r.hands) { lost += r.evLost * (take / r.edgeN); lostN += take; }
     if (n >= maxHands) break;
   }
-  if (n < 5) return null;
+  if (n < MIN_RATED) return null;
   const st = edgeStatsFromSums(sum, sq, n);
   const botElo = eloW / n;
-  return { rating: ratingFromEdge(st.d, botElo), se: ratingSeFromEdge(st.d, st.se), hands: n, edge: st.d, edgeSe: st.se, botElo: Math.round(botElo) };
+  const b = blendedRating(st, botElo, lostN ? (100 * lost) / lostN : null);
+  return { rating: b.rating, se: b.ratingSe, hands: n, edge: st.d, edgeSe: st.se, botElo: Math.round(botElo), prior: b.prior, weight: b.weight };
+}
+
+/** Hands before a rating is shown at all. */
+export const MIN_RATED = 20;
+/** Prior spread of a player's true edge over the bot: 75bb/100 (about 300 Elo on the ladder). */
+const PRIOR_SD = 0.75; // bb per hand
+
+/**
+ * The rating is a Bayesian blend of two measurements of the same thing:
+ *   the duplicate edge   D = your result minus the bot's on your cards, bb/100 — unbiased and
+ *                        ungameable, but noisy (a hand's edge has a spread of ~15bb)
+ *   the decision quality the EV lost per 100 hands by the coach's grades, turned into an edge
+ *                        through the ladder (ratingFromLoss) — stable from the first hand, but it
+ *                        is the model's opinion of your decisions, not a result
+ * Decision quality is the prior mean; its weight is n0 = s²/σ_p² hands (s = the per-hand spread
+ * of your edge, σ_p = PRIOR_SD), so the duplicate result takes over as hands accumulate:
+ *   D* = (n·D + n0·D0) / (n + n0),   se* = 100 / sqrt(n/s² + 1/σ_p²)
+ * With no decision data (old sessions) the prior is the bot himself (D0 = 0), and it never sits
+ * above him: grades can prove you played worse than the bot, not better.
+ */
+export function blendedRating(dup, botElo, lossPer100) {
+  if (!dup || dup.n < MIN_RATED) return { rating: null, ratingSe: null, prior: null, weight: null };
+  // the prior never sits above the bot: the coach's grades can show you played worse than him
+  // (mistakes are mistakes), not better (a tight, passive line avoids "mistakes" without winning)
+  const d0 = lossPer100 != null ? Math.min(0, edgeFromRating(ratingFromLoss(lossPer100), botElo)) : 0;
+  const mean = dup.sum / dup.n;
+  const v = dup.n > 1 ? Math.max(4, (dup.sq - dup.n * mean * mean) / (dup.n - 1)) : 225;
+  const n0 = Math.min(600, Math.max(20, v / (PRIOR_SD * PRIOR_SD)));
+  const d = (dup.n * dup.d + n0 * d0) / (dup.n + n0);
+  const se = 100 / Math.sqrt(dup.n / v + 1 / (PRIOR_SD * PRIOR_SD));
+  return { rating: ratingFromEdge(d, botElo), ratingSe: ratingSeFromEdge(d, round2(se)), prior: Math.round(d0), weight: Math.round(n0) };
+}
+
+/** The ladder's squash, inverted: the edge (bb/100) a rating stands for against a bot. */
+export function edgeFromRating(rating, botElo) {
+  const gap = rating - botElo;
+  return Math.sign(gap) * 25 * (10 ** (Math.abs(gap) / ELO_PER_25) - 1);
 }
 
 /** The ladder's squash: bb/100 against a bot → Elo relative to it (±900·log10(1 + |D|/25)). */

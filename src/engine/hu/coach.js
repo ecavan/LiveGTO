@@ -22,6 +22,9 @@ import { readOpponent } from './thinker.js';
 import { PREFLOP_RANK } from './preflopRank.js';
 import { plan, bucketOf, composition } from '../buckets.js';
 import { alpha, requiredEquity } from '../potmath.js';
+import { solidPlan, gradeWithPlan, planSentence } from '../solid.js';
+import { HU_BTN_OPEN, RFI_RANGES, FACING_OPEN, comboShare } from '../ranges.js';
+import { BOT_TYPES, streetRole, facingRole } from './bots.js';
 
 const round2 = (x) => Math.round(x * 100) / 100;
 
@@ -31,13 +34,20 @@ function sumW(w) {
   return t;
 }
 
+/** The villain type the solver's exploit plans know, for a bot ('station' …; null for a Reg or a thinking bot). */
+export const planVillain = (agent) => (agent?.kind === 'profile' && BOT_TYPES[agent.id]?.profile !== 'gto' ? BOT_TYPES[agent.id]?.profile ?? null : null);
+
 /**
  * EV of each of the hero's options against `agent` (see agents.js), and the best one.
  * `agent` may also be a profile id string ('station').
+ * After the flop, best and fine come from the solver's plan for the hero's bucket (solid.js):
+ * `opts.level` 1 the GTO plan, 2 the solver's exploit of this villain type (a Reg, a Shark or a
+ * Pro: the GTO plan). The EVs are priced against `agent` either way and size the mistakes.
  */
-export function coach(s, hero, agentOrId) {
+export function coach(s, hero, agentOrId, opts = {}) {
   const agent = typeof agentOrId === 'string' ? { id: agentOrId, kind: 'profile' } : agentOrId;
   if (s.street === 0) return preflopCoach(s, hero, agent);
+  const level = opts.level === 2 ? 2 : 1;
   const villain = 1 - hero;
   const bd = board(s);
   const w = villainRange(s, villain, agent);
@@ -100,11 +110,24 @@ export function coach(s, hero, agentOrId) {
     return { ...m, ev: round2(ev), info };
   });
 
-  const best = bestNatural(options, s.streetBet[hero], P);
+  const myBet = s.streetBet[hero];
+  let best = bestNatural(options, myBet, P);
   const tol = Math.max(0.1, 0.02 * P);
-  const fine = options.map((o, i) => (options[best].ev - o.ev <= tol ? i : -1)).filter(i => i >= 0);
+  let fine = options.map((o, i) => (options[best].ev - o.ev <= tol ? i : -1)).filter(i => i >= 0);
+  let losses = options.map(o => round2(Math.max(0, options[best].ev - o.ev)));
+  let solid = null;
+  // graded against the solver's plan for this bucket (solid.js); the model's EVs size the mistakes
+  const sp = solidPlan({ board: bd, hole: s.holes[hero], facing: L.facing, role: L.facing ? facingRole(s) : streetRole(s, hero), level, villain: level === 2 ? (opts.villain ?? planVillain(agent)) : null });
+  const g = sp && gradeWithPlan(options, sp, { myBet, pot: P, facing: L.facing, natural: (i) => options[i].type !== 'allin' || options[i].to - myBet <= 2.5 * P + 1e-9, nominal: Math.max(0.25, 0.05 * P) });
+  if (g) {
+    best = g.best; fine = g.fine; losses = g.losses;
+    solid = { source: sp.source, role: sp.role, level, kind: sp.kind, bucket: sp.bucket, share: g.share, chart: g.chart, cats: g.cats, modelBest: bestNatural(options, myBet, P), text: planSentence(sp, g.share) };
+  }
   return {
     street: s.street,
+    level,
+    solid,
+    losses,
     exact: s.street === 3,
     equity: overall,
     need: L.facing ? requiredEquity(P, L.callAmount) : null,
@@ -162,9 +185,26 @@ function preflopCoach(s, hero, agent) {
   const hasRaise = m.some(o => o.type === 'raise');
   // an all-in only counts as "the raise" when it is the only raise left
   const kind = (o) => (o.type === 'raise' || (o.type === 'allin' && !hasRaise) ? 'raise' : o.type === 'allin' ? 'shove' : o.type === 'fold' ? 'fold' : passive);
-  // the chart never folds when checking is free
-  const chart = reg.raise >= 0.5 ? 'raise' : reg.fold >= 0.5 && L.facing ? 'fold' : passive;
   const notes = [];
+  // The chart: the button's heads-up opening range and The Course's big-blind defence (ranges.js)
+  // on the first decisions; deeper (3-bets and more) the baseline Reg's range by rank.
+  const raisesSoFar = s.log.filter(e => e.street === 0 && (e.type === 'raise' || e.type === 'allin')).length;
+  const btnLimped = hero === BB && raisesSoFar === 0 && L.facing === false;
+  let chart;
+  if (hero === BTN && raisesSoFar === 0) {
+    chart = HU_BTN_OPEN.has(key) ? 'raise' : 'fold';
+    notes.push(`The button opens about half of all hands against the big blind alone: ${key} is ${chart === 'raise' ? 'in' : 'out'}.`);
+  } else if (btnLimped) {
+    chart = RFI_RANGES.CO.has(key) ? 'raise' : 'check';
+    notes.push(`He limped: raise the hands you would open from the cutoff, check the rest. ${key} is ${chart === 'raise' ? 'a raise' : 'a check'}.`);
+  } else if (hero === BB && raisesSoFar === 1 && L.facing) {
+    const bb = FACING_OPEN['BB|BTN'];
+    chart = bb.raise.has(key) ? 'raise' : bb.call.has(key) ? 'call' : 'fold';
+    notes.push(`Big blind against a button open (The Course): 3-bet ${Math.round(100 * comboShare(bb.raise))}% of hands, call another ${Math.round(100 * comboShare(bb.call))}%. ${key}: ${chart}.`);
+  } else {
+    // the chart never folds when checking is free
+    chart = reg.raise >= 0.5 ? 'raise' : reg.fold >= 0.5 && L.facing ? 'fold' : passive;
+  }
   const fine = new Set(m.map((o, i) => (kind(o) === chart ? i : -1)).filter(i => i >= 0));
 
   // EVs against his range and strategy. Exact where the hand ends now (shoving, calling a shove);
@@ -237,7 +277,7 @@ function preflopCoach(s, hero, agent) {
   }
   const shove = options.find(o => o.type === 'allin' && o.ev != null);
   if (shove && !facingAllIn) notes.push(`Shoving ${shove.to}bb: he folds ${Math.round(100 * (shove.info.fold ?? 0))}%, and it is worth ${shove.ev >= 0 ? '+' : ''}${shove.ev}bb.`);
-  notes.push(`${key} is in the top ${Math.round(100 * PCT[key])}% of hands.`);
+  notes.push(`${key} is in the top ${Math.round(100 * PCT[key])}% of hands (ranked by the position charts).`);
 
   if (facingAllIn) {
     // a pure EV decision: fold or call

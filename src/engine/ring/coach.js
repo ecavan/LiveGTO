@@ -19,6 +19,17 @@ import { RFI_RANGES, FACING_OPEN } from '../ranges.js';
 import { requiredEquity } from '../potmath.js';
 import { bestNatural, slimRows } from '../hu/coach.js';
 import { composition, bucketOf, plan, bucketsOn, BUCKET_KEYS } from '../buckets.js';
+import { solidPlan, gradeWithPlan, planSentence } from '../solid.js';
+import { streetRole, facingRole } from '../hu/bots.js';
+import { PLAN_VILLAINS } from '../plans.js';
+
+/** The villain type to exploit at Level 2 with one opponent left: his main archetype, when the solver has a plan for it. */
+export function tableVillain(table, opps) {
+  if (opps.length !== 1) return null;
+  const mix = table.players[opps[0]]?.mix || {};
+  const main = Object.entries(mix).sort((a, b) => b[1] - a[1])[0]?.[0];
+  return main && PLAN_VILLAINS[main] ? main : null;
+}
 
 const round2 = (x) => Math.round(x * 100) / 100;
 const sum = (a) => { let t = 0; for (let i = 0; i < a.length; i++) t += a[i]; return t; };
@@ -223,12 +234,27 @@ export function ringCoach(s, hero, table, stats, extra = null, cache = null) {
     }
     return { ...m, ev: round2(ev), info };
   });
-  let best = bestNatural(options, s.streetBet[hero], P);
+  const myBet = s.streetBet[hero];
+  let best = bestNatural(options, myBet, P);
   const tol = Math.max(0.1, 0.02 * P);
   let fine = options.map((o, i) => (options[best].ev - o.ev <= tol ? i : -1)).filter(i => i >= 0);
+  let losses = options.map(o => round2(Math.max(0, options[best].ev - o.ev)));
   let chart = null;
   let preflop = false;
   const notes = [];
+  // after the flop: graded against the solver's plan for your bucket (solid.js), the EVs size the
+  // mistakes. A baseline table (Level 1) grades against the GTO plan; Level 2 against the solver's
+  // exploit of the one villain type left, multiway against the multiway plan.
+  const level = table.baseline ? 1 : 2;
+  let solid = null;
+  if (bd.length) {
+    const sp = solidPlan({ board: bd, hole: s.holes[hero], facing: L.facing, role: L.facing ? facingRole(s) : streetRole(s, hero), level, villain: level === 2 ? tableVillain(table, opps) : null, opponents: opps.length });
+    const g = sp && gradeWithPlan(options, sp, { myBet, pot: P, facing: L.facing, natural: (i) => options[i].type !== 'allin' || options[i].to - myBet <= 2.5 * P + 1e-9, nominal: Math.max(0.25, 0.05 * P) });
+    if (g) {
+      best = g.best; fine = g.fine; losses = g.losses;
+      solid = { source: sp.source, role: sp.role, level, kind: sp.kind, bucket: sp.bucket, share: g.share, chart: g.chart, cats: g.cats, modelBest: bestNatural(options, myBet, P), text: planSentence(sp, g.share) };
+    }
+  }
   if (s.street === 0) {
     const c = preflopChart(s, hero);
     if (c) {
@@ -257,6 +283,7 @@ export function ringCoach(s, hero, table, stats, extra = null, cache = null) {
     range: bd.length ? byClass : null,
     preflop, chart, notes, nominal: round2(Math.max(0.25, 0.15 * P)),
     opponents: opps.length,
+    level, solid, losses: bd.length ? losses : null,
   };
 }
 

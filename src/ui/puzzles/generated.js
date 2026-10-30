@@ -127,7 +127,7 @@ function whoPanel(p) {
 /** The other level's grade of option `idx` (h.other: { level, best, fine, ev }). */
 function otherOf(h, idx) {
   const o = h.other;
-  const loss = Math.round(Math.max(0, o.ev[o.best] - o.ev[idx]) * 100) / 100;
+  const loss = o.losses ? o.losses[idx] : Math.round(Math.max(0, o.ev[o.best] - o.ev[idx]) * 100) / 100;
   const verdict = idx === o.best ? 'best' : o.fine.includes(idx) ? 'fine' : (loss >= 10 || loss >= 0.25 * h.pot) ? 'blunder' : 'mistake';
   return { level: o.level, best: o.best, fine: o.fine, loss, verdict };
 }
@@ -135,12 +135,13 @@ function otherOf(h, idx) {
 function decisionOf(p, idx) {
   const h = p.spot;
   const best = h.options[h.best], o = h.options[idx];
-  const loss = idx === h.best || h.fine.includes(idx) ? 0 : Math.round(Math.max(0, best.ev - o.ev) * 100) / 100;
+  const loss = idx === h.best || h.fine.includes(idx) ? 0 : h.losses ? h.losses[idx] : Math.round(Math.max(0, best.ev - o.ev) * 100) / 100;
   const verdict = idx === h.best ? 'best' : h.fine.includes(idx) ? 'fine' : (loss >= 10 || loss >= 0.25 * h.pot) ? 'blunder' : 'mistake';
   return {
     street: h.street, board: h.runout.slice(0, [0, 3, 4, 5][h.street]), hole: h.holes[h.hero], pot: h.pot, toCall: h.toCall,
     options: h.options, best: h.best, fine: h.fine, chosen: idx, loss, verdict, equity: h.equity, need: h.need, range: h.range,
-    preflop: false, notes: h.notes, opponents: h.opponents, buckets: h.buckets, heroBucket: h.heroBucket,
+    preflop: false, notes: h.notes, opponents: h.opponents, buckets: h.buckets, heroBucket: h.heroBucket, level: h.level ?? 2,
+    solid: h.solid ?? null,
     other: h.other ? otherOf(h, idx) : null,
   };
 }

@@ -5,7 +5,7 @@
  *   coach "off":      a straight session, everything in the review
  */
 import {
-  createSession, startHand, heroToAct, coachNow, coachReady, heroAct, botAct, endHand, sessionOver, summary, coachAgent, poolRating,
+  createSession, startHand, heroToAct, coachNow, coachReady, heroAct, botAct, endHand, sessionOver, summary, coachAgent, poolRating, MIN_RATED,
 } from '../engine/hu/session.js';
 import { getLevel, LEVELS } from '../engine/level.js';
 import { AGENTS, AGENT_IDS, eloOf, levelOf } from '../engine/hu/agents.js';
@@ -93,7 +93,7 @@ function setup(container) {
       <div><div class="h-sec">Play</div><h1 class="h-title">Choose your opponent</h1>
         <p class="muted mt-1 text-sm">Heads-up, ${st.huStack ?? 100}bb, button vs big blind. Every decision is graded at your level; the coach shows the other level's answer too.</p></div>
       <div class="flex items-end gap-3 flex-wrap max-w-full">${playTabs('')}<div class="stat min-w-[150px]"><div class="k">Play rating · ${LEVELS[getLevel()].short}</div><div class="v text-amber-200">${mine ? `${mine.rating}${mine.se != null ? ` <span class="text-sm text-ink-400">± ${mine.se}</span>` : ''}` : '—'}</div>
-        <div class="s">${mine ? `${mine.hands} hands · ${mine.edge >= 0 ? '+' : ''}${mine.edge}bb/100 vs the bots on the same cards` : 'play a session to get rated'}</div></div></div>
+        <div class="s">${mine ? `${mine.hands} hands · ${mine.edge >= 0 ? '+' : ''}${Math.round(mine.edge)}bb/100 vs the bots on the same cards` : `rated after ${MIN_RATED} hands`}</div></div></div>
     </div>
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
       ${bots.map(id => {

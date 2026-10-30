@@ -97,9 +97,14 @@ describe('coach', () => {
       const bet = policy('nit', s).find(o => o.key === 'big') || policy('nit', s).find(o => o.type === 'bet');
       return act(s, bet);
     };
-    const air = coach(mk('3c3d'), BB, 'nit', rng(1));
+    // Level 2: the solver's exploit of a Nit folds a bluff-catcher to his river bet (his bets are value)
+    const air = coach(mk('3c3d'), BB, 'nit', { level: 2 });
     expect(air.options[air.best].type).toBe('fold');
-    const nuts = coach(mk('AhAd'), BB, 'nit', rng(1)); // aces vs a nit's value range: still behind KKK? not the nuts
+    expect(air.solid.source).toBe('nit');
+    // Level 1: the GTO plan calls or folds a bluff-catcher facing a river stab (both on the plan)
+    const base = coach(mk('3c3d'), BB, 'nit', { level: 1 });
+    expect(base.fine.map(i => base.options[i].type).sort()).toEqual(['call', 'fold']);
+    const nuts = coach(mk('AhAd'), BB, 'nit', { level: 2 }); // aces vs a nit's value range: still behind KKK? not the nuts
     expect(nuts.options.find(o => o.type === 'call').ev).toBeDefined();
   });
   it('preflop: steal maths vs a folding BB', () => {

@@ -25,7 +25,7 @@ export function setLevel(level) {
 export function otherGrade(k, idx, pot, level) {
   if (!k || !k.options[idx]) return null;
   const best = k.options[k.best];
-  const loss = Math.round(Math.max(0, best.ev - k.options[idx].ev) * 100) / 100;
+  const loss = k.losses ? k.losses[idx] : Math.round(Math.max(0, best.ev - k.options[idx].ev) * 100) / 100;
   const verdict = idx === k.best ? 'best' : k.fine.includes(idx) ? 'fine' : (loss >= 10 || loss >= 0.25 * pot) ? 'blunder' : 'mistake';
-  return { level, best: k.best, fine: [...k.fine], loss: verdict === 'fine' || verdict === 'best' ? 0 : loss, verdict };
+  return { level, best: k.best, fine: [...k.fine], loss: verdict === 'fine' || verdict === 'best' ? 0 : loss, verdict, solid: k.solid ? { source: k.solid.source, chart: k.solid.chart, text: k.solid.text } : null };
 }

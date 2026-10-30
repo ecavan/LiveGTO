@@ -39,7 +39,8 @@ function sid(prefix, holes, runout, log) {
   return prefix + (h >>> 0).toString(36);
 }
 const aggr = (o) => o.type === 'bet' || o.type === 'raise' || o.type === 'allin';
-const packOther = (k, level) => ({ level, best: k.best, fine: k.fine, ev: k.options.map(o => r2(o.ev)) });
+const packOther = (k, level) => ({ level, best: k.best, fine: k.fine, ev: k.options.map(o => r2(o.ev)), losses: k.losses ?? null });
+const packSolid = (sol) => (sol ? { source: sol.source, role: sol.role, kind: sol.kind, bucket: sol.bucket, chart: sol.chart, text: sol.text, modelBest: sol.modelBest } : null);
 const typeOf = (k) => (k.options[k.best].type === 'allin' ? 'raise' : k.options[k.best].type);
 
 /**
@@ -50,6 +51,13 @@ const typeOf = (k) => (k.options[k.best].type === 'allin' ? 'raise' : k.options[
 function natural(k, pot, curBet) {
   const keep = k.options.map((o, i) => i).filter(i => k.options[i].type !== 'allin' || k.options[i].to - curBet <= 3 * pot + 1e-9);
   const options = keep.map(i => k.options[i]);
+  if (k.solid && k.losses) {
+    // the coach graded against the solver's plan (solid.js): keep its verdicts, re-indexed
+    const best = Math.max(0, keep.indexOf(k.best));
+    const fine = k.fine.map(i => keep.indexOf(i)).filter(i => i >= 0);
+    const losses = keep.map(i => k.losses[i]);
+    return { ...k, options, best, fine, losses };
+  }
   let best = 0;
   options.forEach((o, i) => { if (o.ev > options[best].ev) best = i; });
   const tol = Math.max(0.1, 0.02 * pot);
@@ -62,10 +70,13 @@ function judge(k, pot, rand) {
   const evs = k.options.map(o => o.ev).filter(Number.isFinite);
   if (evs.length < 2) return null;
   const best = k.options[k.best];
-  const second = Math.max(...k.options.filter((o, i) => i !== k.best && !k.fine.includes(i)).map(o => o.ev));
-  if (!Number.isFinite(second)) return null;
-  const gap = best.ev - second;
-  if (gap < Math.max(0.8, 0.07 * pot)) return null;
+  // the gap: how much the plan's play beats the best off-plan option, by the plan's losses when the
+  // coach graded by plan (so a spot where the model disagrees with the solver is not a puzzle)
+  const off = k.options.map((o, i) => i).filter(i => i !== k.best && !k.fine.includes(i));
+  if (!off.length) return null;
+  const gap = k.losses ? Math.min(...off.map(i => k.losses[i])) : best.ev - Math.max(...off.map(i => k.options[i].ev));
+  if (!Number.isFinite(gap) || gap < Math.max(0.8, 0.07 * pot)) return null;
+  if (k.solid && k.solid.modelBest != null && !k.fine.includes(k.solid.modelBest) && k.solid.modelBest !== k.best) return null; // the model wants something else: not a clean lesson
   const rel = gap / Math.max(1, pot);
   let rating = 1750 - 900 * Math.min(1, rel / 0.5);
   const eq = k.equity ?? 0.5;
@@ -112,7 +123,7 @@ function genFlop(count) {
           if (s.street === 1 && !took) {
             const P = HU.pot(s);
             // level 2: against him; level 1: as if a solid Reg had played his line
-            const ks = { 2: natural(coach(s, hero, vAgent), P, s.streetBet[hero]), 1: natural(coach(s, hero, 'reg'), P, s.streetBet[hero]) };
+            const ks = { 2: natural(coach(s, hero, vAgent, { level: 2 }), P, s.streetBet[hero]), 1: natural(coach(s, hero, 'reg', { level: 1 }), P, s.streetBet[hero]) };
             for (const lv of [1, 2]) {
               if (n[lv] >= count / 2 || (lv === 2 && (opp === 'reg' || opp === 'shark'))) continue; // Level 2: the fish
               const k = ks[lv];
@@ -126,7 +137,7 @@ function genFlop(count) {
               out.push({
                 id: sid('f', s.holes, s.runout, s.log) + (lv === 1 ? '.1' : ''), level: lv, kind: 'hu', opp, depth: d, hero, start: [...s.start], holes: s.holes.map(x => [...x]), runout: [...s.runout],
                 log: packLog(s.log), pot: r2(P), toCall: r2(HU.toCall(s, hero)), street: 1,
-                options: packOpts(k.options), best: k.best, fine: k.fine, equity: r3(k.equity), need: r3(k.need), range: packRange(k.range),
+                options: packOpts(k.options), best: k.best, fine: k.fine, losses: k.losses ?? null, solid: packSolid(k.solid), equity: r3(k.equity), need: r3(k.need), range: packRange(k.range),
                 notes: k.notes || [], rating: j.rating, gap: j.gap,
                 buckets: k.buckets, heroBucket: k.heroBucket, plan: packPlan(bucketView(s, hero, view)),
                 other: packOther(ks[3 - lv], 3 - lv),
@@ -179,7 +190,7 @@ function genMulti(count) {
               id: sid('m', s.holes, s.runout, s.log) + (lv === 1 ? '.1' : ''), level: lv, kind: 'table', tableLevel: level, n: s.n, btn: s.btn, hero: HERO, start: [...s.start], holes: s.holes.map(x => [...x]), runout: [...s.runout],
               log: packLog(s.log), pot: r2(P), toCall: r2(Math.max(...s.streetBet) - s.streetBet[HERO]), street: s.street,
               names: t.players.map((p, i) => (i === HERO ? 'You' : p.name)), styles: t.players.map((p, i) => (i === HERO ? '' : styleLabel(p))),
-              options: packOpts(k.options), best: k.best, fine: k.fine, equity: r3(k.equity), need: r3(k.need), range: packRange(k.range),
+              options: packOpts(k.options), best: k.best, fine: k.fine, losses: k.losses ?? null, solid: packSolid(k.solid), equity: r3(k.equity), need: r3(k.need), range: packRange(k.range),
               notes: k.notes || [], opponents: k.opponents, rating: j.rating, gap: j.gap,
               buckets: k.buckets, heroBucket: k.heroBucket, plan: packPlan(ringBucketView(s, HERO, tables[lv], t.snap)),
               other: packOther(ks[3 - lv], 3 - lv),

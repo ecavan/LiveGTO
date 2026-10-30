@@ -30,12 +30,15 @@ Three modes:
   of hand after the flop).
 - **Play**:
   - *Heads-up* against seven rated bots, from Whale to Pro. Every bot learns your habits (the
-    weak ones slowly) and remembers you. The coach grades every decision by EV against the bot's
-    real range, and shows your range by bucket with a plan for each; the review separates the
-    EV you gave up from all-in luck. Your Play rating is duplicate-corrected: every hand is replayed
-    with the bot in your seat holding your cards, and you are rated on your edge over him in
-    bb/100, on the bot ladder's scale (docs/DESIGN.md). Folding or shoving everything rates far
-    below the bot; EV lost per decision stays on screen as decision quality.
+    weak ones slowly) and remembers you. The coach grades every decision against the solver's
+    plan for your bucket of hand (Level 1 the GTO plan, Level 2 the solver's exploit of a Station,
+    Nit, Maniac or Whale; a Reg, Shark or Pro gets the GTO plan), prices every option by EV
+    against the bot's real range, and shows your range by bucket with a plan for each; the review
+    separates the EV you gave up from all-in luck. Your Play rating is duplicate-corrected: every
+    hand is replayed with the bot in your seat holding your cards, and you are rated on your edge
+    over him in bb/100, on the bot ladder's scale, blended with your decision quality as a prior
+    while the hands are few (docs/DESIGN.md §5). Folding or shoving everything rates far below
+    the bot.
   - *Live table*: 4–6 players drawn from a live $1/$2 pool, each a mix of styles, read from their
     stats; Easy / Medium / Hard; 100bb, 200bb or a live mix of stacks ($50 short stacks next to
     $600 deep ones, SPR shown). The coach grades you against everyone still in the hand.

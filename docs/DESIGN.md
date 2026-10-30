@@ -119,10 +119,26 @@ Three ratings, all on a chess-like scale:
   R = Elo(bot) ± 900 · log₁₀(1 + |D| / 25)         SE(D) = 100 · sd(edge) / √n
   ```
 
-  Beat the Reg by 25bb/100 and you sit one band above him (1931). The ± shown is the squash's
-  slope times SE(D): about ±450 after 100 hands of ordinary play, ±300 after 400; shoving a lot
-  makes it wider. Across sessions the rating pools the last 1,000 hands (`poolRating`): one edge
-  over a composite opponent whose Elo is the hands-weighted mean of the bots faced.
+  Beat the Reg by 25bb/100 and you sit one band above him (1931). Across sessions the rating pools
+  the last 1,000 hands (`poolRating`): one edge over a composite opponent whose Elo is the
+  hands-weighted mean of the bots faced.
+
+  A hand's edge has a spread of about 15bb, so D is noisy for a long time: after 7 hands of
+  calling everything, one 40bb call-down that happened to win rated 2800. So the rating is a
+  Bayesian blend (`blendedRating`): the duplicate edge is the measurement, and the coach's
+  decision quality (EV lost per 100 hands, through `ratingFromLoss`) is the prior mean D₀,
+  weighted like n₀ = s² / σ_p² hands (s = your per-hand spread, σ_p = 0.75bb, a 75bb/100 prior
+  spread, roughly a band of the ladder):
+
+  ```
+  D* = (n·D + n₀·D₀) / (n + n₀)        SE* = 100 / √(n/s² + 1/σ_p²)
+  ```
+
+  The prior never sits above the bot: grades can show you played worse than him (mistakes are
+  mistakes), not better (a tight, passive line avoids "mistakes" without winning). With no
+  grades (old sessions) D₀ = 0, the bot himself. The rating shows from 20 hands, always with its
+  ±; a typical session carries n₀ ≈ 100–400, so the duplicate result takes over across sessions,
+  not within one.
 
   Why not EV lost per decision (the previous rating, `ratingFromLoss`, still shown as decision
   quality): it is bounded by the EV gap at each node, not by the money, and it inherits the coach's
@@ -141,10 +157,14 @@ Current ladder (duplicate matches, 6,000 hands per pair; Elo ± ~150 for the noi
 The Shark is rated through the profile bots it beats (thinking bot vs thinking bot is too noisy).
 The Reg is strong because, like every bot now, it adjusts to its opponent (§8).
 
-Preflop is graded against the chart (The Course). An off-chart choice costs what the EV model
-says the chart play was worth over it (one street ahead, equity realisation 0.95 in position,
-0.8 out of position), at least 15% of the pot. Shoving, and calling a shove, are graded by exact
-EV against his range.
+Preflop is graded against the chart: heads-up, the button's opening range against the big blind
+alone (`HU_BTN_OPEN` in ranges.js, about half of all hands) and The Course's big-blind defence
+against a button open; at the table, The Course's charts by position. Deeper (3-bets and more),
+the baseline Reg's range by rank. An off-chart choice costs what the EV model says the chart play
+was worth over it (one street ahead, equity realisation 0.95 in position, 0.8 out of position),
+at least 15% of the pot. Shoving, and calling a shove, are graded by exact EV against his range.
+The rank behind every "top X%" (`preflopRank.js`) follows the position charts, not equity against
+a random hand (see CALIBRATION.md, "What changed").
 
 ## 6. Is the solver right? Textbook games with exact answers
 
@@ -362,6 +382,31 @@ so the range the coach uses is the true posterior, not a guess.
 **Coach** (`coach.js`): EV of each of your options against that range and strategy, one street
 ahead (exact on the river; a re-raise is treated as a call). Each option also carries its fold
 equity, your equity when called, and the price, which the "Why" panel turns into one-line reasons.
+
+**What is graded** (`solid.js`): the EVs size the mistakes, but best and fine come from the
+solver's plan for your bucket of hand on this kind of board, read by role (`plans.json`, built
+from the library by `scripts/build-plans.mjs`: betting as the previous street's aggressor or after
+a checked street; facing the aggressor's bet or anyone else's). The EV model's best option is a
+best response to one fixed strategy, one street ahead, with no raise from him: it bluffs wherever
+the model villain folds a little too much, so it called checking K♦J♦ to the raiser on 3♥9♦2♣ a
+blunder (best: donk-bet 75%) and a river shove with king-high the best play. Graded by the plan:
+
+- Level 1: the GTO plan. Level 2: the solver's exploit of the villain type in front of you
+  (Station, Nit, Maniac, Whale); against a Reg, a Shark or a Pro there is nothing to exploit, so
+  the GTO plan, and at the live table the one opponent's main archetype. Multiway: the written
+  multiway plan (bluff much less, fold bluff-catchers to big bets).
+- On the plan: any play the solver takes at least 25% of the time there — best is its first play,
+  the rest are fine and cost nothing. A play it takes 10–25% of the time is a small mistake (the
+  nominal, up to 4× it); one it hardly ever takes costs what the model says, at least the nominal
+  (max(0.25bb, 5% of the pot)).
+- Two roles the library never solves have rules: leading into the aggressor (the solver almost
+  never does; against a fish, a lead with a strong hand is on the plan) and facing a raise.
+- The card still shows the model's own favourite when it differs: at Level 1 as what a best
+  response to a fixed strategy would do, at Level 2 against a fish as the sharper exploit of his
+  exact range, to take when you trust the read.
+
+The generated Flop and Multiway puzzles (`scripts/gen-spots.mjs`) use the same verdicts, and a
+spot where the model disagrees with the plan is not a puzzle.
 
 **Natural sizes**: the best option (the one others are graded against) is always a natural one.
 An all-in of more than 2.5× the pot is never the benchmark, because the bots treat every overbet

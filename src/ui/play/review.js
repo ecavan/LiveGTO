@@ -11,14 +11,13 @@ import {
 } from '../../engine/history.js';
 import { AGENTS, eloOf } from '../../engine/hu/agents.js';
 import { LEVELS } from '../../engine/ring/players.js';
-import { cardStr, evaluate, category } from '../../engine/hu/hand.js';
+import { cardStr } from '../../engine/hu/hand.js';
 import { ringTable, fmtBB, icon, esc, stat, handText, seg, wireSeg, disc, sprOf, optionLabel } from '../kit.js';
-import { coachCard, actionBar, playTabs, evNoteFor } from './views.js';
+import { coachCard, actionBar, playTabs, evNoteFor, handName } from './views.js';
 import { settings, saveSettings } from '../../store.js';
 import { pct } from '../../engine/potmath.js';
 
 const STREET = ['Preflop', 'Flop', 'Turn', 'River'];
-const CAT = ['High card', 'Pair', 'Two pair', 'Trips', 'Straight', 'Flush', 'Full house', 'Quads', 'Straight flush'];
 const byRank = (h) => [...h].sort((a, b) => (b >> 2) - (a >> 2));
 const tone = (x) => (x > 0 ? 'text-emerald-300' : x < 0 ? 'text-rose-300' : '');
 const accTone = (a) => (a == null ? '' : a >= 90 ? 'text-emerald-300' : a >= 75 ? 'text-sky-300' : a >= 60 ? 'text-yellow-300' : 'text-rose-300');
@@ -320,7 +319,7 @@ function resultPanel(h) {
   if (h.showdown) {
     const shown = s.holes.map((x, i) => i).filter(i => !(h.kind === 'hu' ? s.folded === i : s.folded[i]));
     const hid = new Set(h.hidden || []);
-    line = shown.map(i => (hid.has(i) ? `${esc(h.names[i])}: not shown` : `${esc(h.names[i])}: ${handText(byRank(h.holes[i]).map(cardStr))} ${CAT[category(evaluate([...h.holes[i], ...h.runout]))]}`)).join(' · ');
+    line = shown.map(i => (hid.has(i) ? `${esc(h.names[i])}: not shown` : `${esc(h.names[i])}: ${handText(byRank(h.holes[i]).map(cardStr))} ${handName(h.holes[i], h.runout)}`)).join(' · ');
   } else line = (h.kind === 'hu' ? s.folded === h.hero : s.folded[h.hero]) ? 'You folded.' : 'Everyone else folded.';
   const acc = accuracyOf([h]);
   return `<div class="space-y-3">

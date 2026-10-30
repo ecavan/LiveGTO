@@ -78,7 +78,7 @@ export const coachReady = (t) => (heroToAct(t) && t.pending?.key === nodeKey(t) 
  */
 export function baselineTable(t) {
   if (t._base?.hand !== t.handNo || t._base.n !== t.players.length) {
-    t._base = { hand: t.handNo, n: t.players.length, table: { ...t, players: t.players.map((p, i) => (i === HERO || !p ? p : { ...p, mix: { pro: 1 }, learn: 0 })) } };
+    t._base = { hand: t.handNo, n: t.players.length, table: { ...t, baseline: true, players: t.players.map((p, i) => (i === HERO || !p ? p : { ...p, mix: { pro: 1 }, learn: 0 })) } };
   }
   return t._base.table;
 }
@@ -96,7 +96,8 @@ export function gradeDecision(s, k, idx, seat = HERO) {
   if (!opt) throw new Error(`no option ${idx}`);
   const best = k.options[k.best];
   let loss;
-  if (!k.preflop) loss = Math.max(0, best.ev - opt.ev);
+  if (k.losses) loss = k.losses[idx]; // postflop: the plan's verdict, sized by the model (solid.js)
+  else if (!k.preflop) loss = Math.max(0, best.ev - opt.ev);
   else if (k.fine.includes(idx)) loss = 0;
   else {
     const ref = Math.max(...k.options.filter((o, i) => k.fine.includes(i)).map(o => o.ev), 0);
@@ -109,7 +110,7 @@ export function gradeDecision(s, k, idx, seat = HERO) {
     toCall: legal(s).callAmount, options: k.options.map(o => ({ type: o.type, to: o.to, label: o.label, ev: o.ev, info: o.info })),
     best: k.best, fine: k.fine, chosen: idx, loss, verdict, equity: k.equity, need: k.need, range: k.range,
     buckets: k.buckets ?? null, heroBucket: k.heroBucket ?? null,
-    preflop: k.preflop, chart: k.chart, notes: k.notes, opponents: k.opponents,
+    preflop: k.preflop, chart: k.chart, notes: k.notes, opponents: k.opponents, solid: k.solid ?? null,
   };
 }
 

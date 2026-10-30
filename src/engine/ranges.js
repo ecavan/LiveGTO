@@ -52,6 +52,10 @@ const EARLY = '22+, A2s+, KTs+, QTs+, JTs-76s, AQo+';
 const CO = '22+, A2s+, K7s+, Q9s+, JTs-43s, J9s-53s, ATo+, KJo+';
 const BUTTON = '22+, A2s+, K2s+, Q5s+, J7s+, T9s-43s, T8s-53s, T7s-96s, A7o+, K9o+, QTo+, JTo';
 const SB_STEAL = '22+, A2s+, K6s+, Q8s+, J8s+, T9s-54s, T8s-64s, A8o+, KTo+, QJo';
+// Button against the big blind alone (the small blind has folded, 1.5bb in the pot: the heads-up
+// game in Play). A standard 100bb solver-style button range, about half of all hands: wider than
+// The Course's live button, which has two blinds still to act behind it.
+const HU_BUTTON = '22+, A2s+, K2s+, Q2s+, J4s+, T6s+, 96s+, 85s+, 75s+, 64s+, 53s+, 43s, A2o+, K5o+, Q7o+, J7o+, T7o+, 97o+, 87o';
 
 export const RFI_RANGES = {
   UTG: expand(EARLY),
@@ -60,6 +64,8 @@ export const RFI_RANGES = {
   BTN: expand(BUTTON),
   SB: expand(SB_STEAL),
 };
+/** The button's opening range heads-up against the big blind (Play's heads-up game). */
+export const HU_BTN_OPEN = expand(HU_BUTTON);
 
 const VS_STRONG = { raise: 'KK+, A5s', call: 'QQ-22, ATs+, KTs+, QTs+, JTs-76s, AKo' };
 const VS_LOOSE = { raise: 'QQ+, AKs, A5s-A2s, T9s, 87s, AKo', call: 'JJ-22, AQs-A6s, KTs+, QTs+, JTs, 98s, 76s, AQo' };

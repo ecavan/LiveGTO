@@ -5,6 +5,7 @@
 import { board, pot, BTN } from '../../engine/hu/game.js';
 import { evaluate, category, cardStr, ALL_COMBOS, handType } from '../../engine/hu/hand.js';
 import { AGENTS, eloOf, readOfYou } from '../../engine/hu/agents.js';
+import { MIN_RATED } from '../../engine/hu/session.js';
 import { pct } from '../../engine/potmath.js';
 import { bucketPlanHtml, bucketBarsHtml, bucketName } from '../buckets.js';
 import { optionLabel,
@@ -15,8 +16,25 @@ export const POS = ['BTN', 'BB'];
 const CAT_NAME = ['High card', 'Pair', 'Two pair', 'Trips', 'Straight', 'Flush', 'Full house', 'Quads', 'Straight flush'];
 const STREET = ['Preflop', 'Flop', 'Turn', 'River'];
 
+const RANK_NAME = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
+/** "Pair of kings", "pair on the board, ace kicker", "two pair, kings and nines", … */
 export function handName(hole, bd) {
-  return CAT_NAME[category(evaluate([...hole, ...bd]))];
+  const cat = category(evaluate([...hole, ...bd]));
+  const name = CAT_NAME[cat];
+  const count = (cards) => { const c = {}; for (const x of cards) c[x >> 2] = (c[x >> 2] || 0) + 1; return c; };
+  if (cat === 1 || cat === 2) {
+    const all = count([...hole, ...bd]);
+    const pairs = Object.keys(all).filter(r => all[r] === 2).map(Number).sort((a, b) => b - a);
+    const onBoard = count(bd);
+    const mine = pairs.filter(r => (onBoard[r] || 0) < 2);
+    const nm = (r) => `${RANK_NAME[r]}s`.replace(/^Ts/, 'tens').replace(/^Js/, 'jacks').replace(/^Qs/, 'queens').replace(/^Ks/, 'kings').replace(/^As/, 'aces');
+    if (cat === 1) {
+      if (!mine.length) { const k = Math.max(...hole.map(x => x >> 2)); return `pair on the board, ${RANK_NAME[k]} kicker`; }
+      return `pair of ${nm(mine[0])}`;
+    }
+    if (pairs.length >= 2 && mine.length) return `two pair, ${nm(pairs[0])} and ${nm(pairs[1])}`;
+  }
+  return name.toLowerCase();
 }
 
 /** The table for the live hand. */
@@ -183,9 +201,12 @@ export function coachCard(d, { weights = null, botName = null, live = false, evN
   const chosen = { ...d.options[d.chosen], label: labelText(d.options[d.chosen].label) };
   const best = { ...d.options[d.best], label: labelText(d.options[d.best].label) };
   let head;
-  if (d.verdict === 'best') head = verdict('best', `Best move: ${esc(chosen.label)}`);
-  else if (d.verdict === 'fine') head = verdict('fine', `Good: ${esc(chosen.label)}`, d.preflop ? `On the chart too. The coach's pick: ${esc(best.label)}.` : d.loss >= 0.05 ? `Best was ${esc(best.label)}, within ${fmtBB(d.loss)}.` : `Best was ${esc(best.label)}; the difference is tiny.`);
+  const sol = d.solid;
+  const planLine = sol ? esc(sol.text) : '';
+  if (d.verdict === 'best') head = verdict('best', `Best move: ${esc(chosen.label)}`, planLine);
+  else if (d.verdict === 'fine') head = verdict('fine', `Good: ${esc(chosen.label)}`, d.preflop ? `On the chart too. The coach's pick: ${esc(best.label)}.` : sol ? `On the plan too; the first play there is ${esc(best.label)}. ${planLine}` : d.loss >= 0.05 ? `Best was ${esc(best.label)}, within ${fmtBB(d.loss)}.` : `Best was ${esc(best.label)}; the difference is tiny.`);
   else if (d.preflop) head = verdict(d.verdict, `Off the chart: ${esc(chosen.label)}`, `Chart: <b>${d.chart}</b>. Counted as ${fmtBB(d.loss)} of EV.`);
+  else if (sol) head = verdict(d.verdict, `${d.verdict === 'blunder' ? 'Blunder' : 'Mistake'}: ${esc(chosen.label)}, off the plan`, `Plan: <b>${esc(best.label)}</b>. ${planLine} Counted as ${fmtBB(d.loss)} of EV.`);
   else head = verdict(d.verdict, `${d.verdict === 'blunder' ? 'Blunder' : 'Mistake'}: ${esc(chosen.label)} costs ${fmtBB(d.loss)}`, `Best: <b>${esc(best.label)}</b>.`);
   if (d.preflop) {
     return `<div class="space-y-3">${head}
@@ -193,12 +214,16 @@ export function coachCard(d, { weights = null, botName = null, live = false, evN
   }
   const why = whyLines(d).map(l => `<p>${l}</p>`).join('');
   const other = otherLevelHtml(d);
+  // the EV model's own favourite, when it is not the plan: a best response to one fixed strategy
+  const mb = sol && sol.modelBest != null && sol.modelBest !== d.best && !d.fine.includes(sol.modelBest) && d.options[sol.modelBest] ? d.options[sol.modelBest] : null;
+  const modelNote = mb ? `<div class="text-xs text-ink-400">The EV model itself prefers <b class="text-ink-200">${esc(labelText(mb.label))}</b> (${fmtBB(mb.ev - best.ev, { sign: true })} vs the plan): ${d.level === 2 && sol.source !== 'gto' && sol.source !== 'multiway' ? 'a sharper exploit of his exact range than the solver\'s plan; take it when you trust the read' : 'the best response to one fixed strategy, not the solid play — it is what a bluff-happy model would do, not what a strong player does'}.</div>` : '';
   const his = d.buckets?.length ? bucketBarsHtml(d.buckets) : d.range ? rangeBars(d.range) : '';
   return `<div class="space-y-3">${head}
     ${other}
     ${d.heroBucket ? `<div class="text-sm text-ink-300">Your hand: <b class="text-amber-200">${esc(bucketName(d.heroBucket))}</b>${d.board?.length ? ` on ${handText(d.board.map(cardStr))}` : ''}</div>` : ''}
     ${evBars(d.options, { best: d.best, fine: d.fine, chosen: d.chosen })}
-    <div class="text-xs text-ink-400">${evNote ?? evNoteFor(d, { botName })}</div>
+    <div class="text-xs text-ink-400">${evNote ?? evNoteFor(d, { botName })}${sol ? ' Best and fine come from the solver\'s plan for your bucket; the EVs size the mistakes.' : ''}</div>
+    ${modelNote}
     ${live ? `<details class="disc" data-rangeview open><summary>Your range by bucket: a plan for each kind of hand</summary><div class="body"><div class="text-ink-400 text-sm">Working it out…</div></div></details>` : ''}
     ${disc('Why', `<div class="space-y-1.5">${why}</div>`)}
     ${his ? disc(`His range${d.buckets?.length ? ' by bucket' : ''} · you have ${pct(d.equity)} against it`, his + (weights ? `<div class="pt-2">${weightGrid(weights, d.hole)}</div>` : '')) : ''}
@@ -222,8 +247,8 @@ export function sessionPanel(sess, sum) {
     ${read ? `<div class="text-xs rounded-lg bg-ink-850 border border-ink-700 px-3 py-2 text-ink-200">He reads you as <b class="text-amber-200">${read.name}</b> (${pct(read.p)})${read.adapt < 0.999 ? ` and has shifted ${pct(read.adapt)} of his play to exploit it` : ''}.</div>` : ''}
     <div class="grid grid-cols-3 gap-2">
       ${stat('Hands', `${sum.hands}${sess.length ? `<span class="text-ink-400 text-base">/${sess.length}</span>` : ''}`)}
-      ${stat('EV lost', sum.evLost >= 0.05 ? `−${sum.evLost.toFixed(1)}` : '0', 'by your decisions', sum.evLost > 0 ? 'text-rose-300' : '')}
-      ${stat('Rating', sum.rating ?? '—', sum.rating ? `${sum.edge >= 0 ? '+' : ''}${sum.edge}bb/100 vs him on your cards` : 'after 5 hands')}
+      ${stat('EV lost', sum.evLost >= 0.05 ? sum.evLost.toFixed(1) : '0', 'bb, by your decisions', sum.evLost > 0 ? 'text-rose-300' : '')}
+      ${stat('Rating', sum.rating ? `${sum.rating}${sum.ratingSe != null ? ` <span class="text-base text-ink-400">± ${sum.ratingSe}</span>` : ''}` : '—', sum.rating ? `${sum.edge >= 0 ? '+' : ''}${Math.round(sum.edge)}bb/100 vs him on your cards` : `after ${MIN_RATED} hands`)}
     </div>
     <div class="grid grid-cols-2 gap-2">
       ${stat('Result', `<span class="${tone(sum.net)}">${fmtBB(sum.net, { sign: true })}</span>`)}
@@ -287,7 +312,7 @@ export function reviewHtml(sess, sum, pastSessions) {
       <div class="flex gap-2 flex-wrap"><a class="btn" href="#play/review/s/${sess.startedAt}">${icon('review', 'w-4 h-4')} Game review</a><button class="btn" id="rv-again">Play again</button><button class="btn btn-primary" id="rv-new">New session</button></div>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-      ${stat('Played like', sum.rating ? `${sum.rating}${sum.ratingSe != null ? ` <span class="text-base text-ink-400">± ${sum.ratingSe}</span>` : ''}` : '—', sum.rating ? `${sum.edge >= 0 ? '+' : ''}${sum.edge}bb/100 vs ${AGENTS[sess.botId].name} on the same cards · EV lost ${sum.lossPer100.toFixed(1)}bb/100` : 'play 5+ hands', 'text-amber-200')}
+      ${stat('Played like', sum.rating ? `${sum.rating}${sum.ratingSe != null ? ` <span class="text-base text-ink-400">± ${sum.ratingSe}</span>` : ''}` : '—', sum.rating ? `${sum.edge >= 0 ? '+' : ''}${Math.round(sum.edge)}bb/100 vs ${AGENTS[sess.botId].name} on the same cards · EV lost ${sum.lossPer100.toFixed(1)}bb/100` : `play ${MIN_RATED}+ hands`, 'text-amber-200')}
       ${stat('Best or good', pct(sum.accuracy), `of your decisions · ${sum.blunders} blunders · ${sum.mistakes} mistakes`)}
       ${stat('Result', `<span class="${tone(sum.net)}">${fmtBB(sum.net, { sign: true })}</span>`, `${sum.hands} hands · ${fmtBB(Math.round(sum.bbPer100), { sign: true })}/100`)}
       ${stat('Luck', `<span class="${tone(sum.luck)}">${fmtBB(sum.luck, { sign: true })}</span>`, `all-in adjusted: ${fmtBB(sum.adjusted, { sign: true })}`)}

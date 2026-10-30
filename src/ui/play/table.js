@@ -10,10 +10,10 @@ import { board, pot, potShown, posOf, legal } from '../../engine/ring/game.js';
 import { styleLabel, ARCHETYPES, adjustment, LEVELS } from '../../engine/ring/players.js';
 import { settings, saveSettings } from '../../store.js';
 import { ringTable, fmtBB, seg, wireSeg, icon, esc, stat, handText, disc, verdict, sprOf, levelSwitch, wireLevel } from '../kit.js';
-import { actionBar, coachCard, decisionRow, playTabs, bucketViewHtml, evNoteFor } from './views.js';
+import { actionBar, coachCard, decisionRow, playTabs, bucketViewHtml, evNoteFor, handName } from './views.js';
 import { ringBucketView } from '../../engine/ring/coach.js';
 import { pct } from '../../engine/potmath.js';
-import { cardStr, evaluate, category, classify } from '../../engine/hu/hand.js';
+import { cardStr, classify } from '../../engine/hu/hand.js';
 import { addHand, packTable } from '../../engine/history.js';
 
 let t = null;
@@ -21,7 +21,6 @@ let ui = { last: null, paused: false, recap: null, over: false, reveal: false };
 let timer = null;
 let keyHandler = null;
 const STREET = ['Preflop', 'Flop', 'Turn', 'River'];
-const CAT = ['High card', 'Pair', 'Two pair', 'Trips', 'Straight', 'Flush', 'Full house', 'Quads', 'Straight flush'];
 const byRank = (h) => [...h].sort((a, b) => (b >> 2) - (a >> 2));
 
 export function render(container) {
@@ -191,7 +190,7 @@ function recapHtml(h) {
   let line;
   if (h.showdown) {
     const shown = s.holes.map((x, i) => i).filter(i => !s.folded[i]);
-    line = shown.map(i => `${i === HERO ? 'You' : esc(t.players[i].name)}: ${handText(byRank(s.holes[i]).map(cardStr))} ${CAT[category(evaluate([...s.holes[i], ...s.runout]))]}`).join(' · ');
+    line = shown.map(i => `${i === HERO ? 'You' : esc(t.players[i].name)}: ${handText(byRank(s.holes[i]).map(cardStr))} ${handName(s.holes[i], s.runout)}`).join(' · ');
   } else line = s.folded[HERO] ? 'You folded.' : 'Everyone folded to you.';
   const quality = h.evLost > 0.005 ? `<span class="text-rose-300">Your decisions cost ${fmtBB(h.evLost)} of EV.</span>` : (h.decisions.length ? '<span class="text-emerald-300">No EV lost.</span>' : '');
   const why = h.showdown ? showdownWhy(s) : [];
@@ -218,7 +217,7 @@ function showdownWhy(s) {
     const main = Object.entries(p.mix).sort((a, b) => b[1] - a[1])[0][0];
     const A = ARCHETYPES[main];
     const cls = classify(s.holes[i], s.runout);
-    const made = CAT[category(evaluate([...s.holes[i], ...s.runout]))].toLowerCase();
+    const made = handName(s.holes[i], s.runout);
     const acts = s.log.filter(e => e.seat === i && e.street >= 1);
     const aggr = acts.filter(e => e.type === 'bet' || e.type === 'raise' || (e.type === 'allin' && !e.callAllIn));
     const calls = acts.filter(e => e.type === 'call' || (e.type === 'allin' && e.callAllIn));

@@ -5,7 +5,9 @@
  *
  *   level 1   what the GTO playbook does with each class (records against the GTO villain)
  *   level 2   what the best exploit does against a Station / Nit / Maniac / Whale
- *   decision  'bet' (first to act or checked to) · 'facing' (facing a bet)
+ *   decision  'bet' (first to act or checked to) · 'facing' (facing a bet); and by role, for the
+ *             coach: 'aggr' (you bet last street) · 'free' (nobody did) · 'vs_cbet' (his bet
+ *             after his bet last street) · 'vs_bet' (his bet after a checked street)
  *   kind      dry · wet · paired · monotone (buckets.js boardKind, on the board of the spot)
  *
  * Buckets from the solver's classes: Nuts ← monster, Value ← strong, Bluff-catcher ← medium +
@@ -49,6 +51,15 @@ for (const f of readdirSync(dir).filter(f => f.endsWith('.json') && !['index.jso
   for (const r of records) {
     const facing = FACING.has(r.decision);
     const dec = facing ? 'facing' : 'bet';
+    // The role, as the bots' streetRole / facingRole see it: was there a bet on the previous
+    // street? Every bet line in the library ("cbet_called", "barrel_called") is the family's
+    // aggressor betting, and every bet decision is his (or after a checked street, anyone's); so
+    // first to act or checked to after his own bet = 'aggr', after a checked street = 'free';
+    // facing his bet after his previous bet = 'vs_cbet', after a checked street = 'vs_bet'.
+    // (Nobody leads into the aggressor in the library: solid.js has a rule for that.)
+    const line = r.id.split('/')[2].split('-');
+    const prevBet = /called$/.test(line[line.length - 1]);
+    const role = facing ? (prevBet ? 'vs_cbet' : 'vs_bet') : (prevBet ? 'aggr' : 'free');
     const kind = boardKind(ids(r.board));
     const level = r.villain.profile;
     if (level === 'gto') spots++; // one per spot (each is solved against every villain type)
@@ -57,6 +68,7 @@ for (const f of readdirSync(dir).filter(f => f.endsWith('.json') && !['index.jso
       const cats = {};
       part.pure.forEach((p, i) => { if (p > 0) { const c = category(r.actions[i], facing); cats[c] = (cats[c] || 0) + p; } });
       add(level, kind, dec, row.class, part.weight, cats);
+      add(level, kind, role, row.class, part.weight, cats);
     }
   }
 }
@@ -90,18 +102,25 @@ function buckets(t, dec) {
     const f = 1 - passive;
     const go = { act: active[0]?.[0] ?? giveUp, p: r2(f), dist: { [active[0]?.[0] ?? giveUp]: r2(f), [giveUp]: r2(passive) } };
     const stop = { act: giveUp, p: r2(passive), dist: { [giveUp]: r2(passive) } };
-    out.eqair = active.length && f >= 0.2 ? go : stop;
+    // under a fifth, the air that still bets is noted (it is rare: a small mistake, not a plan)
+    const stopNoted = { ...stop, dist: { ...stop.dist, ...(active.length && f >= 0.05 ? { [active[0][0]]: r2(f) } : {}) } };
+    out.eqair = active.length && f >= 0.2 ? go : stopNoted;
     out.air = active.length && f >= 0.6 ? go : stop;
   }
   return out;
 }
 
-const plans = { version: 1, spots, levels: {} };
+const plans = { version: 2, spots, levels: {} };
 for (const [level, byKind] of Object.entries(acc)) {
   plans.levels[level] = {};
   for (const kind of KINDS) {
     if (!byKind[kind]) continue;
-    plans.levels[level][kind] = { bet: buckets(byKind[kind].bet, 'bet'), facing: buckets(byKind[kind].facing, 'facing') };
+    plans.levels[level][kind] = {
+      bet: buckets(byKind[kind].bet, 'bet'), facing: buckets(byKind[kind].facing, 'facing'),
+      // by role (the coach grades with these; the Learn tables show the two above)
+      aggr: buckets(byKind[kind].aggr, 'bet'), free: buckets(byKind[kind].free, 'bet'),
+      vs_cbet: buckets(byKind[kind].vs_cbet, 'facing'), vs_bet: buckets(byKind[kind].vs_bet, 'facing'),
+    };
   }
 }
 writeFileSync('src/engine/plans.json', JSON.stringify(plans, null, 1) + '\n');
