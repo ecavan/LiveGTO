@@ -35,6 +35,7 @@ DRIVE = {  # knob → (stat or stats, direction); with two stats the step is the
     'fold_cbet': ('FoldToCBetFlop', 1), 'fold_flop': ('FoldToStabFlop', 1),
     'fold_turn': ('FoldToBetTurn', 1), 'fold_river': ('FoldToBetRiver', 1),
     'raise': (('RaiseCBetFlop', 'CheckRaiseFlop'), 1),
+    'fold_raise': ('FoldToRaise', 1), 'reraise': ('ReraiseVsRaise', 1),
     'cbet_flop': ('CBetFlop', 1), 'cbet_later': ('CBetTurn', 1), 'donk': ('DonkFlop', 1), 'probe': ('ProbeTurn', 1),
     'bluff_river': ('air_in_river_bets', 1),
 }

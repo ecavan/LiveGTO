@@ -13,6 +13,8 @@
 //! - Facing a c-bet: first decision facing that bet when it is the only bet of the street.
 //! - Donk: bets into the previous street's aggressor, who acts after him.
 //! - Check-raise: checked, then faced a bet, and raised.
+//! - Facing a raise: he bet or raised this street and now faces a raise (his bet was raised, or
+//!   check-raised): fold, call or re-raise. The HUD's fold-to-bet stats leave these out.
 //! - Went to showdown (WTSD): saw the flop and was still in at the end; won at showdown (W$SD).
 
 use crate::replay::{pos_index, Act, Replay};
@@ -59,6 +61,10 @@ fields!(
     xd_bet_f, xd_bet_t, xd_bet_r,
     fbet_opp_f, fbet_opp_t, fbet_opp_r,
     fbet_fold_f, fbet_fold_t, fbet_fold_r,
+    vr_opp_f, vr_opp_t, vr_opp_r,
+    vr_fold_f, vr_fold_t, vr_fold_r,
+    vr_call_f, vr_call_t, vr_call_r,
+    vr_reraise_f, vr_reraise_t, vr_reraise_r,
     size_small, size_large, size_over,
     size_sum_pct,
 );
@@ -203,6 +209,8 @@ pub fn tally(r: &Replay, c: &mut [&mut Counters]) {
         let mut xr_done = vec![false; n];
         let mut xd_done = vec![false; n];
         let mut fb_done = vec![false; n];
+        let mut aggr_this = vec![false; n];
+        let mut vr_done = vec![false; n];
         for d in r.decisions.iter().filter(|d| d.street == s) {
             let p = d.p;
             let cp = &mut *c[p];
@@ -270,6 +278,20 @@ pub fn tally(r: &Replay, c: &mut [&mut Counters]) {
                 if d.act == Act::Fold {
                     cp.add(F::fbet_fold_f, k);
                 }
+            }
+            // he bet or raised this street and is now facing a raise
+            if d.raises >= 2 && aggr_this[p] && !vr_done[p] {
+                vr_done[p] = true;
+                cp.add(F::vr_opp_f, k);
+                match d.act {
+                    Act::Fold => cp.add(F::vr_fold_f, k),
+                    Act::Call => cp.add(F::vr_call_f, k),
+                    Act::Raise => cp.add(F::vr_reraise_f, k),
+                    _ => {}
+                }
+            }
+            if d.act == Act::Bet || d.act == Act::Raise {
+                aggr_this[p] = true;
             }
             if checked[p] && d.raises >= 1 && !xr_done[p] {
                 xr_done[p] = true;

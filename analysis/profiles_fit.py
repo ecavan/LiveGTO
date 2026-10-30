@@ -7,7 +7,8 @@ fitted so that the bots' stats match real players of that type (targets.json):
   fold_cbet                            facing a flop c-bet: fold             → Fold to c-bet (flop)
   fold_flop                            facing any other flop bet: fold       → Fold to a donk or stab bet (flop)
   fold_turn / fold_river               facing a first bet: fold              → Fold to bet, by street
-  (facing a raise stays the baseline: the HUD's fold-to-bet stats don't count raises)
+  fold_raise / reraise                 facing a raise after he bet: fold / re-raise → Fold to raise, re-raise vs raise
+                                       (all streets pooled: raises are rare; the HUD's fold-to-bet stats leave them out)
   raise                                facing a first bet: raise             → Raise vs c-bet and check-raise (flop)
   cbet_flop / cbet_later               as last street's aggressor: bet       → C-bet flop / turn
   donk                                 into last street's aggressor: bet     → Donk flop
@@ -90,6 +91,8 @@ KNOBS = {
     'fold_turn': ({'role': ['vs_cbet', 'vs_bet'], 'streets': ['turn']}, 'fold'),
     'fold_river': ({'role': ['vs_cbet', 'vs_bet'], 'streets': ['river']}, 'fold'),
     'raise': ({'role': ['vs_cbet', 'vs_bet']}, 'raise'),
+    'fold_raise': ({'role': ['vs_raise']}, 'fold'),
+    'reraise': ({'role': ['vs_raise']}, 'raise'),
     'cbet_flop': ({'role': ['aggr'], 'streets': ['flop']}, 'aggressive'),
     'cbet_later': ({'role': ['aggr'], 'streets': ['turn', 'river']}, 'aggressive'),
     'donk': ({'role': ['donk']}, 'aggressive'),

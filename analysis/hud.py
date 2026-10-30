@@ -53,6 +53,12 @@ STATS = {
     'FoldToBetTurn': ('fbet_fold_t', 'fbet_opp_t'),
     'FoldToBetRiver': ('fbet_fold_r', 'fbet_opp_r'),
     'FoldToStabFlop': ('fstab_fold_f', 'fstab_opp_f'),  # a first flop bet that isn't the c-bet (donk, stab)
+    'FoldToRaiseFlop': ('vr_fold_f', 'vr_opp_f'),  # he bet or raised, then faced a raise
+    'FoldToRaiseTurn': ('vr_fold_t', 'vr_opp_t'),
+    'FoldToRaiseRiver': ('vr_fold_r', 'vr_opp_r'),
+    'FoldToRaise': ('vr_fold', 'vr_opp'),  # all streets pooled (raises are rare: one number per type)
+    'CallRaise': ('vr_call', 'vr_opp'),
+    'ReraiseVsRaise': ('vr_reraise', 'vr_opp'),
     'WTSD': ('wtsd', 'saw_flop'),
     'W$SD': ('wsd', 'wsd_known'),
     'BetSmall': ('size_small', None),
@@ -77,6 +83,10 @@ def with_totals(df):
         bets=pl.sum_horizontal([pl.col(f'bet_{x}') for x in s]),
         fstab_fold_f=pl.col('fbet_fold_f') - pl.col('vcb_fold_f'),
         fstab_opp_f=pl.col('fbet_opp_f') - pl.col('vcb_opp_f'),
+        vr_opp=pl.sum_horizontal([pl.col(f'vr_opp_{x}') for x in s]),
+        vr_fold=pl.sum_horizontal([pl.col(f'vr_fold_{x}') for x in s]),
+        vr_call=pl.sum_horizontal([pl.col(f'vr_call_{x}') for x in s]),
+        vr_reraise=pl.sum_horizontal([pl.col(f'vr_reraise_{x}') for x in s]),
     )
 
 
