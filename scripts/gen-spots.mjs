@@ -40,7 +40,7 @@ function sid(prefix, holes, runout, log) {
 }
 const aggr = (o) => o.type === 'bet' || o.type === 'raise' || o.type === 'allin';
 const packOther = (k, level) => ({ level, best: k.best, fine: k.fine, ev: k.options.map(o => r2(o.ev)), losses: k.losses ?? null });
-const packSolid = (sol) => (sol ? { source: sol.source, role: sol.role, kind: sol.kind, bucket: sol.bucket, chart: sol.chart, text: sol.text, modelBest: sol.modelBest } : null);
+const packSolid = (sol) => (sol ? { source: sol.source, role: sol.role, kind: sol.kind, bucket: sol.bucket, chart: sol.chart, text: sol.text, detail: sol.detail, modelBest: sol.modelBest } : null);
 const typeOf = (k) => (k.options[k.best].type === 'allin' ? 'raise' : k.options[k.best].type);
 
 /**

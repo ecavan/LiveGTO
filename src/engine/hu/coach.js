@@ -22,7 +22,7 @@ import { readOpponent } from './thinker.js';
 import { PREFLOP_RANK } from './preflopRank.js';
 import { plan, bucketOf, composition } from '../buckets.js';
 import { alpha, requiredEquity } from '../potmath.js';
-import { solidPlan, gradeWithPlan, planSentence } from '../solid.js';
+import { solidPlan, gradeWithPlan, planSentence, planDetail } from '../solid.js';
 import { HU_BTN_OPEN, RFI_RANGES, FACING_OPEN, comboShare } from '../ranges.js';
 import { BOT_TYPES, streetRole, facingRole } from './bots.js';
 
@@ -121,7 +121,7 @@ export function coach(s, hero, agentOrId, opts = {}) {
   const g = sp && gradeWithPlan(options, sp, { myBet, pot: P, facing: L.facing, natural: (i) => options[i].type !== 'allin' || options[i].to - myBet <= 2.5 * P + 1e-9, nominal: Math.max(0.25, 0.05 * P) });
   if (g) {
     best = g.best; fine = g.fine; losses = g.losses;
-    solid = { source: sp.source, role: sp.role, level, kind: sp.kind, bucket: sp.bucket, share: g.share, chart: g.chart, cats: g.cats, modelBest: bestNatural(options, myBet, P), text: planSentence(sp, g.share) };
+    solid = { source: sp.source, role: sp.role, level, kind: sp.kind, bucket: sp.bucket, share: g.share, chart: g.chart, cats: g.cats, modelBest: bestNatural(options, myBet, P), text: planSentence(sp, g.share), detail: planDetail(sp, g.share) };
   }
   return {
     street: s.street,

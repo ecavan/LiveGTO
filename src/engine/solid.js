@@ -129,15 +129,39 @@ export function gradeWithPlan(options, plan, { myBet, pot, facing, natural = () 
   return { best, fine, losses, cats, chart, share, planBest: chart[0] };
 }
 
-const SOURCE_NAME = { gto: 'the solver', multiway: 'the multiway plan', donk: 'leading into the raiser, the solver', vs_raise: 'facing a raise, the plan', station: 'the solver against a Station', nit: 'the solver against a Nit', maniac: 'the solver against a Maniac', whale: 'the solver against a Whale' };
-const ROLE_NAME = { aggr: 'after your bet', free: 'after a checked street', vs_cbet: 'facing his continuation', vs_bet: 'facing his lead' };
+const SOURCE_NAME = { gto: 'the solid play', multiway: 'the multiway plan', donk: 'the solid play', vs_raise: 'the solid play', station: 'the play against a Station', nit: 'the play against a Nit', maniac: 'the play against a Maniac', whale: 'the play against a Whale' };
+const ROLE_NAME = { aggr: 'after your bet', free: 'after a checked street', vs_cbet: 'facing his continuation', vs_bet: 'facing his lead', donk: 'first to act against the raiser', vs_raise: 'facing a raise' };
 const KIND_NAME = { dry: 'a dry board', wet: 'a wet board', paired: 'a paired board', monotone: 'a monotone board' };
-const CAT_NAME = { fold: 'folds', check: 'checks', call: 'calls', 'bet small': 'bets small', 'bet big': 'bets big', raise: 'raises' };
+const CAT_NAME = { fold: 'fold', check: 'check', call: 'call', 'bet small': 'bet small', 'bet big': 'bet big', raise: 'raise' };
+const CAT_DOES = { fold: 'folds', check: 'checks', call: 'calls', 'bet small': 'bets small', 'bet big': 'bets big', raise: 'raises' };
 
-/** "Air on a dry board: the solver checks 64% here, bets big 36%." */
+/** Where you are, in a few words: "Air with equity on a dry board, after your bet". */
+export function planWhere(plan) {
+  if (!plan) return '';
+  const where = plan.source === 'multiway' ? 'multiway' : `on ${KIND_NAME[plan.kind] || plan.kind}${ROLE_NAME[plan.role] ? `, ${ROLE_NAME[plan.role]}` : ''}`;
+  return `${BUCKET[plan.bucket]?.name || plan.bucket} ${where}`;
+}
+
+/**
+ * One action, never frequencies: "Air with equity on a dry board, after your bet: check. Betting
+ * big is fine too (the size of the pot and what is behind decide)." The numbers behind it go in
+ * planDetail, for "Why".
+ */
 export function planSentence(plan, share) {
   if (!plan) return '';
-  const parts = Object.entries(share).sort((a, b) => b[1] - a[1]).filter(([, v]) => v >= 0.05).map(([k, v]) => `${CAT_NAME[k] || k} ${Math.round(100 * v)}%`);
-  const where = plan.source === 'multiway' ? 'multiway' : `on ${KIND_NAME[plan.kind] || plan.kind}${ROLE_NAME[plan.role] && plan.source !== 'donk' && plan.source !== 'vs_raise' ? `, ${ROLE_NAME[plan.role]}` : ''}`;
-  return `${BUCKET[plan.bucket]?.name || plan.bucket} ${where}: ${SOURCE_NAME[plan.source] || plan.source} ${parts.join(', ')}.`;
+  const ranked = Object.entries(share).sort((a, b) => b[1] - a[1]);
+  const chart = ranked.filter(([, v]) => v >= CHART_MIN).map(([k]) => k);
+  if (!chart.length) chart.push(ranked[0][0]);
+  const [first, ...rest] = chart;
+  const also = rest.length ? ` ${rest.map(k => cap(CAT_NAME[k] || k)).join(' or ')} ${rest.length > 1 ? 'are' : 'is'} fine too (the size of the bet and what is behind decide).` : '';
+  return `${planWhere(plan)}: ${SOURCE_NAME[plan.source] || plan.source} is ${CAT_NAME[first] || first}.${also}`;
+}
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** The numbers: "the solver checks 59% here, bets big 41%". */
+export function planDetail(plan, share) {
+  if (!plan) return '';
+  const parts = Object.entries(share).sort((a, b) => b[1] - a[1]).filter(([, v]) => v >= 0.05).map(([k, v]) => `${CAT_DOES[k] || k} ${Math.round(100 * v)}%`);
+  const who = plan.source === 'gto' ? 'the solver' : plan.source === 'multiway' ? 'the multiway plan' : plan.source === 'donk' || plan.source === 'vs_raise' ? 'the rule' : `the solver against a ${cap(plan.source)}`;
+  return `${who} ${parts.join(', ')} with ${BUCKET[plan.bucket]?.name?.toLowerCase() || plan.bucket} here.`;
 }

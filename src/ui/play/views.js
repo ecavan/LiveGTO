@@ -212,17 +212,19 @@ export function coachCard(d, { weights = null, botName = null, live = false, evN
     return `<div class="space-y-3">${head}
       ${disc('Why', `<div class="space-y-1.5">${(d.notes || []).map(n => `<p>${n}</p>`).join('')}</div>`)}</div>`;
   }
-  const why = whyLines(d).map(l => `<p>${l}</p>`).join('');
+  const why = [...(sol?.detail ? [`The plan: ${esc(sol.detail)}`] : []), ...whyLines(d)].map(l => `<p>${l}</p>`).join('');
   const other = otherLevelHtml(d);
   // the EV model's own favourite, when it is not the plan: a best response to one fixed strategy
   const mb = sol && sol.modelBest != null && sol.modelBest !== d.best && !d.fine.includes(sol.modelBest) && d.options[sol.modelBest] ? d.options[sol.modelBest] : null;
-  const modelNote = mb ? `<div class="text-xs text-ink-400">The EV model itself prefers <b class="text-ink-200">${esc(labelText(mb.label))}</b> (${fmtBB(mb.ev - best.ev, { sign: true })} vs the plan): ${d.level === 2 && sol.source !== 'gto' && sol.source !== 'multiway' ? 'a sharper exploit of his exact range than the solver\'s plan; take it when you trust the read' : 'the best response to one fixed strategy, not the solid play — it is what a bluff-happy model would do, not what a strong player does'}.</div>` : '';
+  // at Level 2 against a fish: the sharper exploit of his exact range, when the EV model has one
+  const exploitable = d.level === 2 && sol && !['gto', 'multiway', 'donk', 'vs_raise'].includes(sol.source);
+  const modelNote = mb && exploitable ? `<div class="text-xs text-ink-400">Sharper still, if you are sure he is a ${esc(sol.source.charAt(0).toUpperCase() + sol.source.slice(1))}: <b class="text-ink-200">${esc(labelText(mb.label))}</b> (${fmtBB(mb.ev - best.ev, { sign: true })} against his exact range).</div>` : '';
   const his = d.buckets?.length ? bucketBarsHtml(d.buckets) : d.range ? rangeBars(d.range) : '';
   return `<div class="space-y-3">${head}
     ${other}
     ${d.heroBucket ? `<div class="text-sm text-ink-300">Your hand: <b class="text-amber-200">${esc(bucketName(d.heroBucket))}</b>${d.board?.length ? ` on ${handText(d.board.map(cardStr))}` : ''}</div>` : ''}
     ${evBars(d.options, { best: d.best, fine: d.fine, chosen: d.chosen })}
-    <div class="text-xs text-ink-400">${evNote ?? evNoteFor(d, { botName })}${sol ? ' Best and fine come from the solver\'s plan for your bucket; the EVs size the mistakes.' : ''}</div>
+    <div class="text-xs text-ink-400">${evNote ?? evNoteFor(d, { botName })}${sol ? ' The verdict is the plan for your kind of hand; the EVs size the mistakes.' : ''}</div>
     ${modelNote}
     ${live ? `<details class="disc" data-rangeview open><summary>Your range by bucket: a plan for each kind of hand</summary><div class="body"><div class="text-ink-400 text-sm">Working it out…</div></div></details>` : ''}
     ${disc('Why', `<div class="space-y-1.5">${why}</div>`)}
