@@ -3,26 +3,71 @@
  "slope": 900,
  "w0": 25,
  "elo": {
-  "pro": 2000,
-  "whale": 1200,
-  "station": 1440,
-  "nit": 1750,
-  "maniac": 1770,
-  "reg": 1660,
-  "shark": 1960
+  "whale": 1160,
+  "station": 1250,
+  "nit": 1320,
+  "maniac": 1220,
+  "reg": 1390,
+  "shark": 1730,
+  "pro": 2000
+ },
+ "avg": {
+  "whale": -85.6,
+  "station": -41.3,
+  "nit": -14.2,
+  "maniac": -52.8,
+  "reg": 10.4,
+  "shark": 79.4,
+  "pro": 104
  },
  "results": {
   "pro": {
-   "whale": 169.6,
-   "station": 79.2,
-   "nit": 22.8,
-   "maniac": 19.6,
-   "reg": 34.3
+   "whale": 246.2,
+   "station": 141.5,
+   "nit": 66.9,
+   "maniac": 73.9,
+   "reg": 85.1
   },
   "shark": {
-   "reg": -23.1,
-   "nit": 51,
-   "station": 91.1
+   "reg": 64.5,
+   "nit": 34.2,
+   "station": 98.3,
+   "pro": -10.5
+  },
+  "whale": {
+   "shark": -157.1,
+   "station": 4.2,
+   "nit": -14.8,
+   "maniac": 8.5,
+   "reg": -108.2
+  },
+  "maniac": {
+   "shark": -133.1,
+   "reg": -57.6
+  },
+  "station": {
+   "nit": -15.4,
+   "maniac": 26.8,
+   "reg": -14.9
+  },
+  "nit": {
+   "maniac": 16.8,
+   "reg": -31.3
   }
+ },
+ "ci": {
+  "shark:pro": 167.7,
+  "whale:shark": 74.6,
+  "maniac:shark": 90.2,
+  "whale:station": 40.5,
+  "whale:nit": 38.9,
+  "whale:maniac": 61.4,
+  "whale:reg": 50.8,
+  "station:nit": 34.3,
+  "station:maniac": 58.1,
+  "station:reg": 46.1,
+  "nit:maniac": 46.1,
+  "nit:reg": 36,
+  "maniac:reg": 64.2
  }
 }

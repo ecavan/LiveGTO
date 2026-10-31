@@ -98,16 +98,19 @@ choices were indifferent. You only collect by changing your play.
 Three ratings, all on a chess-like scale:
 
 - **Puzzle rating**: Elo against the puzzle's rating (§7).
-- **Bot Elo** (the ladder, `scripts/ladder.mjs` → `src/engine/hu/ladder.json`). Poker isn't
-  transitive (a Whale and a Reg roughly break even against each other, yet the Pro beats one far
-  harder than the other), so every bot is measured against one yardstick, the strongest bot:
+- **Bot Elo** (the ladder, `scripts/ladder.mjs` → `src/engine/hu/ladder.json`): a round robin,
+  every bot against every other, rated by what it wins against the field:
 
   ```
-  Elo(X) = 2000 − 900 · log₁₀(1 + W / 25)      W = the Pro's win rate against X, bb/100
+  avg(X) = X's mean win rate against the other six bots, bb/100
+  Elo(X) = 2000 − 900 · log₁₀(1 + (avg(Pro) − avg(X)) / 25)
   ```
 
-  Beaten by 25bb/100 → ~1730; by 100 → ~1370; by 400 → ~890. Matches are *duplicate*: each deal is
-  played twice with the seats swapped, which cancels most card luck.
+  25bb/100 behind the Pro → ~1730; 100 → ~1370; 400 → ~890. Matches are *duplicate*: each deal is
+  played twice with the seats swapped, which cancels most card luck. (Until Oct 2026 the yardstick
+  was how badly the Pro beat each bot; that measures exploitability by a best-responder, and put
+  the Reg below the Nit and the Maniac. Winnings against the field is what "strong" means at a
+  table.)
 - **Your Play rating** is duplicate-corrected, the way the ladder is. After every hand, the same
   deal (your cards, his cards, the board, the seats) is replayed with a clone of the bot in your
   seat against the bot as he was when the hand started (`cloneReplay` in `hu/session.js`). Your
@@ -147,15 +150,19 @@ Three ratings, all on a chess-like scale:
   against the Reg and shove-everything 400–600 (`test/rating.test.js`). Against the adapting bots
   the clone shares the bot's read of you at the start of each hand, so the comparison stays fair.
 
-Current ladder (duplicate matches, 6,000 hands per pair; Elo ± ~150 for the noisier pairs):
+Current ladder (duplicate matches, 6,000 hands per pair, Oct 2026 ranges; a pair's 95% CI is
+±35–90 bb/100, so neighbours on the ladder can swap):
 
-| Bot | Whale | Maniac | Station | Nit | Shark | Reg | Pro |
+| Bot | Whale | Maniac | Station | Nit | Reg | Shark | Pro |
 |---|---|---|---|---|---|---|---|
-| Pro wins (bb/100) | 442 | 376 | 99 | 53 | — | 31 | 0 |
-| Elo | 860 | 920 | 1380 | 1560 | 1660 | 1690 | 2000 |
+| Wins vs the field (bb/100) | −86 | −53 | −41 | −14 | +10 | +79 | +104 |
+| Elo | 1160 | 1220 | 1250 | 1320 | 1390 | 1730 | 2000 |
 
-The Shark is rated through the profile bots it beats (thinking bot vs thinking bot is too noisy).
-The Reg is strong because, like every bot now, it adjusts to its opponent (§8).
+Head to head (row beats column, bb/100): Pro over Shark 11, Reg 85, Nit 67, Maniac 74, Station
+142, Whale 246; Shark over Reg 65, Nit 34, Maniac 133, Station 98, Whale 157; Reg over Nit 31,
+Maniac 58, Station 15, Whale 108; Nit over Maniac 17, Station 15, Whale 15; Station over Maniac
+27; Whale over Maniac 9 and Station 4. The order is transitive, which it wasn't under the old
+yardstick.
 
 Preflop is graded against the chart: heads-up, the button's opening range against the big blind
 alone (`HU_BTN_OPEN` in ranges.js, about half of all hands) and The Course's big-blind defence

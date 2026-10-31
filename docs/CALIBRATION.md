@@ -373,23 +373,27 @@ the Pro, Pluribus itself.
 ## Heads-up ratings
 
 The heads-up bots share the postflop baseline and profiles, so the Elo ladder was played again
-after the 2026 refit (`scripts/ladder.mjs`: the Pro against each bot, and the Shark against three,
-6,000 duplicate hands with two different deals each, averaged):
+after the 2026 refit and the hand-order change (`scripts/ladder.mjs`): now a round robin, every
+bot against every other, 6,000 duplicate hands per pair (seed 17), each bot rated by its mean win
+rate against the other six (`out/ladder/results.json`, kept in `ladder.json`):
 
-| Bot | Pro's win rate (bb/100) | Before | After |
+| Bot | Wins vs the field (bb/100) | Before (Pro's yardstick) | After (round robin) |
 |---|---|---|---|
-| Whale | 170 | 1100 | 1200 |
-| Station | 79 | 1490 | 1440 |
-| Reg | 34 | 1600 | 1660 |
-| Nit | 23 | 1550 | 1750 |
-| Maniac | 20 | 1410 | 1770 |
-| Shark | (vs Reg −23, Nit +51, Station +91) | 1780 | 1960 |
-| Pro | | 2000 | 2000 |
+| Whale | −86 | 1200 | 1160 |
+| Maniac | −53 | 1770 | 1220 |
+| Station | −41 | 1440 | 1250 |
+| Nit | −14 | 1750 | 1320 |
+| Reg | +10 | 1660 | 1390 |
+| Shark | +79 | 1960 | 1730 |
+| Pro | +104 | 2000 | 2000 |
 
-Each matchup is still worth about ±35–65bb/100 at 95% (two deals of 6,000 hands), so the bots
-between Reg and Shark are within about ±150 Elo of each other: treat Reg, Nit and Maniac as one tier.
-The big moves are real. The Maniac no longer folds to raises like a calling station (the fold
-knobs now apply only to bets, not raises), so heads-up he is much harder to push around.
+Head to head the order is transitive: Pro > Shark > Reg > Nit > Station > Maniac ≈ Whale (the
+Whale beats the Maniac by 9 and the Station by 4, within noise). Under the old yardstick (how
+badly the Pro beats you) the Nit and the Maniac sat above the Reg, because a best-responder
+has less to exploit in a player who folds, or who has already shoved; against the field the Reg
+makes money and they lose it. A pair is worth ±35–90bb/100 at 95%, so neighbours can swap, but
+the tiers (fish · Reg · thinkers) are solid. The spread is narrower than before by construction:
+winnings against a mixed field differ less than losses to a best-responder.
 
 ## Checks against Pluribus
 
