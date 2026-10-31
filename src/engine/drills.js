@@ -332,7 +332,8 @@ function bucketQ(rand) {
   const level = getLevel();
   const vil = level === 2 ? pick(rand, Object.keys(PLAN_VILLAINS)) : null;
   const say = (pl) => (pl ? `<b>${planText(pl)}</b>` : '—');
-  const row = (lv) => `checked to you ${say(planFor(lv, kind, 'bet', key))} · facing a bet ${say(planFor(lv, kind, 'facing', key))}`;
+  const st = turn ? 'later' : 'flop';
+  const row = (lv) => `checked to you ${say(planFor(lv, kind, 'bet', key, st))} · facing a bet ${say(planFor(lv, kind, 'facing', key, st))}`;
   return {
     prompt: `${spot.line} What kind of hand is this on the ${turn ? 'turn' : 'flop'}?`,
     hole, board: bd,

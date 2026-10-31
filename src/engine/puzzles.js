@@ -27,7 +27,7 @@ const CLASS_LABELS = {
 
 // ---------------------------------------------------------------- selection
 
-const FACING = new Set(['oop_vs_bet', 'ip_vs_bet']);
+const FACING = new Set(['oop_vs_bet', 'ip_vs_bet', 'oop_vs_bet_small', 'ip_vs_bet_small', 'oop_vs_raise', 'ip_vs_raise']);
 
 /**
  * Flatten the index into puzzle candidates matching the filters.

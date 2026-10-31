@@ -1,6 +1,10 @@
 //! Builds the puzzle library the app ships with.
 //!
 //! For each spot family (a preflop situation) and flop:
+//!   0. Analyse the flop decisions themselves (the c-bettor checked to; the caller facing a 33%
+//!      and a 75% c-bet; the c-bettor facing a check-raise) against every profile, on a slim
+//!      tree: two c-bet sizes and a check-raise on the flop, a 75% bet and no raises on the turn
+//!      and river (memory).
 //!   1. Solve the flop with GTO (coarse tree), only to get *realistic ranges* at the start of the
 //!      turn after common flop lines (c-bet called, checked through).
 //!   2. For sampled turn cards: analyse the turn decisions (IP after a check, OOP facing a bet)
@@ -13,7 +17,7 @@
 //! Profiles act from the street of the decision onwards; earlier streets are GTO. (A station's
 //! flop calls would make his turn range wider still — see DESIGN.md "Open questions".)
 
-use crate::analyze::{analyze_many, Options, Report};
+use crate::analyze::{analyze_decisions, analyze_many, Options, Report};
 use crate::profile::Profile;
 use crate::spot::{action_label, match_action, pot_at, Seat, Sizes, Spot, CHIPS_PER_BB};
 use anyhow::{anyhow, Context, Result};
@@ -218,10 +222,81 @@ fn spot_from(_fam: &Family, board: &str, c: &Continuation, hero: Seat, line: &[&
         sizes: Sizes::default(),
         sizes_oop: None,
         sizes_ip: None,
+        sizes_turn: None,
+        sizes_river: None,
         add_allin_threshold: 1.5,
         iterations: 1000,
         target_pct: 0.2,
     }
+}
+
+/// The flop decisions studied (hero, line, decision id, description). The preflop aggressor
+/// (IP in a limped pot) c-bets 33% or 75%; the caller may check-raise.
+fn flop_decisions(aggressor: &str) -> Vec<(Seat, Vec<&'static str>, &'static str, &'static str)> {
+    match aggressor {
+        "oop" => vec![
+            (Seat::Oop, vec![], "oop_first", "first to act"),
+            (Seat::Ip, vec!["b33"], "ip_vs_bet_small", "facing a 33% c-bet"),
+            (Seat::Ip, vec!["b75"], "ip_vs_bet", "facing a 75% c-bet"),
+            (Seat::Oop, vec!["b75", "r"], "oop_vs_raise", "your 75% c-bet was raised"),
+        ],
+        _ => vec![
+            (Seat::Ip, vec!["x"], "ip_checked_to", "checked to you"),
+            (Seat::Oop, vec!["x", "b33"], "oop_vs_bet_small", "facing a 33% c-bet"),
+            (Seat::Oop, vec!["x", "b75"], "oop_vs_bet", "facing a 75% c-bet"),
+            (Seat::Ip, vec!["x", "b75", "r"], "ip_vs_raise", "your 75% c-bet was check-raised"),
+        ],
+    }
+}
+
+/// The flop spot: the family's preflop ranges, pot and stack, on a slim three-street tree.
+fn flop_spot(fam: &Family, flop: &str) -> Spot {
+    let bettor = Sizes { bet: "33%, 75%".into(), raise: String::new() };
+    let caller = Sizes { bet: String::new(), raise: "3x".into() };
+    let later = Sizes { bet: "75%".into(), raise: String::new() };
+    let (oop, ip) = if fam.aggressor == "oop" { (bettor, caller) } else { (caller, bettor) };
+    Spot {
+        name: format!("{}/{flop}/flop", fam.id),
+        description: String::new(),
+        board: flop.to_string(),
+        oop_range: fam.oop_range.clone(),
+        ip_range: fam.ip_range.clone(),
+        pot: fam.pot,
+        stack: fam.stack,
+        hero: Seat::Ip,
+        line: vec![],
+        entry_aggressor: match fam.aggressor.as_str() { "oop" => Some(Seat::Oop), "ip" => Some(Seat::Ip), _ => None },
+        sizes: Sizes::default(),
+        sizes_oop: Some(oop),
+        sizes_ip: Some(ip),
+        sizes_turn: Some(later.clone()),
+        sizes_river: Some(later),
+        add_allin_threshold: 1.5,
+        iterations: 1000,
+        target_pct: 0.2,
+    }
+}
+
+/// The flop decision records for one flop (step 0 of the build).
+fn flop_records(fam: &Family, flop: &str, profiles: &[(String, Profile)], profs: &[Profile], opts: &Options, log: &mut dyn FnMut(&str), t0: &std::time::Instant) -> Vec<Value> {
+    let mut records = Vec::new();
+    log(&format!("[{}] flop {flop}: analysing the flop decisions", fam.id));
+    let fspot = flop_spot(fam, flop);
+    let decs = flop_decisions(&fam.aggressor);
+    let lines: Vec<(Seat, Vec<String>)> = decs.iter().map(|(h, l, _, _)| (*h, l.iter().map(|x| x.to_string()).collect())).collect();
+    match analyze_decisions(&fspot, &lines, profs, opts) {
+        Ok(per_dec) => {
+            for ((_, _, dec, desc), rs) in decs.iter().zip(&per_dec) {
+                let id = format!("{}/{}/flop/{}", fam.id, flop, dec);
+                for ((pf, prof), r) in profiles.iter().zip(rs) {
+                    records.push(record(fam, &format!("{id}/{}", pf.trim_end_matches(".toml")), flop, &[], dec, desc, pf, prof, r));
+                }
+                log(&format!("  {id} ({:.0}s)", t0.elapsed().as_secs_f64()));
+            }
+        }
+        Err(e) => log(&format!("  flop decisions: {e}")),
+    }
+    records
 }
 
 // ------------------------------------------------------------------------------------------
@@ -433,12 +508,15 @@ fn record(fam: &Family, id: &str, board: &str, prior: &[String], dec: &str, desc
 }
 
 /// Builds the library. Writes one JSON file per flop plus `index.json`.
+/// `flop_only`: add the flop decisions to library files that already exist (replacing any flop
+/// records in them) instead of building; files that don't exist are skipped.
 pub fn build(
     config_path: &Path,
     out_dir: &Path,
     only_flops: Option<usize>,
     only_family: Option<&str>,
     dry_run: bool,
+    flop_only: bool,
     log: &mut dyn FnMut(&str),
 ) -> Result<()> {
     let cfg_str = std::fs::read_to_string(config_path).with_context(|| format!("reading {}", config_path.display()))?;
@@ -468,6 +546,28 @@ pub fn build(
             let mut rng = Rng::for_flop(fam.seed, flop);
             let file = format!("{}_{}.json", fam.id, flop);
             let path = out_dir.join(&file);
+            if flop_only {
+                if !path.exists() {
+                    log(&format!("skip {file} (missing)"));
+                    continue;
+                }
+                let mut v: Value = serde_json::from_str(&std::fs::read_to_string(&path)?)?;
+                let has_flop = v["records"].as_array().map_or(false, |rs| rs.iter().any(|r| r["street"] == "flop"));
+                if has_flop {
+                    log(&format!("skip {file} (has flop records)"));
+                    index.extend(index_entries(&v, &file));
+                    continue;
+                }
+                let t0 = std::time::Instant::now();
+                let mut records = flop_records(fam, flop, &profiles, &profs, &opts, log, &t0);
+                let n = records.len();
+                records.extend(v["records"].as_array().cloned().unwrap_or_default());
+                v["records"] = Value::Array(records);
+                std::fs::write(&path, serde_json::to_string(&v)?)?;
+                index.extend(index_entries(&v, &file));
+                log(&format!("  wrote {file}: {n} flop records added in {:.0}s", t0.elapsed().as_secs_f64()));
+                continue;
+            }
             if path.exists() {
                 log(&format!("skip {file} (exists)"));
                 let v: Value = serde_json::from_str(&std::fs::read_to_string(&path)?)?;
@@ -475,6 +575,7 @@ pub fn build(
                 continue;
             }
             let t0 = std::time::Instant::now();
+            let mut records = flop_records(fam, flop, &profiles, &profs, &opts, log, &t0);
             log(&format!("[{}] flop {flop}: solving GTO for turn ranges", fam.id));
             let mut fg = flop_game(fam, flop)?;
             let (_, mc) = fg.memory_usage();
@@ -485,7 +586,6 @@ pub fn build(
             fg.allocate_memory(true);
             let pot_chips = (fam.pot * CHIPS_PER_BB) as f32;
             solve(&mut fg, 600, pot_chips * 0.005, false);
-            let mut records = Vec::new();
             let (street_lines, turn_lines, decisions) = plan(&fam.aggressor);
             // the preflop raiser bets every "…_called" line in the plan; "checked" lines have no aggressor
             let aggr_seat = if fam.aggressor == "oop" { Seat::Oop } else { Seat::Ip };

@@ -182,7 +182,7 @@ function table(container) {
   if (ui.recap) {
     coachHtml = handRecap(sess, ui.recap, { showDecisions: mode !== 'off' });
   } else if (mode === 'decision' && ui.last) {
-    coachHtml = coachCard(ui.last, { weights: ui.lastWeights, botName: AGENTS[sess.botId].name, live: !!ui.lastState && !ui.last.preflop && ui.last.street > 0 });
+    coachHtml = coachCard(ui.last, { weights: ui.lastWeights, botName: AGENTS[sess.botId].name, live: !!ui.lastState && !ui.last.preflop && ui.last.street > 0, titled: true });
   } else if (mode !== 'decision') {
     coachHtml = `<div class="text-sm text-ink-400">${mode === 'hand' ? 'The coach speaks at the end of the hand.' : 'Coach off. Your review comes at the end of the session.'}</div>`;
   } else {
@@ -258,7 +258,7 @@ function wire(container) {
     ui.rvFor = state;
     setTimeout(() => {
       if (!sess || ui.lastState !== state) return;
-      const bv = bucketView(state, sess.hero, coachAgent(sess, sess.level, state));
+      const bv = bucketView(state, sess.hero, coachAgent(sess, sess.level, state), { level: sess.level });
       if (bv?.v) bv.v.read = sess.level !== 1 && sess.agent.kind === 'thinker';
       ui.rangeHtml = bucketViewHtml(bv, state.holes[sess.hero]);
       const el = container.querySelector('details[data-rangeview] .body');

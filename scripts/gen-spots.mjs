@@ -28,6 +28,7 @@ const BUCKETS = Number(process.argv[4] || 220);
 const packPlan = (bv) => (bv ? {
   options: bv.options.map(o => ({ type: o.type, to: o.to, label: o.label })),
   rows: bv.rows.map(r => ({ key: r.key, name: r.name, desc: r.desc, share: r3(r.share), examples: r.examples, mix: r.mix.map(r3), best: r.best, agree: r3(r.agree) })),
+  planned: !!bv.planned,
 } : null);
 const r2 = (x) => Math.round(x * 100) / 100;
 const r3 = (x) => (x == null ? null : Math.round(x * 1000) / 1000);
@@ -139,7 +140,7 @@ function genFlop(count) {
                 log: packLog(s.log), pot: r2(P), toCall: r2(HU.toCall(s, hero)), street: 1,
                 options: packOpts(k.options), best: k.best, fine: k.fine, losses: k.losses ?? null, solid: packSolid(k.solid), equity: r3(k.equity), need: r3(k.need), range: packRange(k.range),
                 notes: k.notes || [], rating: j.rating, gap: j.gap,
-                buckets: k.buckets, heroBucket: k.heroBucket, plan: packPlan(bucketView(s, hero, view)),
+                buckets: k.buckets, heroBucket: k.heroBucket, plan: packPlan(bucketView(s, hero, view, { level: lv })),
                 other: packOther(ks[3 - lv], 3 - lv),
               });
             }
@@ -236,7 +237,7 @@ function genBuckets(count) {
       if (s.toAct === hero && s.street >= 1 && !took && rand() < 0.6) {
         const order = [1, 2].filter(lv => per[lv][s.street] < cap && !(lv === 2 && (opp === 'reg' || opp === 'shark'))).sort((a, b) => per[a][s.street] - per[b][s.street]);
         for (const lv of order) {
-          const plan = packPlan(bucketView(s, hero, lv === 1 ? 'reg' : vAgent));
+          const plan = packPlan(bucketView(s, hero, lv === 1 ? 'reg' : vAgent, { level: lv }));
           if (!plan || !drillable(plan)) continue;
           took = true;
           per[lv][s.street]++;

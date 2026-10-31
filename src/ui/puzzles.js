@@ -158,15 +158,15 @@ async function next() {
 }
 
 /**
- * The next rated puzzle, from one of three sources: the solver library (turn and river, heads-up),
+ * The next rated puzzle, from one of three sources: the solver library (flop, turn and river, heads-up),
  * flop spots and multiway spots (from the Play engine). With no filter the source is drawn
  * 50 / 30 / 20 so the big library doesn't crowd out the others.
  */
 async function nextRated() {
   const seen = new Set(stats.seen);
   const lib = () => {
-    if (filters.street === 'flop' || filters.players === 'multiway') return [];
-    return candidates(index, { ...filters, level: getLevel(), street: filters.street === 'flop' ? '' : filters.street });
+    if (filters.players === 'multiway') return [];
+    return candidates(index, { ...filters, level: getLevel() });
   };
   const gm = await import('./puzzles/generated.js');
   const gen = async (kind) => {
@@ -388,7 +388,7 @@ function draw(container) {
       <div class="space-y-4 min-w-0">
         ${tableHtml(r, current.view)}
         <div class="text-center text-ink-200">You have <b class="text-white">${esc(p.hand)}</b>. What's your play?</div>
-        ${bucketStepHtml(current.bk, { stats, facing: r.to_call > 0, villain: r.villain.profile, showPlan: !!answered })}
+        ${bucketStepHtml(current.bk, { stats, facing: r.to_call > 0, villain: r.villain.profile, showPlan: !!answered, street: r.street === 'flop' ? 'flop' : 'later' })}
         ${answered || !current.bk ? '' : actionButtons(r)}
       </div>
       <div class="space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">

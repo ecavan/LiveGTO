@@ -84,6 +84,13 @@ pub struct Spot {
     pub sizes_oop: Option<Sizes>,
     #[serde(default)]
     pub sizes_ip: Option<Sizes>,
+    /// Sizes for the later streets of a flop (or turn) spot, both players; default: the same as
+    /// the first street. A flop spot with `33%, 75%` c-bets and a `3x` raise on the flop but only
+    /// `75%` (no raise) on the turn and river stays within a few GB.
+    #[serde(default)]
+    pub sizes_turn: Option<Sizes>,
+    #[serde(default)]
+    pub sizes_river: Option<Sizes>,
     /// postflop-solver adds an all-in option whenever stack ≤ this × pot. Set 0 to disable
     /// (toy games where a player must not be able to bet).
     #[serde(default = "default_add_allin")]
@@ -159,6 +166,14 @@ impl Spot {
         };
         let oop = parse(self.sizes_oop.as_ref().unwrap_or(&self.sizes))?;
         let ip = parse(self.sizes_ip.as_ref().unwrap_or(&self.sizes))?;
+        // later streets: their own sizes when given (both players), else the first street's
+        let later = |o: &Option<Sizes>| -> Result<Option<BetSizeOptions>> { o.as_ref().map(parse).transpose() };
+        let turn = later(&self.sizes_turn)?;
+        let river = later(&self.sizes_river)?.or_else(|| turn.clone());
+        let pair = |s: &Option<BetSizeOptions>| match s {
+            Some(x) => [x.clone(), x.clone()],
+            None => [oop.clone(), ip.clone()],
+        };
         let tree_config = TreeConfig {
             initial_state,
             starting_pot: self.pot_chips(),
@@ -166,8 +181,8 @@ impl Spot {
             rake_rate: 0.0,
             rake_cap: 0.0,
             flop_bet_sizes: [oop.clone(), ip.clone()],
-            turn_bet_sizes: [oop.clone(), ip.clone()],
-            river_bet_sizes: [oop, ip],
+            turn_bet_sizes: pair(&turn),
+            river_bet_sizes: pair(&river),
             turn_donk_sizes: None,
             river_donk_sizes: None,
             add_allin_threshold: self.add_allin_threshold,

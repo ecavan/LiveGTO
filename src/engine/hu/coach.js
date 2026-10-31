@@ -20,7 +20,7 @@ import { probOf } from './policy.js';
 import { equityVsRange } from './equity.js';
 import { readOpponent } from './thinker.js';
 import { PREFLOP_RANK } from './preflopRank.js';
-import { plan, bucketOf, composition } from '../buckets.js';
+import { plan, bucketOf, composition, bucketsOn, BUCKET_KEYS } from '../buckets.js';
 import { alpha, requiredEquity } from '../potmath.js';
 import { solidPlan, gradeWithPlan, planSentence, planDetail } from '../solid.js';
 import { HU_BTN_OPEN, RFI_RANGES, FACING_OPEN, comboShare } from '../ranges.js';
@@ -396,7 +396,7 @@ export function rangeView(s, hero, agentOrId) {
   let nz0 = 0;
   for (let i = 0; i < hr.length; i++) if (hr[i] > 0) nz0++;
   const mean = tot(hr) / Math.max(1, nz0);
-  return { weights: hr, best, options: opts.map(o => ({ type: o.type, to: o.to, label: o.label })), inRange: hr[me] >= 0.05 * mean, me };
+  return { weights: hr, best, EV, options: opts.map(o => ({ type: o.type, to: o.to, label: o.label })), inRange: hr[me] >= 0.05 * mean, me };
 }
 
 const nz = (x) => (Number.isNaN(x) ? 0 : x);
@@ -408,9 +408,38 @@ export const slimRows = (rows) => rows.map(r => ({ key: r.key, name: r.name, des
  * Your range by bucket at this decision, and the best play for each bucket (from rangeView):
  * { rows, options, hero: your hand's bucket, board }.
  */
-export function bucketView(s, hero, agentOrId) {
+export function bucketView(s, hero, agentOrId, { level = 2 } = {}) {
   const v = rangeView(s, hero, agentOrId);
   if (!v) return null;
   const bd = board(s);
-  return { rows: plan(v.weights, bd, v.best, v.options.length), options: v.options, hero: bucketOf(s.holes[hero], bd), board: bd, read: agentOrId?.kind === 'thinker', v };
+  const rows = plan(v.weights, bd, v.best, v.options.length);
+  // each bucket's play is the solver's plan for it (as the coach grades), sized by the model's EVs
+  // for that bucket; the model's own best response stays in the per-hand grid (v)
+  const agent = typeof agentOrId === 'string' ? { id: agentOrId, kind: 'profile' } : agentOrId;
+  const L = legal(s);
+  const P = pot(s);
+  const role = L.facing ? facingRole(s) : streetRole(s, hero);
+  const villain = level === 2 ? planVillain(agent) : null;
+  const b = bucketsOn(bd);
+  const full = menu(s);
+  for (const r of rows) {
+    const sp = solidPlan({ board: bd, bucket: r.key, facing: L.facing, role, level, villain });
+    if (!sp) continue;
+    const k = BUCKET_KEYS.indexOf(r.key);
+    const ev = full.map((o, j) => { let e = 0, t = 0; for (let i = 0; i < v.weights.length; i++) if (b[i] === k && v.weights[i] > 0) { e += v.weights[i] * v.EV[j][i]; t += v.weights[i]; } return { ...o, ev: t > 0 ? e / t : 0 }; });
+    const g = gradeWithPlan(ev, sp, { myBet: s.streetBet[hero], pot: P, facing: L.facing, natural: (i) => full[i].type !== 'allin' || full[i].to - s.streetBet[hero] <= 2.5 * P + 1e-9 });
+    if (!g) continue;
+    // the plan's shares, each category on the option the model sizes it with
+    const mix = new Array(full.length).fill(0);
+    for (const [cat, share] of Object.entries(g.share)) {
+      let bi = -1;
+      full.forEach((o, i) => { if (g.cats[i] === cat && (bi < 0 || ev[i].ev > ev[bi].ev)) bi = i; });
+      if (bi >= 0) mix[bi] += share;
+    }
+    r.mix = mix;
+    r.best = g.best;
+    r.agree = mix[g.best];
+    r.plan = { source: sp.source, chart: g.chart, split: g.split };
+  }
+  return { rows, options: v.options, hero: bucketOf(s.holes[hero], bd), board: bd, read: agentOrId?.kind === 'thinker', planned: true, v };
 }

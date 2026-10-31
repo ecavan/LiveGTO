@@ -35,6 +35,9 @@ enum Cmd {
         /// Print each flop tree's memory and exit.
         #[arg(long)]
         dry_run: bool,
+        /// Add the flop decisions to the library files already in --out (skips files that have them).
+        #[arg(long)]
+        flop_only: bool,
         /// Only rebuild index.json from the files already in --out.
         #[arg(long)]
         index_only: bool,
@@ -64,13 +67,13 @@ enum Cmd {
 
 fn main() -> Result<()> {
     match Cli::parse().cmd {
-        Cmd::Library { config, out, flops, family, dry_run, index_only } => {
+        Cmd::Library { config, out, flops, family, dry_run, flop_only, index_only } => {
             if index_only {
                 let n = ps_solve::library::reindex(&out)?;
                 println!("indexed {n} files");
                 return Ok(());
             }
-            ps_solve::library::build(&config, &out, flops, family.as_deref(), dry_run, &mut |m| println!("{m}"))?;
+            ps_solve::library::build(&config, &out, flops, family.as_deref(), dry_run, flop_only, &mut |m| println!("{m}"))?;
         }
         Cmd::Spot {
             spot,

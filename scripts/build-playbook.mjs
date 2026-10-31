@@ -11,7 +11,7 @@ import { flopTexture } from '../src/engine/texture.js';
 import { actionCategory } from '../src/engine/playbook.js';
 
 const dir = process.argv[2] || 'public/library';
-const FACING = new Set(['oop_vs_bet', 'ip_vs_bet']);
+const FACING = new Set(['oop_vs_bet', 'ip_vs_bet', 'oop_vs_bet_small', 'ip_vs_bet_small', 'oop_vs_raise', 'ip_vs_raise']);
 const r3 = (x) => Math.round(x * 1000) / 1000;
 
 function cats(pure, labels) {

@@ -6,7 +6,7 @@
  */
 import { icon, esc, cards, handText, levelSwitch, wireLevel } from '../kit.js';
 import { BUCKETS, BUCKET_PLAN, composition, bucketOf, bucketWhy, BUCKET, boardDangers, BOARD_KINDS } from '../../engine/buckets.js';
-import { planFor, planSpots, PLAN_VILLAINS, ACT_NAME, ACT_TIP, planActs, SPLIT } from '../../engine/plans.js';
+import { planFor, planSpots, PLAN_VILLAINS, ACT_NAME, ACT_TIP, planActs, SPLIT, EXPLOIT_WEIGHT } from '../../engine/plans.js';
 import { getLevel } from '../../engine/level.js';
 import { ids, cardStr } from '../../engine/hu/hand.js';
 import { N } from '../../engine/hu/equity.js';
@@ -22,6 +22,7 @@ const BOARDS = {
 const BCOL = { nuts: '#f43f5e', value: '#f59e0b', catcher: '#eab308', draw: '#38bdf8', eqair: '#a78bfa', air: '#64748b' };
 const ACOL = { check: '#38bdf8', fold: '#64748b', call: '#0ea5e9', 'bet small': '#34d399', 'bet big': '#059669', raise: '#f59e0b' };
 let kind = 'dry';
+let street = 'flop'; // 'flop' | 'later' (turn and river)
 let villain = 'station';
 
 export function render(container) {
@@ -32,19 +33,17 @@ export function render(container) {
 function cell(pl, base = null) {
   if (!pl) return '<span class="text-ink-500">—</span>';
   const a = planActs(pl);
-  const second = a.split ? [a.acts[1]] : null;
-  const mixed = a.split;
   const chip = (a) => `<span class="inline-block rounded-md px-2 py-0.5 text-[13px] font-semibold text-white whitespace-nowrap" title="${esc(ACT_TIP[a] ?? '')}" style="background:${ACOL[a]}33;border:1px solid ${ACOL[a]}aa">${ACT_NAME[a] ?? a}</span>`;
-  const changed = base && base.act !== pl.act;
-  return `<div class="flex items-center gap-1 flex-wrap">${chip(pl.act)}${mixed ? `<span class="text-ink-400 text-xs">or</span>${chip(second[0])}` : ''}
-    ${changed ? `<span class="text-[11px] text-amber-200">was ${esc(ACT_NAME[base.act] ?? base.act)}</span>` : ''}</div>`;
+  const changed = base && planActs(base).acts[0] !== a.acts[0];
+  return `<div class="flex items-center gap-1 flex-wrap">${chip(a.acts[0])}${a.split ? `<span class="text-ink-400 text-xs" title="a close spot: the solver does both; keep it simple and make the first play every time">(${esc((ACT_NAME[a.acts[1]] ?? a.acts[1]).toLowerCase())} fine too)</span>` : ''}
+    ${changed ? `<span class="text-[11px] text-amber-200">was ${esc(ACT_NAME[planActs(base).acts[0]] ?? base.act)}</span>` : ''}</div>`;
 }
 
 function planTable(level) {
   const lv = level === 1 ? 'gto' : villain;
   const rows = BUCKETS.map(B => {
-    const bet = planFor(lv, kind, 'bet', B.key), fac = planFor(lv, kind, 'facing', B.key);
-    const bBet = level === 2 ? planFor('gto', kind, 'bet', B.key) : null, bFac = level === 2 ? planFor('gto', kind, 'facing', B.key) : null;
+    const bet = planFor(lv, kind, 'bet', B.key, street), fac = planFor(lv, kind, 'facing', B.key, street);
+    const bBet = level === 2 ? planFor('gto', kind, 'bet', B.key, street) : null, bFac = level === 2 ? planFor('gto', kind, 'facing', B.key, street) : null;
     return `<tr class="border-t border-ink-700/60">
       <td class="py-2 pr-2"><div class="flex items-center gap-2"><i class="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style="background:${BCOL[B.key]}"></i><b class="text-white">${esc(B.name)}</b></div></td>
       <td class="py-2 pr-2">${cell(bet, bBet)}</td>
@@ -106,10 +105,11 @@ function draw(container) {
         ? 'Level 1, the baseline: what the solver does with each bucket against a solid player. Learn this first; it is also the right default against someone you haven\'t read yet.'
         : 'Level 2, the exploit: the best play with each bucket against this type of player. Amber marks what changes from the baseline.'}</p>
       <div class="flex gap-2 flex-wrap">${Object.entries(BOARD_KINDS).map(([k, K]) => `<button data-kind="${k}" class="btn ${k === kind ? 'btn-primary' : 'btn-quiet'} text-sm">${K.name}</button>`).join('')}</div>
+      <div class="flex gap-2 flex-wrap items-center"><span class="text-xs text-ink-400">Street</span>${[['flop', 'Flop'], ['later', 'Turn & river']].map(([k, n]) => `<button data-street="${k}" class="btn ${k === street ? 'btn-primary' : 'btn-quiet'} text-sm">${n}</button>`).join('')}</div>
       ${level === 2 ? `<div class="flex gap-2 flex-wrap items-center"><span class="text-xs text-ink-400">Against</span>${Object.entries(PLAN_VILLAINS).map(([k, n]) => `<button data-vil="${k}" class="btn ${k === villain ? 'btn-primary' : 'btn-quiet'} text-sm">${n}</button>`).join('')}</div>` : ''}
       <div class="flex items-center gap-3 flex-wrap"><div class="flex gap-1">${cards(c(b.cards), 'sm')}</div><span class="text-xs text-ink-400">${esc(BOARD_KINDS[kind].name)}: ${esc(BOARD_KINDS[kind].desc)}</span></div>
       ${planTable(level)}
-      <p class="text-[11px] text-ink-400">Heads-up, from ${planSpots().toLocaleString()} solved turn and river spots, grouped by the kind of flop. Bet small is under half the pot, bet big half the pot or more. "Or" means the solved spots don't agree on one play (the first is the most common one, but under ${Math.round(100 * SPLIT)}% of the time): the size of the bet and how much is behind usually decide, smaller and deeper towards the passive play.</p>
+      <p class="text-[11px] text-ink-400">Heads-up, from ${planSpots().toLocaleString()} solved flop, turn and river spots, grouped by the kind of flop${street === 'flop' ? ' (the flop\'s own spots)' : ' (turn and river spots)'}. Bet small is under half the pot, bet big half the pot or more. "Fine too" means the solved spots don't agree on one play (the first is under ${Math.round(100 * SPLIT)}% of the time): keep it simple and make the first play every time; the other is not a mistake.${level === 2 ? ` Level 2 sits ${Math.round(100 * EXPLOIT_WEIGHT)}% of the way from the baseline to the solver's full exploit of the fitted villain: the clear exploits survive, the ones that only work if he is exactly the model do not.` : ''}</p>
       <details class="disc"><summary>Multiway (two or more opponents)</summary><div class="body space-y-1.5">
         ${BUCKETS.map(B => `<div class="text-sm"><b class="text-white">${esc(B.name)}:</b> <span class="text-ink-200">${esc(BUCKET_PLAN[B.key].mw)}</span></div>`).join('')}
         <p class="text-xs text-ink-400 pt-1">With more players someone usually has something: bluff much less, bet your value bigger, and a bluff-catcher against one player is a fold against three.</p></div></details>
@@ -139,6 +139,7 @@ function draw(container) {
     </section>
   </div>`;
   container.querySelectorAll('[data-kind]').forEach(el => el.addEventListener('click', () => { kind = el.dataset.kind; draw(container); }));
+  container.querySelectorAll('[data-street]').forEach(el => el.addEventListener('click', () => { street = el.dataset.street; draw(container); }));
   container.querySelectorAll('[data-vil]').forEach(el => el.addEventListener('click', () => { villain = el.dataset.vil; draw(container); }));
   wireLevel(container, () => draw(container));
 }

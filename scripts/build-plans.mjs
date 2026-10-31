@@ -7,7 +7,8 @@
  *   level 2   what the best exploit does against a Station / Nit / Maniac / Whale
  *   decision  'bet' (first to act or checked to) · 'facing' (facing a bet); and by role, for the
  *             coach: 'aggr' (you bet last street) · 'free' (nobody did) · 'vs_cbet' (his bet
- *             after his bet last street) · 'vs_bet' (his bet after a checked street)
+ *             after his bet last street) · 'vs_bet' (his bet after a checked street) · 'vs_raise'
+ *             (your c-bet was raised; flop spots only)
  *   kind      dry · wet · paired · monotone (buckets.js boardKind, on the board of the spot)
  *
  * Buckets from the solver's classes: Nuts ← monster, Value ← strong, Bluff-catcher ← medium +
@@ -24,8 +25,20 @@ import { boardKind } from '../src/engine/buckets.js';
 import { ids } from '../src/engine/hu/hand.js';
 
 const dir = process.argv[2] || 'public/library';
-const FACING = new Set(['oop_vs_bet', 'ip_vs_bet']);
+const FACING = new Set(['oop_vs_bet', 'ip_vs_bet', 'oop_vs_bet_small', 'ip_vs_bet_small', 'oop_vs_raise', 'ip_vs_raise']);
 const KINDS = ['dry', 'wet', 'paired', 'monotone'];
+const STREETS = ['flop', 'later']; // the flop has its own plans; turn and river share one
+/**
+ * Level 2 is a hedge, not the full exploit: the plan is EXPLOIT_WEIGHT of the way from the
+ * baseline to the solver's best response to the fitted profile. The node-locked best response
+ * is pure and brittle (check-raise every c-bet with air against a Station who folds too many
+ * rivers): right if the read and the fit are right, costly if not. Part-way keeps the clear
+ * exploits (value-bet thin into a Station, bluff a Nit, call down a Maniac) and drops the ones
+ * that only work if the villain is exactly the model, which is what "don't be exploitable" asks.
+ */
+const EXPLOIT_WEIGHT = 0.6;
+// the only family with nobody holding the betting lead (a limped pot)
+const NO_AGGRESSOR = new Set(['limp_mp_bb']);
 
 function category(label, facing) {
   const l = label.toLowerCase();
@@ -38,12 +51,15 @@ function category(label, facing) {
   return 'bet big'; // all-in when not facing a bet
 }
 
-// acc[level][kind][decision][class] = { w, cats: {cat: weighted share} }
+// acc[level][street][kind][decision][class] = { w, cats: {cat: weighted share} }
+// (street 'all' = every street together, for the Learn tables and as a fallback)
 const acc = {};
-const add = (level, kind, dec, cls, w, cats) => {
-  const a = (((acc[level] ||= {})[kind] ||= {})[dec] ||= {})[cls] ||= { w: 0, cats: {} };
-  a.w += w;
-  for (const [k, p] of Object.entries(cats)) a.cats[k] = (a.cats[k] || 0) + w * p;
+const add = (level, street, kind, dec, cls, w, cats) => {
+  for (const st of [street, 'all']) {
+    const a = ((((acc[level] ||= {})[st] ||= {})[kind] ||= {})[dec] ||= {})[cls] ||= { w: 0, cats: {} };
+    a.w += w;
+    for (const [k, p] of Object.entries(cats)) a.cats[k] = (a.cats[k] || 0) + w * p;
+  }
 };
 let spots = 0;
 for (const f of readdirSync(dir).filter(f => f.endsWith('.json') && !['index.json', 'playbook.json'].includes(f)).sort()) {
@@ -59,16 +75,32 @@ for (const f of readdirSync(dir).filter(f => f.endsWith('.json') && !['index.jso
     // (Nobody leads into the aggressor in the library: solid.js has a rule for that.)
     const line = r.id.split('/')[2].split('-');
     const prevBet = /called$/.test(line[line.length - 1]);
-    const role = facing ? (prevBet ? 'vs_cbet' : 'vs_bet') : (prevBet ? 'aggr' : 'free');
+    // On the flop the last bet was the preflop raise: the raiser checked to = 'aggr', facing his
+    // c-bet = 'vs_cbet'; in a limped pot nobody has the lead ('free' / 'vs_bet').
+    const flop = r.street === 'flop';
+    const lead = flop ? !NO_AGGRESSOR.has(r.family) : prevBet;
+    const role = /_vs_raise$/.test(r.decision) ? 'vs_raise' : facing ? (lead ? 'vs_cbet' : 'vs_bet') : (lead ? 'aggr' : 'free');
+    const street = flop ? 'flop' : 'later';
     const kind = boardKind(ids(r.board));
     const level = r.villain.profile;
     if (level === 'gto') spots++; // one per spot (each is solved against every villain type)
+    // the GTO strategy of this spot, for the Level 2 hedge
+    const gtoCats = {};
+    for (const row of r.classes) {
+      const cats = {};
+      row.gto.pure.forEach((p, i) => { if (p > 0) { const c = category(r.actions[i], facing); cats[c] = (cats[c] || 0) + p; } });
+      gtoCats[row.class] = cats;
+    }
     for (const row of r.classes) {
       const part = level === 'gto' ? row.gto : row.exploit;
       const cats = {};
       part.pure.forEach((p, i) => { if (p > 0) { const c = category(r.actions[i], facing); cats[c] = (cats[c] || 0) + p; } });
-      add(level, kind, dec, row.class, part.weight, cats);
-      add(level, kind, role, row.class, part.weight, cats);
+      if (level !== 'gto') {
+        for (const k of Object.keys(cats)) cats[k] *= EXPLOIT_WEIGHT;
+        for (const [k, p] of Object.entries(gtoCats[row.class] || {})) cats[k] = (cats[k] || 0) + (1 - EXPLOIT_WEIGHT) * p;
+      }
+      if (role !== 'vs_raise') add(level, street, kind, dec, row.class, part.weight, cats);
+      add(level, street, kind, role, row.class, part.weight, cats);
     }
   }
 }
@@ -110,21 +142,29 @@ function buckets(t, dec) {
   return out;
 }
 
-const plans = { version: 2, spots, levels: {} };
-for (const [level, byKind] of Object.entries(acc)) {
-  plans.levels[level] = {};
+const table = (byKind) => {
+  const out = {};
   for (const kind of KINDS) {
-    if (!byKind[kind]) continue;
-    plans.levels[level][kind] = {
+    if (!byKind?.[kind]) continue;
+    out[kind] = {
       bet: buckets(byKind[kind].bet, 'bet'), facing: buckets(byKind[kind].facing, 'facing'),
       // by role (the coach grades with these; the Learn tables show the two above)
       aggr: buckets(byKind[kind].aggr, 'bet'), free: buckets(byKind[kind].free, 'bet'),
       vs_cbet: buckets(byKind[kind].vs_cbet, 'facing'), vs_bet: buckets(byKind[kind].vs_bet, 'facing'),
+      vs_raise: buckets(byKind[kind].vs_raise, 'facing'), // the flop library only (your c-bet was raised)
     };
   }
+  return out;
+};
+// levels[level][kind] = every street together (Learn tables, fallback); streets[level][street][kind] for the coach
+const plans = { version: 3, spots, exploitWeight: EXPLOIT_WEIGHT, levels: {}, streets: {} };
+for (const [level, byStreet] of Object.entries(acc)) {
+  plans.levels[level] = table(byStreet.all);
+  plans.streets[level] = {};
+  for (const st of STREETS) if (byStreet[st]) plans.streets[level][st] = table(byStreet[st]);
 }
 writeFileSync('src/engine/plans.json', JSON.stringify(plans, null, 1) + '\n');
-console.log(`plans: ${spots} spots, levels ${Object.keys(plans.levels).join(', ')}`);
+console.log(`plans: ${spots} spots, levels ${Object.keys(plans.levels).join(', ')}, streets ${Object.entries(plans.streets).map(([l, s]) => `${l}: ${Object.keys(s).join('+')}`).join('; ')}`);
 for (const kind of KINDS) {
   const b = plans.levels.gto?.[kind];
   if (!b) continue;

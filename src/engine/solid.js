@@ -73,27 +73,35 @@ export function actCategory(o, { myBet, pot, facing }) {
 }
 
 /**
- * The plan for this decision: { source, level, kind, bucket, dist } or null when the solver has
- * nothing for it. `villain`: the profile id of the one opponent (Level 2), or null.
+ * The plan for this decision: { source, level, street, kind, bucket, dist } or null when the solver
+ * has nothing for it. `villain`: the profile id of the one opponent (Level 2), or null. Pass `bucket`
+ * instead of `hole` for a whole class of hands.
  */
-export function solidPlan({ board, hole, facing, role = null, level = 1, villain = null, opponents = 1 }) {
+export function solidPlan({ board, hole = null, bucket = null, facing, role = null, level = 1, villain = null, opponents = 1 }) {
   if (!board?.length) return null;
-  const bucket = bucketOf(hole, board);
+  bucket ??= bucketOf(hole, board);
   const kind = boardKind(board);
+  const street = board.length === 3 ? 'flop' : board.length === 4 ? 'turn' : 'river';
   const dec = facing ? 'facing' : 'bet';
   if (opponents >= 2) {
     const dist = MULTIWAY_PLAN[bucket]?.[dec];
-    return dist ? { source: 'multiway', role, level, kind, bucket, dist } : null;
+    return dist ? { source: 'multiway', role, level, street, kind, bucket, dist } : null;
   }
   const exploit = level === 2 && villain && PLAN_VILLAINS[villain] ? villain : null;
   // leading into the raiser: not in the library; against a fish who checks back too much, a lead
   // with a strong hand is on the plan too (the EVs say how much it is worth)
-  if (role === 'donk') return { source: 'donk', role, level, kind, bucket, dist: exploit && (bucket === 'nuts' || bucket === 'value') ? { check: 0.5, 'bet big': 0.3, 'bet small': 0.2 } : DONK_PLAN[bucket] };
-  if (role === 'vs_raise') return { source: 'vs_raise', role, level, kind, bucket, dist: VS_RAISE_PLAN[bucket] };
+  if (role === 'donk') return { source: 'donk', role, level, street, kind, bucket, dist: exploit && (bucket === 'nuts' || bucket === 'value') ? { check: 0.5, 'bet big': 0.3, 'bet small': 0.2 } : DONK_PLAN[bucket] };
+  const st = street === 'flop' ? 'flop' : 'later';
+  if (role === 'vs_raise') {
+    // the flop library solves your c-bet being raised; later streets keep the rule of thumb
+    const lib = planFor(exploit || 'gto', kind, 'vs_raise', bucket, st);
+    const fromLib = lib?.dist && st === 'flop';
+    return { source: fromLib ? exploit || 'gto' : 'vs_raise', role, level, street, kind, bucket, dist: fromLib ? lib.dist : VS_RAISE_PLAN[bucket] };
+  }
   const key = ROLE_KEY[role] || dec;
-  const pl = planFor(exploit || 'gto', kind, key, bucket) || planFor(exploit || 'gto', kind, dec, bucket);
+  const pl = planFor(exploit || 'gto', kind, key, bucket, st) || planFor(exploit || 'gto', kind, dec, bucket, st);
   if (!pl?.dist) return null;
-  return { source: exploit || 'gto', role, level, kind, bucket, dist: pl.dist };
+  return { source: exploit || 'gto', role, level, street, kind, bucket, dist: pl.dist };
 }
 
 /**
@@ -154,20 +162,24 @@ export function gradeWithPlan(options, plan, { myBet, pot, facing, natural = () 
 }
 
 const SOURCE_NAME = { gto: 'the solid play', multiway: 'the multiway plan', donk: 'the solid play', vs_raise: 'the solid play', station: 'the play against a Station', nit: 'the play against a Nit', maniac: 'the play against a Maniac', whale: 'the play against a Whale' };
-const ROLE_NAME = { aggr: 'after your bet', free: 'after a checked street', vs_cbet: 'facing his continuation', vs_bet: 'facing his lead', donk: 'first to act against the raiser', vs_raise: 'facing a raise' };
+const ROLE_NAME = { aggr: 'checked to you after your bet', free: 'after a checked street', vs_cbet: 'facing his barrel', vs_bet: 'facing his lead', donk: 'first to act against the raiser', vs_raise: 'facing a raise' };
+// on the flop the last bet was the preflop raise
+const ROLE_NAME_FLOP = { aggr: 'checked to you as the raiser', free: 'after a limped pot', vs_cbet: 'facing his c-bet', vs_bet: 'facing his lead', donk: 'first to act against the raiser', vs_raise: 'facing a raise' };
+const roleName = (plan) => (plan.street === 'flop' ? ROLE_NAME_FLOP : ROLE_NAME)[plan.role];
 const KIND_NAME = { dry: 'a dry board', wet: 'a wet board', paired: 'a paired board', monotone: 'a monotone board' };
 const CAT_NAME = { fold: 'fold', check: 'check', call: 'call', 'bet small': 'bet small', 'bet big': 'bet big', raise: 'raise' };
 const CAT_DOES = { fold: 'folds', check: 'checks', call: 'calls', 'bet small': 'bets small', 'bet big': 'bets big', raise: 'raises' };
 
-/** Where you are, in a few words: "Air with equity on a dry board, after your bet". */
+/** Where you are, in a few words: "Air with equity on a dry board, checked to you as the raiser". */
 export function planWhere(plan) {
   if (!plan) return '';
-  const where = plan.source === 'multiway' ? 'multiway' : `on ${KIND_NAME[plan.kind] || plan.kind}${ROLE_NAME[plan.role] ? `, ${ROLE_NAME[plan.role]}` : ''}`;
+  const role = roleName(plan);
+  const where = plan.source === 'multiway' ? 'multiway' : `on ${KIND_NAME[plan.kind] || plan.kind}${role ? `, ${role}` : ''}`;
   return `${BUCKET[plan.bucket]?.name || plan.bucket} ${where}`;
 }
 
 /**
- * One action, never frequencies: "Air with equity on a dry board, after your bet: check. Betting
+ * One action, never frequencies: "Air with equity on a dry board, checked to you as the raiser: check. Betting
  * big is fine too (the size of the pot and what is behind decide)." The numbers behind it go in
  * planDetail, for "Why".
  */
@@ -180,8 +192,8 @@ export function planSentence(plan, share, g = null) {
     if (!chart.length) chart.push(ranked[0][0]);
   }
   const [first, ...rest] = chart;
-  const why = g?.rule === 'cheap' ? ' a close spot: keep it simple and cheap.' : g?.rule === 'ev' ? ' a close spot, and this one is worth clearly more here.' : '';
-  const also = rest.length ? ` ${rest.map(k => cap(CAT_NAME[k] || k)).join(' or ')} ${rest.length > 1 ? 'are' : 'is'} fine too${why ? ':' + why : '.'}` : '';
+  const why = g?.rule === 'cheap' ? ', but it is a close spot: keep it simple and cheap.' : g?.rule === 'ev' ? ', but this one is worth clearly more here.' : '.';
+  const also = rest.length ? ` ${rest.map(k => cap(CAT_NAME[k] || k)).join(' or ')} ${rest.length > 1 ? 'are' : 'is'} fine too${why}` : '';
   return `${planWhere(plan)}: ${SOURCE_NAME[plan.source] || plan.source} is ${CAT_NAME[first] || first}.${also}`;
 }
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);

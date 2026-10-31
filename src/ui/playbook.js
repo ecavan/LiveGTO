@@ -59,7 +59,7 @@ function controls() {
     <div class="flex flex-wrap gap-2 justify-center">
       ${sel('profile', [...Object.entries(PROFILES).filter(([k]) => k !== 'gto').map(([k, v]) => [k, `vs ${v}`]), ['', 'vs all villain types']])}
       ${sel('decision', [['facing', 'Facing a bet'], ['betting', 'Checked to you / first to act']])}
-      ${sel('street', [['', 'Turn + river'], ['turn', 'Turn'], ['river', 'River']])}
+      ${sel('street', [['', 'All streets'], ['flop', 'Flop'], ['turn', 'Turn'], ['river', 'River']])}
       ${sel('family', [['', 'All pots'], ...families().map(f => [f.id, f.name])])}
     </div>
     <div class="flex flex-wrap gap-2 justify-center">

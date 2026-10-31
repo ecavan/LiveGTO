@@ -175,7 +175,7 @@ function sessionPanel() {
     <div class="grid grid-cols-3 gap-2">
       ${stat('Hands', sum.hands, '', '!text-xl')}
       ${stat('Result', `<span class="${tone(sum.net)}">${fmtBB(sum.net, { sign: true })}</span>`, '', '!text-xl')}
-      ${stat('EV lost', sum.evLost >= 0.05 ? `−${sum.evLost.toFixed(1)}` : '0', `${pct(sum.accuracy)} good`, '!text-xl')}
+      ${stat('EV lost', sum.evLost >= 0.05 ? sum.evLost.toFixed(1) : '0', `bb · ${pct(sum.accuracy)} good`, sum.evLost >= 0.05 ? '!text-xl text-rose-300' : '!text-xl')}
     </div>
     <div class="text-xs text-ink-300">You: VPIP <b class="text-white">${pct(sum.vpip)}</b> · PFR <b class="text-white">${pct(sum.pfr)}</b>. ${read}${learners > 0.05 ? ` The sharpest player has adjusted ${pct(learners)} to you.` : ''}</div>
     ${disc('Who is at the table', `<div class="space-y-1.5">${t.players.map((p, i) => (p ? `<div class="flex justify-between gap-2 text-sm"><span class="text-white">${esc(p.name)}</span>
@@ -201,7 +201,7 @@ function recapHtml(h) {
       <div class="text-sm mt-1">${quality}</div>
     </div>
     ${why.length ? `<div class="rounded-xl bg-ink-850 border border-ink-700 px-3 py-2.5 space-y-1 text-sm text-ink-200"><div class="text-[11px] uppercase tracking-wider text-ink-400 font-semibold">Why they played it that way</div>${why.map(w => `<p>${w}</p>`).join('')}</div>` : ''}
-    ${t.coachMode !== 'off' && h.decisions.length ? `<div class="space-y-2">${h.decisions.map((d, i) => decisionRow(d, i, { evNote: evNote(d) })).join('')}</div>` : ''}
+    ${t.coachMode !== 'off' && h.decisions.length ? `<div class="space-y-2">${h.decisions.map((d, i) => decisionRow(d, i, { evNote: evNote(d), hideType: !ui.reveal })).join('')}</div>` : ''}
   </div>`;
 }
 
@@ -261,7 +261,7 @@ function draw(container) {
   }
   let coach;
   if (ui.recap) coach = recapHtml(ui.recap);
-  else if (t.coachMode === 'decision' && ui.last) coach = coachCard(ui.last, { evNote: evNote(ui.last), live: !!ui.lastState && ui.last.street > 0 });
+  else if (t.coachMode === 'decision' && ui.last) coach = coachCard(ui.last, { evNote: evNote(ui.last), live: !!ui.lastState && ui.last.street > 0, titled: true, hideType: !ui.reveal });
   else coach = `<div class="text-sm text-ink-400">${t.coachMode === 'decision' ? 'Make your decision. The coach grades it against every player still in the hand.' : t.coachMode === 'hand' ? 'The coach speaks at the end of the hand.' : 'Coach off.'}</div>`;
   const openState = [...container.querySelectorAll('#coach details, #side details')].map(d => d.open);
   container.innerHTML = `<div class="page">
@@ -356,7 +356,7 @@ function review(container) {
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       ${stat('Decisions', pct(sum.accuracy), `${sum.blunders} blunders · ${sum.mistakes} mistakes`)}
-      ${stat('EV lost', `−${sum.evLost.toFixed(1)}bb`, `${Math.round(sum.lossPer100)}bb/100`, 'text-rose-200')}
+      ${stat('EV lost', `${sum.evLost.toFixed(1)}bb`, `${Math.round(sum.lossPer100)}bb/100`, 'text-rose-200')}
       ${stat('Result', `<span class="${tone(sum.net)}">${fmtBB(sum.net, { sign: true })}</span>`, `${sum.hands} hands · ${fmtBB(Math.round(sum.bbPer100), { sign: true })}/100`)}
       ${stat('Your style', `${pct(sum.vpip)} / ${pct(sum.pfr)}`, 'VPIP / PFR (live winners: ~20 / 15)')}
     </div>
@@ -366,7 +366,7 @@ function review(container) {
     <div class="space-y-2"><div class="h-sec">Biggest mistakes</div>
       ${worst.length ? worst.map(d => disc(`<span class="flex-1 flex items-center gap-2 min-w-0"><span class="text-ink-400 text-xs w-14">Hand ${d.hand}</span>
         <span class="truncate">${handText(byRank(d.hole).map(cardStr))} ${d.board.length ? 'on ' + handText(d.board.map(cardStr)) : ''}</span>
-        <span class="ml-auto text-rose-300 text-xs font-semibold pr-2">${d.preflop ? 'off chart · ' : ''}−${d.loss.toFixed(2)}bb</span></span>`, coachCard(d, { evNote: evNote(d) }))).join('') : '<p class="text-sm text-ink-400">None. Clean session.</p>'}
+        <span class="ml-auto text-rose-300 text-xs font-semibold pr-2">${d.preflop ? 'off chart · ' : ''}−${d.loss.toFixed(2)}bb</span></span>`, coachCard(d, { evNote: evNote(d), hideType: !ui.reveal }))).join('') : '<p class="text-sm text-ink-400">None. Clean session.</p>'}
     </div>
   </div>`;
   container.querySelector('#rv-again').addEventListener('click', () => { ui = { ...ui, over: false, recap: null, last: null, lastState: null, rangeHtml: null }; t.hands = []; t.handNo = 0; t.startedAt = Date.now(); startHand(t); draw(container); });

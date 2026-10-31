@@ -26,7 +26,7 @@
 
 use crate::profile::{NodeCtx, Profile, Role, Street};
 use crate::spot::{action_label, pot_at, Spot, CHIPS_PER_BB};
-use anyhow::Result;
+use anyhow::{bail, Result};
 use postflop_solver::*;
 use ps_core::HandClass;
 use serde::Serialize;
@@ -437,6 +437,12 @@ fn quota_strategy(game: &mut PostFlopGame, player: usize, fine_pct: f64) -> Vec<
 
 fn allocated(spot: &Spot) -> Result<PostFlopGame> {
     let mut g = spot.build_game()?;
+    let (uncompressed, _) = g.memory_usage();
+    // the analysis holds three (four with the worst case) copies of the tree
+    let limit = std::env::var("PS_MEM_GB").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(1.6);
+    if uncompressed as f64 > limit * 1e9 {
+        bail!("tree needs {:.2} GB per copy (limit {limit} GB; set PS_MEM_GB, or use fewer sizes / sizes_turn, sizes_river)", uncompressed as f64 / 1e9);
+    }
     g.allocate_memory(false);
     Ok(g)
 }
@@ -465,6 +471,28 @@ pub fn analyze_many(spot: &Spot, profiles: &[Profile], opts: &Options) -> Result
         .iter()
         .map(|p| analyze_against(&mut a, &line, expl_a, &mut classes, spot, p, opts))
         .collect()
+}
+
+/// Several hero decisions on one tree (same board, ranges and sizes; different hero / line),
+/// against several profiles, solving the GTO baseline only once. Returns, per decision, one
+/// report per profile.
+pub fn analyze_decisions(base: &Spot, decisions: &[(crate::spot::Seat, Vec<String>)], profiles: &[Profile], opts: &Options) -> Result<Vec<Vec<Report>>> {
+    let target = (base.target_pct / 100.0 * base.pot_chips() as f64) as f32;
+    let mut a = allocated(base)?;
+    let expl_a = solve(&mut a, base.iterations, target, opts.print_progress);
+    let mut classes = ClassCache::new(&a);
+    let mut out = Vec::new();
+    for (hero, line) in decisions {
+        let spot = Spot { hero: *hero, line: line.clone(), ..base.clone() };
+        let history = spot.resolve_line(&mut a)?;
+        out.push(
+            profiles
+                .iter()
+                .map(|p| analyze_against(&mut a, &history, expl_a, &mut classes, &spot, p, opts))
+                .collect::<Result<Vec<_>>>()?,
+        );
+    }
+    Ok(out)
 }
 
 fn analyze_against(

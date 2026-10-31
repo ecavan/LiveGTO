@@ -208,15 +208,22 @@ material.
    | `limp_mp_bb` | MP limps, BB checks (SPR ≈ 40) | nobody |
 
    Opening ranges are Ed Miller's live ranges (The Course). The 5bb opens match $10 at $1/$2.
-2. **Flop**: GTO solve on a coarse tree, only to get realistic ranges at the start of the turn after
-   "c-bet called" and "checked through".
-3. **Turn**: for sampled turn cards, analyse the two decisions of the line against every profile
+2. **Flop decisions** (added Oct 2026): the flop is analysed in its own right against every
+   profile, on a slim three-street tree that fits in memory (the c-bettor has 33% and 75%, the
+   caller a 3× check-raise; 75% and no raises on the turn and river). Four decisions per flop:
+   the c-bettor checked to, the caller facing a 33% and a 75% c-bet, and the c-bettor facing a
+   check-raise. These are the flop plans the coach grades by (`plans.json` has the flop and the
+   later streets separately), and the flop puzzles in Rated. `ps library … --flop-only` adds them
+   to an existing library.
+3. **Flop ranges**: GTO solve on a coarse tree, only to get realistic ranges at the start of the
+   turn after "c-bet called" and "checked through".
+4. **Turn**: for sampled turn cards, analyse the two decisions of the line against every profile
    (5 games each, §4). When IP has the lead, that's "checked to you" (IP) and "facing a 75% bet"
    (OOP). When OOP has it (CO vs BTN, the 3-bet pot), it's "first to act" (OOP) and "facing a
    75% bet" (IP).
-4. **River**: a GTO turn solve gives river ranges after "barrel called" / "checked through". Same
+5. **River**: a GTO turn solve gives river ranges after "barrel called" / "checked through". Same
    two decisions × profiles.
-5. **Records**: each (decision × profile) record stores the table, the history, class-level answers,
+6. **Records**: each (decision × profile) record stores the table, the history, class-level answers,
    the villain's range (solver vs profile) and 13×13 range grids for both players. It also keeps up
    to 8 puzzles: real hole cards whose best action beats the next-best wrong one by at least 4% of the
    pot. Each puzzle carries its EV for every action, both the GTO and the exploit answer, and a
@@ -229,8 +236,9 @@ with a weak one). Once there are enough attempts, real solve rates replace the h
 Known limits:
 - Profiles act only on the decision street. Earlier streets are GTO, so a Station's turn range
   doesn't yet include his loose flop calls.
-- Flop puzzles aren't in the solver library; the Flop and Multiway sets (§7c) come from the Play
-  engines instead.
+- The flop decisions are solved on a tree where only the c-bettor bets the flop (no leads into
+  the raiser) and nobody raises the turn or river; the Multiway set (§7c) still comes from the
+  Play engine.
 - The flop tree used for turn ranges is coarse: one 33% c-bet, 3× raises, one turn size and one
   river size plus all-in. It fits in about 1 GB; your Mac can afford a richer one.
 
@@ -394,7 +402,15 @@ blunder (best: donk-bet 75%) and a river shove with king-high the best play. Gra
 - Level 1: the GTO plan. Level 2: the solver's exploit of the villain type in front of you
   (Station, Nit, Maniac, Whale); against a Reg, a Shark or a Pro there is nothing to exploit, so
   the GTO plan, and at the live table the one opponent's main archetype. Multiway: the written
-  multiway plan (bluff much less, fold bluff-catchers to big bets).
+  multiway plan (bluff much less, fold bluff-catchers to big bets). The plan is the street's own:
+  the flop from the flop solves, the turn and river from theirs (`plans.json` `streets`).
+- Level 2 is a hedge, not the full exploit. The node-locked best response to a fitted profile is
+  pure and brittle: against the Station as fitted (folds half his flop c-bets, calls turns, folds
+  twice as many rivers as GTO) it check-raises every c-bet with air and barrels. Right if he is
+  exactly the model, costly if not. The Level 2 plan sits `EXPLOIT_WEIGHT` (0.6) of the way from
+  the baseline to that exploit (`scripts/build-plans.mjs`): the clear exploits survive
+  (value-bet thin into a Station, c-bet a Nit, fold to a Nit's raise), the ones that only work
+  against the exact model fall into "fine too" or drop out. "Don't be exploitable" asks for this.
 - On the plan: any play the solver takes at least 25% of the time there is fine and costs
   nothing. One of them is *the* play (§2: one action, never frequencies): a clear majority (65%+)
   is it; a split resolves to the simple line (check, call, fold) unless the EV model says an
@@ -404,8 +420,10 @@ blunder (best: donk-bet 75%) and a river shove with king-high the best play. Gra
   10–25% of the time is a small mistake (the nominal, up to 4× it); one it hardly ever takes costs
   what the model says, at least the nominal (max(0.25bb, 5% of the pot)). The frequencies behind
   the verdict are under "Why".
-- Two roles the library never solves have rules: leading into the aggressor (the solver almost
-  never does; against a fish, a lead with a strong hand is on the plan) and facing a raise.
+- Leading into the aggressor has a rule (the solver almost never does; against a fish, a lead
+  with a strong hand is on the plan). Facing a raise is solved on the flop (your c-bet was
+  raised); on the turn and river a rule of thumb (fold air, call draws, fold most bluff-catchers,
+  raise or call the nuts).
 - The card still shows the model's own favourite when it differs: at Level 1 as what a best
   response to a fixed strategy would do, at Level 2 against a fish as the sharper exploit of his
   exact range, to take when you trust the read.

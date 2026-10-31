@@ -180,7 +180,7 @@ function draw(container, p) {
       <div class="space-y-4 min-w-0">
         ${tableHtml(p)}
         <div class="text-center text-ink-200">You have ${handText(byRank(h.holes[h.hero]).map(cardStr))}${h.toCall > 0 ? `, facing ${fmtBB(h.toCall)} into ${fmtBB(h.pot - h.toCall)}` : ''}. What's your play?</div>
-        ${bucketStepHtml(p.bk, { multiway: h.kind === 'table' && h.opponents > 1, stats, facing: h.toCall > 0, villain: h.kind === 'hu' ? h.opp : null, showPlan: !!p.answered })}
+        ${bucketStepHtml(p.bk, { multiway: h.kind === 'table' && h.opponents > 1, stats, facing: h.toCall > 0, villain: h.kind === 'hu' ? h.opp : null, showPlan: !!p.answered, street: h.street === 1 ? 'flop' : 'later' })}
         ${d || !p.bk ? '' : `<div id="gz-acts">${actionBar(h.options)}</div>`}
       </div>
       <div class="space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">

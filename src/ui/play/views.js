@@ -196,29 +196,35 @@ export function evNoteFor(d, { table = false, botName = null } = {}) {
 }
 
 /** The coach card after a decision. `weights` = his range (for the grid), if available. */
-export function coachCard(d, { weights = null, botName = null, live = false, evNote = null, fmt = null } = {}) {
+const TYPE_RE = /\b(a|an|the) (Station|Nit|Maniac|Whale)\b/g;
+/** With player styles hidden at the live table, the coach keeps the read to itself. */
+const maskType = (t, hide) => (hide && t ? String(t).replace(/the play against (a|an) (Station|Nit|Maniac|Whale)/g, 'the play against this player').replace(/the solver against (a|an) (Station|Nit|Maniac|Whale)/g, 'the solver against a player like him').replace(TYPE_RE, 'this kind of player') : t);
+
+export function coachCard(d, { weights = null, botName = null, live = false, evNote = null, fmt = null, titled = false, hideType = false } = {}) {
   LABEL_FMT = fmt;
   const chosen = { ...d.options[d.chosen], label: labelText(d.options[d.chosen].label) };
   const best = { ...d.options[d.best], label: labelText(d.options[d.best].label) };
-  let head;
+  let head = '';
+  // in the hand, the card grades the decision just made while the next one is on the table: say which
+  if (titled) head = `<div class="text-xs uppercase tracking-wide text-ink-400">${STREET[d.street]}${d.board?.length ? ' ' + handText(d.board.map(cardStr)) : ''} · your last decision</div>`;
   const sol = d.solid;
-  const planLine = sol ? esc(sol.text) : '';
-  if (d.verdict === 'best') head = verdict('best', `Best move: ${esc(chosen.label)}`, planLine);
-  else if (d.verdict === 'fine') head = verdict('fine', `Good: ${esc(chosen.label)}`, d.preflop ? `On the chart too. The coach's pick: ${esc(best.label)}.` : sol ? `On the plan too; the first play there is ${esc(best.label)}. ${planLine}` : d.loss >= 0.05 ? `Best was ${esc(best.label)}, within ${fmtBB(d.loss)}.` : `Best was ${esc(best.label)}; the difference is tiny.`);
-  else if (d.preflop) head = verdict(d.verdict, `Off the chart: ${esc(chosen.label)}`, `Chart: <b>${d.chart}</b>. Counted as ${fmtBB(d.loss)} of EV.`);
-  else if (sol) head = verdict(d.verdict, `${d.verdict === 'blunder' ? 'Blunder' : 'Mistake'}: ${esc(chosen.label)}, off the plan`, `Plan: <b>${esc(best.label)}</b>. ${planLine} Counted as ${fmtBB(d.loss)} of EV.`);
-  else head = verdict(d.verdict, `${d.verdict === 'blunder' ? 'Blunder' : 'Mistake'}: ${esc(chosen.label)} costs ${fmtBB(d.loss)}`, `Best: <b>${esc(best.label)}</b>.`);
+  const planLine = sol ? esc(maskType(sol.text, hideType)) : '';
+  if (d.verdict === 'best') head += verdict('best', `Best move: ${esc(chosen.label)}`, planLine);
+  else if (d.verdict === 'fine') head += verdict('fine', `Good: ${esc(chosen.label)}`, d.preflop ? `On the chart too. The coach's pick: ${esc(best.label)}.` : sol ? `On the plan too; the first play there is ${esc(best.label)}. ${planLine}` : d.loss >= 0.05 ? `Best was ${esc(best.label)}, within ${fmtBB(d.loss)}.` : `Best was ${esc(best.label)}; the difference is tiny.`);
+  else if (d.preflop) head += verdict(d.verdict, `Off the chart: ${esc(chosen.label)}`, `Chart: <b>${d.chart}</b>. Counted as ${fmtBB(d.loss)} of EV.`);
+  else if (sol) head += verdict(d.verdict, `${d.verdict === 'blunder' ? 'Blunder' : 'Mistake'}: ${esc(chosen.label)}, off the plan`, `Plan: <b>${esc(best.label)}</b>. ${planLine} Counted as ${fmtBB(d.loss)} of EV.`);
+  else head += verdict(d.verdict, `${d.verdict === 'blunder' ? 'Blunder' : 'Mistake'}: ${esc(chosen.label)} costs ${fmtBB(d.loss)}`, `Best: <b>${esc(best.label)}</b>.`);
   if (d.preflop) {
     return `<div class="space-y-3">${head}
       ${disc('Why', `<div class="space-y-1.5">${(d.notes || []).map(n => `<p>${n}</p>`).join('')}</div>`)}</div>`;
   }
-  const why = [...(sol?.detail ? [`The plan: ${esc(sol.detail)}`] : []), ...whyLines(d)].map(l => `<p>${l}</p>`).join('');
+  const why = [...(sol?.detail ? [`The plan: ${esc(maskType(sol.detail, hideType))}`] : []), ...whyLines(d)].map(l => `<p>${l}</p>`).join('');
   const other = otherLevelHtml(d);
   // the EV model's own favourite, when it is not the plan: a best response to one fixed strategy
   const mb = sol && sol.modelBest != null && sol.modelBest !== d.best && !d.fine.includes(sol.modelBest) && d.options[sol.modelBest] ? d.options[sol.modelBest] : null;
   // at Level 2 against a fish: the sharper exploit of his exact range, when the EV model has one
   const exploitable = d.level === 2 && sol && !['gto', 'multiway', 'donk', 'vs_raise'].includes(sol.source);
-  const modelNote = mb && exploitable ? `<div class="text-xs text-ink-400">Sharper still, if you are sure he is a ${esc(sol.source.charAt(0).toUpperCase() + sol.source.slice(1))}: <b class="text-ink-200">${esc(labelText(mb.label))}</b> (${fmtBB(mb.ev - best.ev, { sign: true })} against his exact range).</div>` : '';
+  const modelNote = mb && exploitable ? `<div class="text-xs text-ink-400">Sharper still, if you are sure ${hideType ? 'of your read on him' : `he is a ${esc(sol.source.charAt(0).toUpperCase() + sol.source.slice(1))}`}: <b class="text-ink-200">${esc(labelText(mb.label))}</b> (${fmtBB(mb.ev - best.ev, { sign: true })} against his exact range).</div>` : '';
   const his = d.buckets?.length ? bucketBarsHtml(d.buckets) : d.range ? rangeBars(d.range) : '';
   return `<div class="space-y-3">${head}
     ${other}
@@ -342,7 +348,8 @@ export { card, cards };
 /** The bucket plan, with every hand's grid underneath. */
 export function bucketViewHtml(bv, heroHole, note = '') {
   if (!bv) return '<div class="text-sm text-ink-400">Not available here.</div>';
-  return `${bucketPlanHtml(bv, { note: note || (bv.read ? 'Your range as he reads you; each bucket\'s best play against him.' : 'Your range as a solid player has it on this line; each bucket\'s best play against him.') })}
+  const planNote = bv.planned ? ' The play for each bucket is the plan the coach grades by (the solver\'s), sized by the EVs; the per-hand grid below is the EV model\'s own best response.' : ' each bucket\'s best play against him.';
+  return `${bucketPlanHtml(bv, { note: note || (bv.read ? 'Your range as he reads you;' + planNote : 'Your range as a solid player has it on this line;' + planNote) })}
     ${bv.v ? `<details class="disc mt-2"><summary>Every hand in your range</summary><div class="body">${rangeViewHtml(bv.v, heroHole)}</div></details>` : ''}`;
 }
 
