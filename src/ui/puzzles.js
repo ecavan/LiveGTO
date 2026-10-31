@@ -178,7 +178,8 @@ async function nextRated() {
     return spots.filter(x => (x.level ?? 2) === getLevel() && (!st || x.street === st) && (!filters.decision || (filters.decision === 'facing') === x.toCall > 0))
       .map(x => ({ gen: kind, id: x.id, i: 0, rating: x.rating, k: `gen:${kind}#${x.id}` }));
   };
-  const pools = [['lib', lib(), 0.5], ['flop', await gen('flop'), 0.3], ['multiway', await gen('multiway'), 0.2]].filter(p => p[1].length);
+  // live $1/$3 goes to the flop three- and four-handed half the time: multiway gets a real share
+  const pools = [['lib', lib(), 0.45], ['flop', await gen('flop'), 0.25], ['multiway', await gen('multiway'), 0.3]].filter(p => p[1].length);
   if (!pools.length) return null;
   let x = Math.random() * pools.reduce((a, p) => a + p[2], 0);
   let pick = pools[0];

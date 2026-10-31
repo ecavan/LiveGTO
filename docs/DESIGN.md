@@ -259,7 +259,7 @@ Known limits:
 
 Puzzles has five modes: **Rated**, **Daily**, **Review**, **Ranges** (preflop), **Buckets**
 (postflop). Rated draws from three sources: the solver library above (turn and river), flop spots
-and multiway spots (below), 50 / 30 / 20 unless a filter picks one (street: flop / turn / river;
+and multiway spots (below), 45 / 25 / 30 unless a filter picks one (street: flop / turn / river;
 players: heads-up / multiway; villain type, pot type and texture filters apply to the library).
 
 - **Daily**: one library spot per date, fixed by a hash of the date (same spot and same suits for
