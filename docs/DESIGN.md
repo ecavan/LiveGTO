@@ -153,16 +153,20 @@ Three ratings, all on a chess-like scale:
 Current ladder (duplicate matches, 6,000 hands per pair, Oct 2026 ranges; a pair's 95% CI is
 ±35–90 bb/100, so neighbours on the ladder can swap):
 
-| Bot | Whale | Maniac | Station | Nit | Reg | Shark | Pro |
+| Bot | Whale | Station | Maniac | Nit | Reg | Shark | Pro |
 |---|---|---|---|---|---|---|---|
-| Wins vs the field (bb/100) | −86 | −53 | −41 | −14 | +10 | +79 | +104 |
-| Elo | 1160 | 1220 | 1250 | 1320 | 1390 | 1730 | 2000 |
+| Wins vs the field (bb/100) | −64 | −40 | −27 | −11 | +17 | +55 | +70 |
+| Elo | 1280 | 1340 | 1380 | 1430 | 1560 | 1810 | 2000 |
 
-Head to head (row beats column, bb/100): Pro over Shark 11, Reg 85, Nit 67, Maniac 74, Station
-142, Whale 246; Shark over Reg 65, Nit 34, Maniac 133, Station 98, Whale 157; Reg over Nit 31,
-Maniac 58, Station 15, Whale 108; Nit over Maniac 17, Station 15, Whale 15; Station over Maniac
-27; Whale over Maniac 9 and Station 4. The order is transitive, which it wasn't under the old
-yardstick.
+Head to head (row beats column, bb/100): Pro over Nit 99, Maniac 47, Station 145, Whale 185,
+Reg 0 (even), and Shark over Pro 55; Shark over Reg 107, Maniac 6, Station 89, Whale 87, and Nit
+over Shark 17; Reg over Nit 31, Maniac 58, Station 15, Whale 108; Nit over Maniac 17, Station
+15, Whale 15; Station over Maniac 27; Whale over Maniac 9 and Station 4. The thinking bots were
+played again after their bluff cap (above, under the thinking bots); it cost the Pro about a third of his edge over the
+field (he no longer shoves air at players who fold too much), and his pairs with the Shark and
+the Reg are inside the noise (±80–160), so the top two can swap. The tiers hold: thinkers · Reg ·
+Nit · fish. The Elo is anchored at the Pro's 2000, so when his edge shrinks everyone else moves
+up; a rating only means something next to another rating on the same ladder.
 
 Preflop is graded against the chart: heads-up, the button's opening range against the big blind
 alone (`HU_BTN_OPEN` in ranges.js, about half of all hands) and The Course's big-blind defence
@@ -375,7 +379,12 @@ combo at once.
   without that the bots find shoves that only "work" against a model that folds too much.
   Facing an overbet or shove (≥ 1.5× the pot) a thinking bot always continues with at least the
   top MDF share of its own range (by equity), so any-two-cards shoves can't print just because
-  its read says you're honest. Profile bots answer big preflop bets by size (a 25bb+ bet is
+  its read says you're honest. And a bluff cap: a raise on any street, or a river bet, carries no
+  more bluffs (equity when called under 35%) than a balanced one of its size, x/(P+x) bluffs per
+  value combo; the surplus goes back to the best passive option. The one-street read says "he
+  folds to this", and against a model that over-folds the best response shoved every air hand
+  over a check-raise — right against the model, a stack against anyone else. Flop and turn bets
+  are left alone: a c-bet's bluffs are priced by his fold to one bet, which the read measures. Profile bots answer big preflop bets by size (a 25bb+ bet is
   treated like a 4-bet: even a station doesn't call 100bb with 72% of hands).
 - *Every bot learns you*, like a chess bot of its rating. After each hand it updates π with a
   tempered likelihood, π_t ← π_t · L_t^rate (normalised), where the rate runs from 0.15 (Whale)

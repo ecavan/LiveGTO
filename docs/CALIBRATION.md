@@ -130,12 +130,13 @@ What surprised me:
    player (he never did what a turn plan said on the flop). Every flop now has four decisions
    against every profile (`docs/DESIGN.md` §7), the coach grades each street by its own plans,
    and the Play rating's prior was fitted again on the new grading
-   (`src/engine/hu/calibration.json`: R = 2100 − 120·log₂(1 + L), L the EV lost per 100 hands;
-   the five profile bots land within 43 Elo of their ladder ratings, from the Whale at 152bb/100
-   lost to the Reg at 45). The Shark and the Pro still grade badly (270–320bb/100, half their
+   (`src/engine/hu/calibration.json`: R = 2100 − 160·log₂(1 + L/4), L the EV lost per 100 hands;
+   the five profile bots land within 48 Elo of their ladder ratings, from the Whale at 99bb/100
+   lost to the Reg at 46). The Shark and the Pro still grade badly (200–220bb/100, half their
    decisions off the plan) and stay out of the fit: they best-respond to their model of the other
-   bot, and against each other that means shoving air over check-raises and 3-betting wide, which
-   the plan calls blunders and the duplicate ladder calls profitable against bots that fold.
+   bot, and against each other that means value-raising where the plan calls, and preflop by EV
+   rather than by the charts; before their bluff cap it also meant shoving air over check-raises,
+   which the plan calls blunders and the duplicate ladder called profitable against bots that fold.
 8. **Level 2 is a hedge inside the baseline's bluffs.** The solver's best response to a fitted
    profile is pure: against the Station as fitted (folds half his flop c-bets, calls turns, folds
    twice as many rivers as GTO) it calls every check-raise with nothing and bluffs later. The plan
@@ -397,22 +398,24 @@ after the 2026 refit and the hand-order change (`scripts/ladder.mjs`): now a rou
 bot against every other, 6,000 duplicate hands per pair (seed 17), each bot rated by its mean win
 rate against the other six (`out/ladder/results.json`, kept in `ladder.json`):
 
-| Bot | Wins vs the field (bb/100) | Before (Pro's yardstick) | After (round robin) |
-|---|---|---|---|
-| Whale | −86 | 1200 | 1160 |
-| Maniac | −53 | 1770 | 1220 |
-| Station | −41 | 1440 | 1250 |
-| Nit | −14 | 1750 | 1320 |
-| Reg | +10 | 1660 | 1390 |
-| Shark | +79 | 1960 | 1730 |
-| Pro | +104 | 2000 | 2000 |
+| Bot | Wins vs the field (bb/100) | Before (Pro's yardstick) | Round robin | After the bluff cap |
+|---|---|---|---|---|
+| Whale | −64 | 1200 | 1160 | 1280 |
+| Station | −40 | 1440 | 1250 | 1340 |
+| Maniac | −27 | 1770 | 1220 | 1380 |
+| Nit | −11 | 1750 | 1320 | 1430 |
+| Reg | +17 | 1660 | 1390 | 1560 |
+| Shark | +55 | 1960 | 1730 | 1810 |
+| Pro | +70 | 2000 | 2000 | 2000 |
 
-Head to head the order is transitive: Pro > Shark > Reg > Nit > Station > Maniac ≈ Whale (the
-Whale beats the Maniac by 9 and the Station by 4, within noise). Under the old yardstick (how
-badly the Pro beats you) the Nit and the Maniac sat above the Reg, because a best-responder
-has less to exploit in a player who folds, or who has already shoved; against the field the Reg
-makes money and they lose it. A pair is worth ±35–90bb/100 at 95%, so neighbours can swap, but
-the tiers (fish · Reg · thinkers) are solid. The spread is narrower than before by construction:
+Head to head the tiers are clear: thinkers (Pro, Shark) > Reg > Nit > fish (Maniac, Station,
+Whale, within noise of each other). Under the old yardstick (how badly the Pro beats you) the Nit
+and the Maniac sat above the Reg, because a best-responder has less to exploit in a player who
+folds, or who has already shoved; against the field the Reg makes money and they lose it. A pair
+is worth ±35–160bb/100 at 95%, so neighbours can swap. The last column is after the thinking
+bots' bluff cap (DESIGN §8b): the Pro's edge over the field fell from +104 to +70 and his pairs
+with the Shark and the Reg are now inside the noise; since the Elo is anchored at his 2000,
+everyone else moved up. The spread is narrower than under the old yardstick by construction:
 winnings against a mixed field differ less than losses to a best-responder.
 
 ## Checks against Pluribus
