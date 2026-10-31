@@ -145,6 +145,7 @@ export function heroAct(sess, idx) {
     chart: k.chart,
     notes: k.notes,
     solid: k.solid ?? null,
+    losses: k.losses ?? null,
   };
   if (s.street > 0) {
     const other = sess.level === 1 ? 2 : 1;

@@ -48,10 +48,8 @@ for (const f of readdirSync(dir).filter(f => f.endsWith('.json') && !['index.jso
   let cut = 0, all = 0;
   for (const r of lib.records) {
     if (r.villain.profile === 'gto' || !r.puzzles?.length) continue;
-    const g = lib.records.find(x => x.id === r.id.replace(/[^/]+$/, 'gto'));
-    if (!g) continue;
     const facing = FACING.has(r.decision);
-    const keep = r.puzzles.filter(p => { all++; const row = g.classes.find(c => c.class === p.class); return !row || puzzleAllowed(p, r, row, facing); });
+    const keep = r.puzzles.filter(p => { all++; return puzzleAllowed(p, r, facing); });
     if (keep.length !== r.puzzles.length) { cut += r.puzzles.length - keep.length; r.puzzles = keep; changed = true; }
   }
   if (cut) console.log(`${f}: dropped ${cut} of ${all} villain-type puzzles`);

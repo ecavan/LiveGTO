@@ -226,11 +226,15 @@ export function coachCard(d, { weights = null, botName = null, live = false, evN
   const exploitable = d.level === 2 && sol && !['gto', 'multiway', 'donk', 'vs_raise'].includes(sol.source);
   const modelNote = mb && exploitable ? `<div class="text-xs text-ink-400">Sharper still, if you are sure ${hideType ? 'of your read on him' : `he is a ${esc(sol.source.charAt(0).toUpperCase() + sol.source.slice(1))}`}: <b class="text-ink-200">${esc(labelText(mb.label))}</b> (${fmtBB(mb.ev - best.ev, { sign: true })} against his exact range).</div>` : '';
   const his = d.buckets?.length ? bucketBarsHtml(d.buckets) : d.range ? rangeBars(d.range) : '';
+  // after the flop the list shows what each play is graded to cost (the plan's verdict, sized by
+  // the model), not the raw model EVs: those can rank a shove above the plan's fold and read as
+  // "all the same" next to a verdict that says otherwise
+  const graded = d.losses && d.losses.length === d.options.length ? d.options.map((o, i) => ({ ...o, ev: -d.losses[i] })) : d.options;
   return `<div class="space-y-3">${head}
     ${other}
     ${d.heroBucket ? `<div class="text-sm text-ink-300">Your hand: <b class="text-amber-200">${esc(bucketName(d.heroBucket))}</b>${d.board?.length ? ` on ${handText(d.board.map(cardStr))}` : ''}</div>` : ''}
-    ${evBars(d.options, { best: d.best, fine: d.fine, chosen: d.chosen })}
-    <div class="text-xs text-ink-400">${evNote ?? evNoteFor(d, { botName })}${sol ? ' The verdict is the plan for your kind of hand; the EVs size the mistakes.' : ''}</div>
+    ${evBars(graded, { best: d.best, fine: d.fine, chosen: d.chosen })}
+    <div class="text-xs text-ink-400">${evNote ?? evNoteFor(d, { botName })}${sol ? ' The verdict is the plan for your kind of hand: a play on it costs nothing, one off it costs what the EV model says, at least a little.' : ''}</div>
     ${modelNote}
     ${live ? `<details class="disc" data-rangeview open><summary>Your range by bucket: a plan for each kind of hand</summary><div class="body"><div class="text-ink-400 text-sm">Working it out…</div></div></details>` : ''}
     ${disc('Why', `<div class="space-y-1.5">${why}</div>`)}

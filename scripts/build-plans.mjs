@@ -126,9 +126,11 @@ function buckets(t, dec) {
     const f = 1 - passive;
     const go = { act: active[0]?.[0] ?? giveUp, p: r2(f), dist: { [active[0]?.[0] ?? giveUp]: r2(f), [giveUp]: r2(passive) } };
     const stop = { act: giveUp, p: r2(passive), dist: { [giveUp]: r2(passive) } };
-    // under a fifth, the air that still bets is noted (it is rare: a small mistake, not a plan)
+    // under a fifth, the air that still bets is noted (it is rare: a small mistake, not a plan).
+    // Facing a bet the bar is half: a float with overcards is the baseline's play only where the
+    // solver continues with most of its air; below that the plan is fold, call "fine too".
     const stopNoted = { ...stop, dist: { ...stop.dist, ...(active.length && f >= 0.05 ? { [active[0][0]]: r2(f) } : {}) } };
-    out.eqair = active.length && f >= 0.2 ? go : stopNoted;
+    out.eqair = active.length && f >= (dec === 'facing' ? 0.5 : 0.2) ? go : stopNoted;
     out.air = active.length && f >= 0.6 ? go : stop;
   }
   return out;
