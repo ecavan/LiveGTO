@@ -9,8 +9,7 @@ import { MIN_RATED } from '../../engine/hu/session.js';
 import { pct } from '../../engine/potmath.js';
 import { bucketPlanHtml, bucketBarsHtml, bucketName } from '../buckets.js';
 import { optionLabel,
-  pokerTable, card, cards, fmtBB, evBars, disc, stat, verdict, icon, esc, rangeGrid, GRID, handText, sprOf,
-} from '../kit.js';
+  pokerTable, card, cards, fmtBB, evBars, disc, stat, verdict, icon, esc, rangeGrid, GRID, handText, sprOf, ratingText } from '../kit.js';
 
 export const POS = ['BTN', 'BB'];
 const CAT_NAME = ['High card', 'Pair', 'Two pair', 'Trips', 'Straight', 'Flush', 'Full house', 'Quads', 'Straight flush'];
@@ -260,7 +259,7 @@ export function sessionPanel(sess, sum) {
     <div class="grid grid-cols-3 gap-2">
       ${stat('Hands', `${sum.hands}${sess.length ? `<span class="text-ink-400 text-base">/${sess.length}</span>` : ''}`)}
       ${stat('EV lost', sum.evLost >= 0.05 ? sum.evLost.toFixed(1) : '0', 'bb, by your decisions', sum.evLost > 0 ? 'text-rose-300' : '')}
-      ${stat('Rating', sum.rating ? `${sum.rating}${sum.ratingSe != null ? ` <span class="text-base text-ink-400">± ${sum.ratingSe}</span>` : ''}` : '—', sum.rating ? `${sum.edge >= 0 ? '+' : ''}${Math.round(sum.edge)}bb/100 vs him on your cards` : `after ${MIN_RATED} hands`)}
+      ${stat('Rating', sum.rating ? ratingText(sum.rating, sum.ratingSe, 'text-base') : '—', sum.rating ? `${sum.edge >= 0 ? '+' : ''}${Math.round(sum.edge)}bb/100 vs him on your cards` : `after ${MIN_RATED} hands`)}
     </div>
     <div class="grid grid-cols-2 gap-2">
       ${stat('Result', `<span class="${tone(sum.net)}">${fmtBB(sum.net, { sign: true })}</span>`)}
@@ -324,7 +323,7 @@ export function reviewHtml(sess, sum, pastSessions) {
       <div class="flex gap-2 flex-wrap"><a class="btn" href="#play/review/s/${sess.startedAt}">${icon('review', 'w-4 h-4')} Game review</a><button class="btn" id="rv-again">Play again</button><button class="btn btn-primary" id="rv-new">New session</button></div>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-      ${stat('Played like', sum.rating ? `${sum.rating}${sum.ratingSe != null ? ` <span class="text-base text-ink-400">± ${sum.ratingSe}</span>` : ''}` : '—', sum.rating ? `${sum.edge >= 0 ? '+' : ''}${Math.round(sum.edge)}bb/100 vs ${AGENTS[sess.botId].name} on the same cards · EV lost ${sum.lossPer100.toFixed(1)}bb/100` : `play ${MIN_RATED}+ hands`, 'text-amber-200')}
+      ${stat('Played like', sum.rating ? ratingText(sum.rating, sum.ratingSe, 'text-base') : '—', sum.rating ? `${sum.edge >= 0 ? '+' : ''}${Math.round(sum.edge)}bb/100 vs ${AGENTS[sess.botId].name} on the same cards · EV lost ${sum.lossPer100.toFixed(1)}bb/100` : `play ${MIN_RATED}+ hands`, 'text-amber-200')}
       ${stat('Best or good', pct(sum.accuracy), `of your decisions · ${sum.blunders} blunders · ${sum.mistakes} mistakes`)}
       ${stat('Result', `<span class="${tone(sum.net)}">${fmtBB(sum.net, { sign: true })}</span>`, `${sum.hands} hands · ${fmtBB(Math.round(sum.bbPer100), { sign: true })}/100`)}
       ${stat('Luck', `<span class="${tone(sum.luck)}">${fmtBB(sum.luck, { sign: true })}</span>`, `all-in adjusted: ${fmtBB(sum.adjusted, { sign: true })}`)}

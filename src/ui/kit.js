@@ -102,6 +102,12 @@ export function wireSeg(root, onChange) {
 export const disc = (title, body, open = false, extra = '') =>
   `<details class="disc ${extra}" ${open ? 'open' : ''}><summary>${title}</summary><div class="body">${body}</div></details>`;
 
+/** Whole-number uncertainty before a rating means anything. */
+export const PROVISIONAL_SE = 400;
+/** A rating with its spread: "1480 ± 120", or "~1310 provisional" while the spread is too wide to read. */
+export const ratingText = (rating, se, small = 'text-sm') =>
+  (se != null && se > PROVISIONAL_SE ? `~${rating} <span class="${small} text-ink-400">provisional</span>` : `${rating}${se != null ? ` <span class="${small} text-ink-400">± ${se}</span>` : ''}`);
+
 export const stat = (k, v, s = '', tone = '') =>
   `<div class="stat"><div class="k">${k}</div><div class="v ${tone}">${v}</div>${s ? `<div class="s">${s}</div>` : ''}</div>`;
 

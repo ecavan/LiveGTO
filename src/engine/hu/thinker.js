@@ -195,18 +195,53 @@ export function thinkerPolicyAll(cfg, model, s, replayFn, selfPolicy = null) {
     for (let k = 0; k < opts.length; k++) P[k][i] /= z;
   }
 
-  // Defence floor against overbets and shoves: keep at least the top MDF share of our own range
-  // (by equity), so an any-two-cards shove never prints just because the read says he's honest.
-  const B = L.facing ? L.callAmount : 0;
-  const Pb = P0 - B;
-  if (selfPolicy && B >= 1.5 * Pb) {
-    const ws = new Float64Array(N).fill(1);
+  // Our own range on this line (uniform over the live combos when there is no self policy)
+  const ws = new Float64Array(N).fill(1);
+  if (selfPolicy) {
     for (const { before, entry } of replayFn(s)) {
       if (entry.seat !== me) continue;
       const p = probOf(selfPolicy(before), entry);
       for (let i = 0; i < N; i++) ws[i] *= p[i];
     }
-    if (blocked) for (let i = 0; i < N; i++) if (blocked[i] < 0) ws[i] = 0;
+  }
+  if (blocked) for (let i = 0; i < N; i++) if (blocked[i] < 0) ws[i] = 0;
+
+  // Bluff cap: a raise (any street) or a river bet carries no more bluffs than a balanced one of
+  // its size would, x/(P+x) bluffs per value hand (a pot-sized raise is at most a third bluffs, a
+  // 4x overbet shove about 45%). The one-street read says "he folds to this", and against a model
+  // that over-folds the best response shoves every air hand over a check-raise: right against the
+  // model, a stack against anyone else. The extra bluffs go back to the best passive option.
+  // Flop and turn bets are left alone: a c-bet's bluffs are priced by his fold to one bet, which
+  // the read measures directly, and the balanced ratio is a river (polarised) idea.
+  if (bd.length) {
+    for (let k = 0; k < opts.length; k++) {
+      const o = opts[k];
+      if (o.type === 'fold' || o.type === 'check' || o.type === 'call' || !info[k].eqc) continue;
+      if (!L.facing && s.street < 3) continue;
+      const x = o.to - s.streetBet[me];
+      const ratio = x / (P0 + x); // bluffs per value combo
+      const eqc = info[k].eqc;
+      let V = 0, Bm = 0;
+      for (let i = 0; i < N; i++) { const m = ws[i] * P[k][i]; if (!(m > 0)) continue; if (nz(eqc[i]) >= 0.5) V += m; else if (nz(eqc[i]) < 0.35) Bm += m; }
+      const allowed = ratio * V;
+      if (Bm <= allowed + 1e-12) continue;
+      const scale = allowed / Bm;
+      for (let i = 0; i < N; i++) {
+        if (!(ws[i] * P[k][i] > 0) || nz(eqc[i]) >= 0.35) continue;
+        const moved = P[k][i] * (1 - scale);
+        P[k][i] *= scale;
+        let kp = -1;
+        for (let j = 0; j < opts.length; j++) if ((opts[j].type === 'fold' || opts[j].type === 'check' || opts[j].type === 'call') && (kp < 0 || ev[j][i] > ev[kp][i])) kp = j;
+        if (kp >= 0) P[kp][i] += moved; else P[k][i] += moved;
+      }
+    }
+  }
+
+  // Defence floor against overbets and shoves: keep at least the top MDF share of our own range
+  // (by equity), so an any-two-cards shove never prints just because the read says he's honest.
+  const B = L.facing ? L.callAmount : 0;
+  const Pb = P0 - B;
+  if (selfPolicy && B >= 1.5 * Pb) {
     const tot = sumArr(ws);
     const kFold = opts.findIndex(o => o.type === 'fold');
     const kCall = opts.findIndex(o => o.type === 'call');

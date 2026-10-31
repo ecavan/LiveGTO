@@ -8,9 +8,12 @@ import { getLevel, LEVELS } from '../engine/level.js';
 import { poolRating } from '../engine/hu/session.js';
 
 export function playRatingNow(level = getLevel()) {
+  return playRatingInfo(level)?.rating ?? null;
+}
+/** The pooled Play rating with its spread and hands, or null before MIN_RATED hands. */
+export function playRatingInfo(level = getLevel()) {
   const store = loadRaw(KEYS.play, { sessions: [] });
-  const r = poolRating([...store.sessions].reverse().filter(p => p.edgeN >= 1 && (p.level ?? 2) === level));
-  return r ? r.rating : null;
+  return poolRating([...store.sessions].reverse().filter(p => p.edgeN >= 1 && (p.level ?? 2) === level));
 }
 
 export function renderRatings(el) {

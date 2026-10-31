@@ -4,14 +4,14 @@
 import { loadStats, dueItems, dailyStreak, dailyAt, today } from '../engine/puzzles.js';
 import { loadHands, leakReport } from '../engine/history.js';
 import { loadRaw, KEYS } from '../store.js';
-import { playRatingNow } from './ratings.js';
-import { icon, levelSwitch, wireLevel } from './kit.js';
+import { playRatingInfo } from './ratings.js';
+import { icon, levelSwitch, wireLevel, ratingText, PROVISIONAL_SE } from './kit.js';
 import { getLevel } from '../engine/level.js';
 import { AGENTS, eloOf } from '../engine/hu/agents.js';
 
 export function render(container) {
   const pz = loadStats();
-  const play = playRatingNow();
+  const play = playRatingInfo();
   const last = loadRaw(KEYS.play, { sessions: [] }).sessions.at(-1);
   const learn = loadRaw(KEYS.learn, { done: {} });
   const doneSteps = Object.keys(learn.done || {}).length;
@@ -52,7 +52,7 @@ export function render(container) {
         pz.played ? pz.rating : '—', `Puzzle rating · L${getLevel()}`, `${pz.played} attempts`)}
       ${card('#play', 'play', 'bg-amber-500/15 text-amber-300', 'Play',
         'Rated bots heads-up or a live 6-max table. The coach grades every decision; replay them in game review.',
-        play ?? '—', `Play rating · L${getLevel()}`, last ? `Last: vs ${AGENTS[last.bot]?.name ?? last.bot} (${eloOf(last.bot)})` : 'No sessions yet')}
+        play ? ratingText(play.rating, play.se, 'text-sm') : '—', `Play rating · L${getLevel()}`, play ? `${play.hands} hands pooled${play.se > PROVISIONAL_SE ? ' · provisional' : ''}` : last ? `Last: vs ${AGENTS[last.bot]?.name ?? last.bot} (${eloOf(last.bot)})` : 'No sessions yet')}
     </div>
     <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
       ${quick('#puzzles/daily', 'star', 'text-amber-300', dailyDone ? 'Daily puzzle: done' : 'Daily puzzle', streak ? `${streak}-day streak` : 'one spot a day')}
