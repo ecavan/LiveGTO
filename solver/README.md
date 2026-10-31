@@ -29,5 +29,15 @@ the flop), so a resumed build writes the same turns and rivers as an uninterrupt
 (The library shipped in Oct 2026 was built with the older per-family stream across several
 resumes, so its runouts differ from what a fresh build samples; the records themselves are exact.)
 
+**Flop decisions.** Each flop also gets its own four decisions (checked to, facing a 33% and a 75%
+c-bet, c-bet check-raised) against every profile, on a slim three-street tree (`flop_spot` in
+`library.rs`): one GTO solve, then one node-locked solve per profile and decision, 8–25 minutes per
+flop. `ps library … --flop-only` adds them to the files of an existing library and skips the files
+that have them, so it resumes too. Afterwards run `node scripts/prune-library.mjs` (drops the
+check-raise records where GTO never raises the c-bet, and the Level 2 puzzles the exploit guard
+rejects: see `scripts/lib/exploit-guard.mjs`) and `ps library … --index-only`.
+
 **Memory.** The flop tree in `library.rs` is deliberately coarse (about 1 GB compressed). A richer tree
-(two c-bet sizes, turn and river raises) needs 2–4 GB.
+(two c-bet sizes, turn and river raises) needs 2–4 GB. `PS_MEM_GB` (default 1.6) is the most a
+single solve may allocate per tree copy; a spot that would need more is skipped with a message
+instead of taking the machine down.

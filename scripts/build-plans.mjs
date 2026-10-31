@@ -23,6 +23,7 @@ import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { boardKind } from '../src/engine/buckets.js';
 import { ids } from '../src/engine/hu/hand.js';
+import { category, guard } from './lib/exploit-guard.mjs';
 
 const dir = process.argv[2] || 'public/library';
 const FACING = new Set(['oop_vs_bet', 'ip_vs_bet', 'oop_vs_bet_small', 'ip_vs_bet_small', 'oop_vs_raise', 'ip_vs_raise']);
@@ -37,19 +38,9 @@ const STREETS = ['flop', 'later']; // the flop has its own plans; turn and river
  * that only work if the villain is exactly the model, which is what "don't be exploitable" asks.
  */
 const EXPLOIT_WEIGHT = 0.6;
+// and, before the hedge, the exploit is kept inside the baseline's lines: see scripts/lib/exploit-guard.mjs
 // the only family with nobody holding the betting lead (a limped pot)
 const NO_AGGRESSOR = new Set(['limp_mp_bb']);
-
-function category(label, facing) {
-  const l = label.toLowerCase();
-  if (l.startsWith('fold')) return 'fold';
-  if (l.startsWith('check')) return 'check';
-  if (l.startsWith('call')) return 'call';
-  if (l.startsWith('raise') || (facing && l.startsWith('all-in'))) return 'raise';
-  const m = l.match(/bet [\d.]+bb \((\d+)%\)|bet (\d+)%/);
-  if (m) return Number(m[1] ?? m[2]) < 50 ? 'bet small' : 'bet big';
-  return 'bet big'; // all-in when not facing a bet
-}
 
 // acc[level][street][kind][decision][class] = { w, cats: {cat: weighted share} }
 // (street 'all' = every street together, for the Learn tables and as a fallback)
@@ -93,9 +84,10 @@ for (const f of readdirSync(dir).filter(f => f.endsWith('.json') && !['index.jso
     }
     for (const row of r.classes) {
       const part = level === 'gto' ? row.gto : row.exploit;
-      const cats = {};
+      let cats = {};
       part.pure.forEach((p, i) => { if (p > 0) { const c = category(r.actions[i], facing); cats[c] = (cats[c] || 0) + p; } });
       if (level !== 'gto') {
+        cats = guard(cats, gtoCats[row.class] || {}, row.class, facing);
         for (const k of Object.keys(cats)) cats[k] *= EXPLOIT_WEIGHT;
         for (const [k, p] of Object.entries(gtoCats[row.class] || {})) cats[k] = (cats[k] || 0) + (1 - EXPLOIT_WEIGHT) * p;
       }

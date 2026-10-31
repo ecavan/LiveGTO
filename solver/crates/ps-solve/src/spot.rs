@@ -248,7 +248,9 @@ pub fn match_action(game: &PostFlopGame, tok: &str) -> Result<usize> {
                 _ => false,
             };
             if pct.is_empty() {
-                find(&is_kind)
+                // a bare "b"/"r" in a shallow pot (a 3-bet pot's check-raise): the only raise left
+                // may be the all-in, which is then the action meant
+                find(&is_kind).or_else(|| find(&|a| matches!(a, Action::AllIn(_))))
             } else {
                 let want: f64 = pct.parse().map_err(|_| anyhow!("bad size in {tok:?}"))?;
                 actions

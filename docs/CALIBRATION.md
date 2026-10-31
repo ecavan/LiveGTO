@@ -125,6 +125,26 @@ What surprised me:
    frequency is too; the postflop stats below moved by a point or two and were not refitted
    (the library is solved against these profiles).
 
+7. **The flop is solved in its own right** (Oct 2026). The library had turn and river decisions
+   only, so the coach graded the flop by the turn-and-river plans and the Pro ranked as the worst
+   player (he never did what a turn plan said on the flop). Every flop now has four decisions
+   against every profile (`docs/DESIGN.md` §7), the coach grades each street by its own plans,
+   and the Play rating's prior was fitted again on the new grading
+   (`src/engine/hu/calibration.json`: R = 2100 − 120·log₂(1 + L), L the EV lost per 100 hands;
+   the five profile bots land within 43 Elo of their ladder ratings, from the Whale at 152bb/100
+   lost to the Reg at 45). The Shark and the Pro still grade badly (270–320bb/100, half their
+   decisions off the plan) and stay out of the fit: they best-respond to their model of the other
+   bot, and against each other that means shoving air over check-raises and 3-betting wide, which
+   the plan calls blunders and the duplicate ladder calls profitable against bots that fold.
+8. **Level 2 is a hedge inside the baseline's bluffs.** The solver's best response to a fitted
+   profile is pure: against the Station as fitted (folds half his flop c-bets, calls turns, folds
+   twice as many rivers as GTO) it calls every check-raise with nothing and bluffs later. The plan
+   now sits 60% of the way from the baseline to the exploit, and before that the exploit may add
+   no bluffs (air or a weak pair bets, raises and calls no more than the baseline). Value raises,
+   thin value bets and folds pass through. The library puzzles are pruned by the same rule, and
+   the check-raise records of flops where GTO never raises the c-bet are dropped
+   (`scripts/prune-library.mjs`).
+
 ## A 2026 Reg
 
 The HandHQ hands are from July 2009. Recreational players play much as they did then: live

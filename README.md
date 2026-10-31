@@ -98,7 +98,9 @@ scripts/         match.mjs (bot vs bot, duplicate deals), ladder.mjs (Elo), cali
 docs/            DESIGN.md, THEORY.md, theory-audit.md
 ```
 
-Rebuild the puzzle library with `npm run library` (needs Rust).
+Rebuild the puzzle library with `npm run library` (needs Rust); `npm run plans` rebuilds the
+bucket plans from it. The flop decisions take longest (8–25 minutes a flop): `solver/README.md`
+has the resumable `--flop-only` route and the pruning step that follows it.
 
 ## Licence
 

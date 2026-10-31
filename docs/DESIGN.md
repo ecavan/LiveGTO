@@ -219,9 +219,15 @@ material.
    profile, on a slim three-street tree that fits in memory (the c-bettor has 33% and 75%, the
    caller a 3× check-raise; 75% and no raises on the turn and river). Four decisions per flop:
    the c-bettor checked to, the caller facing a 33% and a 75% c-bet, and the c-bettor facing a
-   check-raise. These are the flop plans the coach grades by (`plans.json` has the flop and the
-   later streets separately), and the flop puzzles in Rated. `ps library … --flop-only` adds them
-   to an existing library.
+   check-raise (in the 3-bet pot the check-raise is a shove, the only raise left). These are the
+   flop plans the coach grades by (`plans.json` has the flop and the later streets separately),
+   and the flop puzzles in Rated. `ps library … --flop-only` adds them to an existing library;
+   `PS_MEM_GB` (default 1.6) caps a solve's memory and skips a tree that would not fit.
+   `node scripts/prune-library.mjs` then drops the check-raise records of a flop where GTO
+   hardly ever raises the c-bet (CO vs BTN with a shove behind: the BTN just calls, and a node
+   lock of a never-taken raise is rounding noise that "exploits" into calling with anything), and
+   the Level 2 puzzles the exploit guard rejects (§8), so puzzles and plans teach the same thing;
+   `ps library … --index-only` rebuilds `index.json` after it.
 3. **Flop ranges**: GTO solve on a coarse tree, only to get realistic ranges at the start of the
    turn after "c-bet called" and "checked through".
 4. **Turn**: for sampled turn cards, analyse the two decisions of the line against every profile
@@ -418,6 +424,15 @@ blunder (best: donk-bet 75%) and a river shove with king-high the best play. Gra
   the baseline to that exploit (`scripts/build-plans.mjs`): the clear exploits survive
   (value-bet thin into a Station, c-bet a Nit, fold to a Nit's raise), the ones that only work
   against the exact model fall into "fine too" or drop out. "Don't be exploitable" asks for this.
+- Before the hedge, the exploit is kept inside the baseline's bluffs
+  (`scripts/lib/exploit-guard.mjs`, shared with the puzzle pruning): with air or a weak pair Level
+  2 never bets or raises more than the baseline does with that kind of hand, and with air it never
+  calls more than the baseline (no floats). The best response's bluffs are the brittle part: every
+  new one needs the next two streets to go to plan (he folds the turn and river 1.5–2× as often as
+  GTO in the fitted profiles) and costs a stack when the read is wrong. Value lines, folds and
+  semi-bluffs with draws pass untouched: fold a strong hand to a Nit's river bet, raise a
+  Station's bet for value with a hand GTO only calls, bet a medium hand into a Station. Those are
+  one-street exploits: wrong, they cost a bet.
 - On the plan: any play the solver takes at least 25% of the time there is fine and costs
   nothing. One of them is *the* play (§2: one action, never frequencies): a clear majority (65%+)
   is it; a split resolves to the simple line (check, call, fold) unless the EV model says an
