@@ -54,7 +54,8 @@ export function render(container) {
         'Rated bots heads-up or a live 6-max table. The coach grades every decision; replay them in game review.',
         play ? ratingText(play.rating, play.se, 'text-sm') : '—', `Play rating · L${getLevel()}`, play ? `${play.hands} hands pooled${play.se > PROVISIONAL_SE ? ' · provisional' : ''}` : last ? `Last: vs ${AGENTS[last.bot]?.name ?? last.bot} (${eloOf(last.bot)})` : 'No sessions yet')}
     </div>
-    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div class="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      ${quick('#play/watch', 'bot', 'text-emerald-300', 'Watch the bots', 'two bots play, the coach explains every decision')}
       ${quick('#puzzles/daily', 'star', 'text-amber-300', dailyDone ? 'Daily puzzle: done' : 'Daily puzzle', streak ? `${streak}-day streak` : 'one spot a day')}
       ${quick('#puzzles/review', 'target', 'text-rose-300', 'Missed puzzles', due ? `${due} due today` : `${pz.queue?.length ?? 0} in the queue`, due)}
       ${quick('#play/review', 'review', 'text-amber-300', 'Game review', topLeak ? `Top leak: ${topLeak.name.toLowerCase()}` : 'replay your hands')}
