@@ -14,9 +14,10 @@ import { LEVELS } from '../../engine/ring/players.js';
 import { cardStr } from '../../engine/hu/hand.js';
 import { ringTable, fmtBB, icon, esc, stat, handText, seg, wireSeg, disc, sprOf, optionLabel } from '../kit.js';
 import { coachCard, actionBar, reviewTabs, evNoteFor, handName } from './views.js';
-import { settings, saveSettings } from '../../store.js';
+import { settings, saveSettings, loadRaw, KEYS } from '../../store.js';
 import { pct } from '../../engine/potmath.js';
 import { navigate } from '../../router.js';
+import { ratingFromLoss } from '../../engine/hu/session.js';
 
 const STREET = ['Preflop', 'Flop', 'Turn', 'River'];
 const byRank = (h) => [...h].sort((a, b) => (b >> 2) - (a >> 2));
@@ -159,6 +160,7 @@ function home(container) {
           return `<a href="#review/s/${x.sid}" class="flex items-center gap-3 px-4 py-3 hover:bg-ink-850/60">
             <div class="min-w-0 flex-1"><div class="text-sm font-semibold text-white truncate">${sessionTitle(x)}</div>
               <div class="text-xs text-ink-400">${new Date(x.sid).toLocaleString([], x.level === 'live' || x.hands[0]?.live ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · ${x.hands.length} hand${x.hands.length === 1 ? '' : 's'} · <span class="${tone(net)}">${fmtBB(net, { sign: true })}</span>${c.blunder ? ` · <span class="text-rose-300">${c.blunder} blunder${c.blunder > 1 ? 's' : ''}</span>` : ''}</div></div>
+            ${(() => { const pl = playedLike(x); return pl ? `<div class="text-right hidden sm:block"><div class="text-xl font-semibold num text-amber-300">${pl.rating}</div><div class="text-[10px] uppercase tracking-wider text-ink-400">played like</div></div>` : ''; })()}
             <div class="text-right"><div class="text-xl font-semibold num ${accTone(a)}">${a ?? '—'}</div><div class="text-[10px] uppercase tracking-wider text-ink-400">accuracy</div></div>
             <span class="btn btn-sm hidden sm:inline-flex">Review</span>${icon('next', 'w-4 h-4 text-ink-400 sm:hidden')}</a>`;
         }).join('')}</div>
@@ -182,6 +184,22 @@ function home(container) {
 
 // ------------------------------------------------------------------ one session
 
+/**
+ * "Played like": the rating a session was played at, like chess.com's game rating. Heads-up
+ * with 20+ hands: the Play rating for that session (your result against the bot on the same
+ * cards, blended with your decisions). Otherwise: from the EV your decisions gave up per 100
+ * hands, on the bot ladder. Not for logged live hands (you pick which ones to log).
+ */
+function playedLike(x) {
+  if (x.level === 'live' || x.hands[0]?.live) return null;
+  const row = x.kind === 'hu' ? (loadRaw(KEYS.play, { sessions: [] }).sessions || []).find(r => r.at === x.sid) : null;
+  if (row?.rating) return { rating: row.rating, how: `Your result against ${esc(AGENTS[x.opp]?.name ?? 'the bot')} on the same cards, with your decisions, over ${row.hands} hands.` };
+  const decisions = x.hands.reduce((a, h) => a + h.decisions.length, 0);
+  if (decisions < 5) return null;
+  const lost = x.hands.reduce((a, h) => a + h.evLost, 0);
+  return { rating: ratingFromLoss((100 * lost) / x.hands.length), how: `From the EV your decisions gave up (${((100 * lost) / x.hands.length).toFixed(1)}bb per 100 hands), on the bot ladder.${x.hands.length < 50 ? ' A rough read over this few hands.' : ''}` };
+}
+
 function sessionView(container, sid) {
   const x = sessionsOf().find(q => q.sid === sid);
   if (!x) { container.innerHTML = `<div class="page text-ink-300">That session is no longer stored. <a class="underline" href="#review">Back to Review</a></div>`; return; }
@@ -193,6 +211,7 @@ function sessionView(container, sid) {
   const key = x.hands.flatMap(h => h.decisions.filter(d => ['inaccuracy', 'mistake', 'blunder'].includes(grade(d))).map(d => ({ h, d })))
     .sort((a, b) => b.d.loss - a.d.loss).slice(0, 10);
   const firstKey = [...key].sort((a, b) => a.h.no - b.h.no || a.d.at - b.d.at)[0];
+  const played = playedLike(x);
   container.innerHTML = `<div class="page space-y-5 fade-up">
     <div class="flex items-end justify-between gap-3 flex-wrap">
       <div><a href="#review" class="text-sm text-ink-400 hover:text-white inline-flex items-center gap-1">${icon('back', 'w-4 h-4')} Review</a>
@@ -202,15 +221,24 @@ function sessionView(container, sid) {
         <a class="btn btn-primary btn-lg" href="#review/h/${x.hands[0].id}">${icon('play', 'w-5 h-5')} Start review</a>
         ${firstKey ? `<a class="btn btn-lg" id="quiz-mistakes" href="#review/h/${firstKey.h.id}/${firstKey.d.at}">${icon('target', 'w-4 h-4')} Retry your mistakes</a>` : ''}</div>
     </div>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-      ${stat('Accuracy', `<span class="${accTone(acc)}">${acc ?? '—'}</span>`, 'chess-style: 100 = every move best')}
+    <div class="panel panel-pad grid md:grid-cols-[auto_minmax(0,1fr)] gap-6 items-center">
+      <div class="flex gap-8">
+        <div><div class="text-[11px] uppercase tracking-wider text-ink-400 font-semibold">Accuracy</div>
+          <div class="text-5xl font-semibold num ${accTone(acc)}">${acc ?? '—'}</div>
+          <div class="text-xs text-ink-400 mt-1">100 = the coach's play every time</div></div>
+        ${played ? `<div><div class="text-[11px] uppercase tracking-wider text-ink-400 font-semibold">Played like</div>
+          <div class="text-5xl font-semibold num text-amber-300">${played.rating}</div>
+          <div class="text-xs text-ink-400 mt-1 max-w-[16rem]">${played.how}</div></div>` : ''}
+      </div>
+      <div class="grid grid-cols-5 gap-2 text-center">
+        ${Object.entries(GRADES).map(([k, g]) => `<div><div class="mx-auto w-10 h-10 rounded-xl border ${g.bg} ${g.tone} flex items-center justify-center font-bold">${g.glyph}</div>
+          <div class="text-xl font-semibold num text-white mt-1">${c[k]}</div><div class="text-[11px] text-ink-400">${g.label}</div></div>`).join('')}
+      </div>
+    </div>
+    <div class="grid grid-cols-3 gap-3">
       ${stat('EV lost', `−${lost.toFixed(1)}bb`, `${x.hands.length ? ((100 * lost) / x.hands.length).toFixed(1) : 0}bb/100`, 'text-rose-200')}
       ${stat('Result', `<span class="${tone(net)}">${fmtBB(net, { sign: true })}</span>`, x.kind === 'hu' ? `luck ${fmtBB(luck, { sign: true })}` : '')}
       ${stat('Decisions', x.hands.reduce((a, h) => a + h.decisions.length, 0), '')}
-    </div>
-    <div class="panel panel-pad grid grid-cols-5 gap-2 text-center">
-      ${Object.entries(GRADES).map(([k, g]) => `<div><div class="mx-auto w-9 h-9 rounded-xl border ${g.bg} ${g.tone} flex items-center justify-center font-bold">${g.glyph}</div>
-        <div class="text-lg font-semibold num text-white mt-1">${c[k]}</div><div class="text-[11px] text-ink-400">${g.label}</div></div>`).join('')}
     </div>
     <div class="grid lg:grid-cols-2 gap-5 items-start">
       <div class="space-y-2"><div class="h-sec">Key moments</div>
@@ -483,8 +511,8 @@ function draw(container) {
   const nextStop = stops.find(x => x > k);
   const prevStop = [...stops].reverse().find(x => x < k);
   const atEnd = nextStop == null;
-  const nextLabel = guessing ? 'Answer first' : !atEnd ? `Next ${icon('next', 'w-5 h-5')}` : nextHand ? `Hand ${nextHand.no} ${icon('next', 'w-5 h-5')}` : 'End of session';
-  const nextOff = guessing || (atEnd && !nextHand);
+  const nextLabel = guessing ? 'Answer first' : !atEnd ? `Next ${icon('next', 'w-5 h-5')}` : nextHand ? `Hand ${nextHand.no} ${icon('next', 'w-5 h-5')}` : rv.session ? `Session summary ${icon('next', 'w-5 h-5')}` : 'End of hand';
+  const nextOff = guessing || (atEnd && !nextHand && !rv.session);
   const prevOff = k === 0 && !prevHand;
 
   // a redraw of the same step (show their cards, quiz mode) keeps what you had opened
@@ -551,7 +579,8 @@ function draw(container) {
   container.querySelector('#rv-next').addEventListener('click', () => {
     if (nextOff) return;
     if (!atEnd) go(container, nextStop);
-    else toHand(nextHand);
+    else if (nextHand) toHand(nextHand);
+    else navigate(`review/s/${h.sid}`);
   });
   // the second Next, under the coach on a phone or a portrait iPad: back up to the table after
   container.querySelector('#rv-next-2')?.addEventListener('click', () => { container.querySelector('#rv-next').click(); window.scrollTo(0, 0); });
