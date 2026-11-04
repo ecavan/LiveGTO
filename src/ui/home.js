@@ -71,7 +71,7 @@ export async function render(container) {
         </div>
         <div class="flex gap-2 flex-wrap">
           <a class="btn btn-primary" href="${leak.key.startsWith('pre-') ? '#train/preflop' : `#puzzles/drill/${leak.key}`}">${icon('target', 'w-4 h-4')} ${leak.key.startsWith('pre-') ? 'Preflop trainer' : 'Drill this leak'}</a>
-          ${leak.examples[0] ? `<a class="btn" href="#review/h/${leak.examples[0].id}/${leak.examples[0].at}">See your worst one</a>` : ''}
+          ${leak.examples[0] ? `<a class="btn" href="#review/h/${leak.examples[0].id}/${leak.examples[0].at + 1}">See your worst one</a>` : ''}
         </div>
       </div>
     </div>` : `
@@ -87,7 +87,7 @@ export async function render(container) {
     ${tile('#puzzles', `Puzzle rating · ${LEVELS[lv].short}`, pz.played ? pz.rating : '—', pz.played ? `${pz.played} played · ${solvedPct}% solved` : 'solve one to start')}
     ${tile('#play', `Play rating · ${LEVELS[lv].short}`, play ? ratingText(play.rating, play.se, 'text-xs') : '—', play ? `${play.hands} hands${play.se > PROVISIONAL_SE ? ', still settling' : ''}` : 'rated after 20 hands')}
     ${tile(due ? '#puzzles/review' : '#puzzles', 'Mistakes to review', due, queued ? `${queued} missed puzzle${queued === 1 ? '' : 's'} queued` : 'puzzles you miss come back')}
-    ${tile('#review', 'Decision accuracy', `<span class="${accTone(acc)}">${acc ?? '—'}</span>`, hands.length ? `last ${Math.min(100, hands.length)} hands` : 'play or log a hand')}
+    ${tile('#review/insights', 'Decision accuracy', `<span class="${accTone(acc)}">${acc ?? '—'}</span>`, hands.length ? `last ${Math.min(100, hands.length)} hands` : 'play or log a hand')}
   </div>`;
 
   // ---- places to go
@@ -128,7 +128,7 @@ export async function render(container) {
     ${tiles}
     ${places}
     ${recent ? `<section>
-      <div class="flex items-center justify-between mb-2"><div class="h-sec">Recent sessions</div><a href="#review" class="text-sm text-ink-300 hover:text-white">All hands →</a></div>
+      <div class="flex items-center justify-between mb-2"><div class="h-sec">Recent sessions</div><a href="#review" class="text-sm text-ink-300 hover:text-white">All sessions →</a></div>
       <div class="panel divide-y divide-ink-800">${recent}</div>
     </section>` : ''}
   </div>`;

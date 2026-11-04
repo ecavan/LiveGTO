@@ -370,7 +370,7 @@ function draw(container) {
     <div>${puzzleTabs(mode)}</div>
     ${mode === 'review' && current ? `<p class="text-sm text-ink-400">Missed puzzles come back after ${INTERVALS.join(', ')} days. Solve one each time and it leaves the queue. Not rated.</p>` : ''}
     ${mode === 'daily' ? `<p class="text-sm text-ink-400">One spot a day, the same for everyone. Not rated: it counts toward your streak.</p>` : ''}
-    ${mode === 'drill' ? `<p class="text-sm text-ink-300">${esc(LEAK_DRILLS[drill.leak].want)} <a href="#review" class="underline text-ink-400">Back to your leaks</a></p>` : ''}`;
+    ${mode === 'drill' ? `<p class="text-sm text-ink-300">${esc(LEAK_DRILLS[drill.leak].want)} <a href="#review/insights" class="underline text-ink-400">Back to your leaks</a></p>` : ''}`;
   if (!current) {
     const empty = mode === 'review'
       ? `<div class="panel panel-pad text-center py-10 space-y-3">

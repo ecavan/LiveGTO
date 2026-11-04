@@ -45,7 +45,8 @@ Six tabs, laid out like ChessBot's:
     the bot.
   - *Live table*: 4–6 players drawn from a live $1/$2 pool, each a mix of styles, read from their
     stats; Easy / Medium / Hard; 100bb, 200bb or a live mix of stacks ($50 short stacks next to
-    $600 deep ones, SPR shown). The coach grades you against everyone still in the hand.
+    $600 deep ones, SPR shown). Stacks carry over from hand to hand; bust and you rebuy. The coach
+    grades you against everyone still in the hand.
 - **Watch**: two bots, cards face up, every decision explained (how the Pro takes apart a
   Station), with match stats and how the winner is winning.
 - **Review**: chess.com-style game review of every session you played: pick a session, then Next

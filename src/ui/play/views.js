@@ -410,7 +410,7 @@ export function playTabs(active) {
   return segLinks([['#play', 'Heads-up', ''], ['#play/table', 'Live table', 'table']], active);
 }
 
-/** Review: your hands and leaks · live sessions (results) · log a live hand */
+/** Review: your sessions · insights and leaks · casino results · log a live hand */
 export function reviewTabs(active) {
-  return segLinks([['#review', 'Hands & leaks', ''], ['#review/sessions', 'Live sessions', 'sessions'], ['#review/log', 'Log a hand', 'log']], active);
+  return segLinks([['#review', 'Sessions', ''], ['#review/insights', 'Insights', 'insights'], ['#review/sessions', 'Casino', 'sessions'], ['#review/log', 'Log a hand', 'log']], active);
 }

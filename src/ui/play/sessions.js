@@ -116,7 +116,7 @@ function draw(container) {
 
   container.innerHTML = `<div class="page space-y-5 fade-up">
     <div class="flex items-end justify-between gap-4 flex-wrap">
-      <div><div class="h-sec">Review</div><h1 class="h-title">Live sessions</h1>
+      <div><div class="h-sec">Review</div><h1 class="h-title">Casino sessions</h1>
         <p class="muted mt-1 text-sm max-w-2xl">Your live results: profit, $ an hour and big blinds an hour, over time and by stakes and casino. Kept on this device; export a copy now and then.</p></div>
       ${reviewTabs('sessions')}
     </div>

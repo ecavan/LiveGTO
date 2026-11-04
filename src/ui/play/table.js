@@ -3,7 +3,7 @@
  * from their stats (VPIP / PFR) or reveal their styles; the coach grades every decision.
  */
 import {
-  createTable, startHand, heroToAct, coachNow, coachReady, heroAct, botAct, endHand, summary, HERO, coachTable,
+  createTable, startHand, resetStacks, heroToAct, coachNow, coachReady, heroAct, botAct, endHand, summary, HERO, coachTable,
 } from '../../engine/ring/session.js';
 import { getLevel } from '../../engine/level.js';
 import { board, pot, potShown, posOf, legal } from '../../engine/ring/game.js';
@@ -61,7 +61,7 @@ function setup(container) {
         ${seg('size', [{ v: 4, label: '4' }, { v: 5, label: '5' }, { v: 6, label: '6-max' }], size)}</div>
       <div class="space-y-2"><div class="h-sec">Stacks</div>
         ${seg('stacks', [{ v: 'even', label: '100bb' }, { v: 'mixed', label: 'Live mix' }, { v: 'deep', label: '200bb' }], st.tableStacks ?? 'even')}
-        <p class="text-xs text-ink-400">${{ even: 'Everyone 100bb.', mixed: 'Like a real game: $50 short stacks next to $600 deep ones. You have 100bb. Watch the SPR.', deep: 'Everyone 200bb deep: implied odds and big pots.' }[st.tableStacks ?? 'even']}</p></div>
+        <p class="text-xs text-ink-400">${{ even: 'Everyone buys in for 100bb.', mixed: 'Like a real game: $50 short stacks next to $600 deep ones. You buy in for 100bb. Watch the SPR.', deep: 'Everyone buys in for 200bb: implied odds and big pots.' }[st.tableStacks ?? 'even']} Stacks carry over from hand to hand; bust and you rebuy.</p></div>
       <div class="space-y-2"><div class="h-sec">Coach</div>
         ${seg('coach', [{ v: 'decision', label: 'Every decision' }, { v: 'hand', label: 'After hands' }, { v: 'off', label: 'Off' }], st.coach)}</div>
       <div class="space-y-2"><div class="h-sec">Player styles</div>
@@ -174,7 +174,7 @@ function sessionPanel() {
   return `<div class="panel panel-pad space-y-3">
     <div class="grid grid-cols-3 gap-2">
       ${stat('Hands', sum.hands, '', '!text-xl')}
-      ${stat('Result', `<span class="${tone(sum.net)}">${fmtBB(sum.net, { sign: true })}</span>`, '', '!text-xl')}
+      ${stat('Result', `<span class="${tone(sum.net)}">${fmtBB(Math.abs(sum.net) >= 10 ? Math.round(sum.net) : sum.net, { sign: true })}</span>`, '', '!text-xl')}
       ${stat('EV lost', sum.evLost >= 0.05 ? sum.evLost.toFixed(1) : '0', `bb · ${pct(sum.accuracy)} good`, sum.evLost >= 0.05 ? '!text-xl text-rose-300' : '!text-xl')}
     </div>
     <div class="text-xs text-ink-300">You: VPIP <b class="text-white">${pct(sum.vpip)}</b> · PFR <b class="text-white">${pct(sum.pfr)}</b>. ${read}${learners > 0.05 ? ` The sharpest player has adjusted ${pct(learners)} to you.` : ''}</div>
@@ -369,7 +369,7 @@ function review(container) {
         <span class="ml-auto text-rose-300 text-xs font-semibold pr-2">${d.preflop ? 'off chart · ' : ''}−${d.loss.toFixed(2)}bb</span></span>`, coachCard(d, { evNote: evNote(d), hideType: !ui.reveal }))).join('') : '<p class="text-sm text-ink-400">None. Clean session.</p>'}
     </div>
   </div>`;
-  container.querySelector('#rv-again').addEventListener('click', () => { ui = { ...ui, over: false, recap: null, last: null, lastState: null, rangeHtml: null }; t.hands = []; t.handNo = 0; t.startedAt = Date.now(); startHand(t); draw(container); });
+  container.querySelector('#rv-again').addEventListener('click', () => { ui = { ...ui, over: false, recap: null, last: null, lastState: null, rangeHtml: null }; t.hands = []; t.handNo = 0; t.startedAt = Date.now(); resetStacks(t); t.s = null; startHand(t); draw(container); });
   container.querySelector('#rv-new').addEventListener('click', () => { t = null; ui.over = false; setup(container); });
 }
 

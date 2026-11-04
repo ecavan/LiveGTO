@@ -21,7 +21,7 @@ import { createAgent, choose, handEnded, eloOf } from './agents.js';
 import { coach } from './coach.js';
 import { evaluate, cardStr } from './hand.js';
 import CAL from './calibration.json';
-import { otherGrade } from '../level.js';
+import { otherGrade, isBlunder } from '../level.js';
 
 export const HAND_STACK = 100;
 
@@ -122,7 +122,7 @@ export function heroAct(sess, idx) {
   }
   loss = Math.round(loss * 100) / 100;
   const verdict = idx === k.best ? 'best' : k.fine.includes(idx) ? 'fine'
-    : (loss >= 10 || loss >= 0.25 * pot(s)) ? 'blunder' : 'mistake';
+    : isBlunder(loss, pot(s)) ? 'blunder' : 'mistake';
   const d = {
     at: s.log.length,
     street: s.street,

@@ -9,6 +9,7 @@
  * Cards are ids (0..51). Seats are the engine's seats. `decisions[i].at` is the log index of the
  * action the decision became, so a replay can attach the grade to the right move.
  */
+import { isBlunder } from './level.js';
 import * as HU from './hu/game.js';
 import * as RING from './ring/game.js';
 import { loadRaw, save } from '../store.js';
@@ -125,7 +126,8 @@ export const decisionAt = (h, k) => h.decisions.find(d => d.at === k) || null;
 export function grade(d) {
   if (d.verdict === 'best') return 'best';
   if (d.verdict === 'fine') return 'good';
-  if (d.verdict === 'blunder') return 'blunder';
+  // from the loss, not the stored verdict, so hands stored before a rule change grade the same way
+  if (isBlunder(d.loss, d.pot)) return 'blunder';
   return d.loss < 1 && d.loss < 0.1 * Math.max(1, d.pot) ? 'inaccuracy' : 'mistake';
 }
 export const GRADES = {
@@ -142,7 +144,7 @@ export const GRADES = {
  */
 export function moveAccuracy(d) {
   if (d.verdict === 'best' || d.verdict === 'fine') return 100;
-  const rel = d.loss / Math.max(2, d.pot);
+  const rel = d.loss / Math.max(8, d.pot); // the pot counts as at least 8bb, as for a blunder
   return Math.max(0, Math.round(100 * Math.exp(-4 * rel) - 10));
 }
 

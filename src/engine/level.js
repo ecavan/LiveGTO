@@ -6,6 +6,12 @@
  */
 import { settings, saveSettings } from '../store.js';
 
+/**
+ * A blunder: 10bb or more, or a quarter of the pot. The pot counts as at least 8bb, so a small
+ * preflop slip (a loose open into 1.5bb of blinds) is a mistake, not a blunder.
+ */
+export const isBlunder = (loss, pot) => loss >= 10 || loss >= 0.25 * Math.max(8, pot || 0);
+
 export const LEVELS = {
   1: { name: 'Level 1 · Baseline', short: 'Baseline', blurb: 'The solid play: how a strong player plays against a strong player. Learn this first.' },
   2: { name: 'Level 2 · Exploit', short: 'Exploit', blurb: 'The best play against the villain in front of you: bet more into a Station, bluff a Nit, call down a Maniac.' },
@@ -26,6 +32,6 @@ export function otherGrade(k, idx, pot, level) {
   if (!k || !k.options[idx]) return null;
   const best = k.options[k.best];
   const loss = k.losses ? k.losses[idx] : Math.round(Math.max(0, best.ev - k.options[idx].ev) * 100) / 100;
-  const verdict = idx === k.best ? 'best' : k.fine.includes(idx) ? 'fine' : (loss >= 10 || loss >= 0.25 * pot) ? 'blunder' : 'mistake';
+  const verdict = idx === k.best ? 'best' : k.fine.includes(idx) ? 'fine' : isBlunder(loss, pot) ? 'blunder' : 'mistake';
   return { level, best: k.best, fine: [...k.fine], loss: verdict === 'fine' || verdict === 'best' ? 0 : loss, verdict, solid: k.solid ? { source: k.solid.source, chart: k.solid.chart, text: k.solid.text, detail: k.solid.detail } : null };
 }

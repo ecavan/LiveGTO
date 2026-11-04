@@ -31,7 +31,7 @@ describe('live table', () => {
         }
       }
       expect(t.s.done).toBe(true);
-      expect(t.s.stacks.reduce((a, b) => a + b, 0)).toBeCloseTo(600, 6);
+      expect(t.s.stacks.reduce((a, b) => a + b, 0)).toBeCloseTo(t.s.start.reduce((a, b) => a + b, 0), 6);
       endHand(t);
     }
     const sum = summary(t);
@@ -98,3 +98,23 @@ describe('live stacks', () => {
     expect(shoveSpots).toBeGreaterThan(0);
   });
 });
+
+describe('stacks carry over', () => {
+  it('each hand starts from the last one\'s stacks; a bust stack rebuys for its buy-in', async () => {
+    const { createTable, startHand, endHand, HERO } = await import('../src/engine/ring/session.js');
+    const t = createTable({ n: 6, stacks: 'even', rand: rng(7) });
+    startHand(t);
+    // pretend the hand ended: hero won 40bb from seat 2, seat 3 busted
+    t.s.done = true;
+    t.s.stacks = t.s.stacks.map((x, i) => (i === HERO ? 140 : i === 2 ? 60 : i === 3 ? 0 : x));
+    const r = rng(3);
+    let first = true;
+    startHand(t, () => (first ? ((first = false), 0.99) : r())); // nobody leaves this hand
+    expect(t.s.start[HERO]).toBe(140);
+    expect(t.s.start[2]).toBe(60);
+    expect(t.s.start[3]).toBe(100);
+    expect(t.arrivals.some(a => /rebought for 100bb/.test(a))).toBe(true);
+    void endHand;
+  });
+});
+

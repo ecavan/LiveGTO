@@ -1,14 +1,15 @@
 /**
  * A live table session: you (seat 0) and up to five players drawn from a live pool, button
  * moving every hand. Stacks: everyone 100bb, all 200bb deep, or a live mix (short stacks of
- * 25–45bb next to 150–300bb deep ones); each player starts every hand with his own buy-in.
+ * 25–45bb next to 150–300bb deep ones). Stacks carry over from hand to hand, as in a real
+ * game: win a pot and you have it next hand; bust and you rebuy for your buy-in.
  * Players come and go now and then.
  * Every decision of yours is graded by the ring coach; the table learns your tendencies.
  */
 import { newHand, act, board, pot, potShown, live, posOf, menu, legal } from './game.js';
 import { randomPlayer, playerPolicyAll, context, newHeroStats, keyedMenu, tableTiers } from './players.js';
 import { ringCoach } from './coach.js';
-import { otherGrade } from '../level.js';
+import { otherGrade, isBlunder } from '../level.js';
 import { comboIndex } from '../hu/equity.js';
 import { classify, cardStr } from '../hu/hand.js';
 
@@ -32,7 +33,7 @@ export function createTable({ n = 6, coachMode = 'decision', level = 'medium', s
   const tiers = tableTiers(level, n, rand);
   const players = [null, ...tiers.map(tier => randomPlayer(rand, used, tier))];
   for (const p of players) if (p) { p.hud = { hands: 0, vpip: 0, pfr: 0 }; p.depth = depthFor(stacks, rand); }
-  return {
+  const t = {
     n, coachMode, level, stacks, players, used,
     coachLevel, // 1 baseline: graded as if everyone played solid (Pro, not adjusting to you) · 2 exploit
     btn: Math.floor(rand() * n),
@@ -45,9 +46,22 @@ export function createTable({ n = 6, coachMode = 'decision', level = 'medium', s
     arrivals: [], // "Vinny sat down" messages
     startedAt: Date.now(),
   };
+  resetStacks(t);
+  return t;
 }
 
+/** Everyone back to his buy-in (a new session). */
+export function resetStacks(t) {
+  t.chips = t.players.map((p, i) => (i === HERO ? heroDepth(t.stacks) : p.depth ?? 100));
+  return t;
+}
+
+/** Below this you can't really play a hand: you rebuy (as a live player reloads when he busts). */
+export const REBUY_BELOW = 1;
+
 export function startHand(t, rand = Math.random) {
+  if (!t.chips) resetStacks(t);
+  if (t.s?.done) t.chips = [...t.s.stacks];
   t.btn = (t.btn + 1) % t.n;
   t.arrivals = [];
   // now and then someone leaves and a new player sits down
@@ -59,8 +73,16 @@ export function startHand(t, rand = Math.random) {
     p.depth = depthFor(t.stacks, rand);
     t.arrivals.push(`${t.players[seat].name} left; ${p.name} sat down${t.stacks === 'mixed' ? ` with ${p.depth}bb` : ''}.`);
     t.players[seat] = p;
+    t.chips[seat] = p.depth;
   }
-  t.s = newHand({ n: t.n, btn: t.btn, stacks: t.players.map((p, i) => (i === HERO ? heroDepth(t.stacks) : p.depth ?? 100)), rand });
+  // stacks carry over; whoever busted rebuys for his buy-in
+  for (let i = 0; i < t.n; i++) {
+    if (t.chips[i] >= REBUY_BELOW) continue;
+    const buyIn = i === HERO ? heroDepth(t.stacks) : t.players[i].depth ?? 100;
+    t.chips[i] = buyIn;
+    t.arrivals.push(i === HERO ? `You rebought for ${buyIn}bb.` : `${t.players[i].name} rebought for ${buyIn}bb.`);
+  }
+  t.s = newHand({ n: t.n, btn: t.btn, stacks: [...t.chips], rand });
   t.snap = { ...t.stats };
   t.decisions = [];
   t.pending = null;
@@ -104,7 +126,7 @@ export function gradeDecision(s, k, idx, seat = HERO) {
     loss = Math.max(k.nominal, ref - opt.ev);
   }
   loss = Math.round(loss * 100) / 100;
-  const verdict = idx === k.best ? 'best' : k.fine.includes(idx) ? 'fine' : (loss >= 10 || loss >= 0.25 * pot(s)) ? 'blunder' : 'mistake';
+  const verdict = idx === k.best ? 'best' : k.fine.includes(idx) ? 'fine' : isBlunder(loss, pot(s)) ? 'blunder' : 'mistake';
   return {
     at: s.log.length, street: s.street, board: board(s), hole: s.holes[seat], pot: pot(s),
     toCall: legal(s).callAmount, options: k.options.map(o => ({ type: o.type, to: o.to, label: o.label, ev: o.ev, info: o.info })),
