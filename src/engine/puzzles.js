@@ -111,7 +111,9 @@ export const FINE_BB = 0.3;
 export function grade(puzzle, record, choice) {
   const loss = -puzzle.ev[choice]; // ev is relative to the best action (best = 0)
   const noise = Math.max(FINE_PCT * (record.pot || 0), FINE_BB);
-  const verdict = choice === puzzle.answer ? 'best' : (puzzle.fine.includes(choice) || loss <= noise) ? 'fine' : 'mistake';
+  // the answer is the solver's main play; a play that earns at least as much is best too
+  const top = choice === puzzle.answer || puzzle.ev[choice] >= puzzle.ev[puzzle.answer];
+  const verdict = top ? 'best' : (puzzle.fine.includes(choice) || loss <= noise) ? 'fine' : 'mistake';
   return {
     verdict,
     correct: verdict !== 'mistake',

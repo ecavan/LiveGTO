@@ -91,6 +91,13 @@ describe('grading is by EV', () => {
     expect(fine.verdict).toBe('fine');
     expect(fine.correct).toBe(true);
   });
+  it('a play that earns at least as much as the main play is best too', () => {
+    // the solver's main play (answer) can trail another option by a hair
+    const mixed = { ...puzzle, answer: 1, fine: [0, 1], ev: [0, -0.02, -9] };
+    expect(grade(mixed, record, 0).verdict).toBe('best');
+    expect(grade(mixed, record, 1).verdict).toBe('best');
+    expect(grade(mixed, record, 2).verdict).toBe('mistake');
+  });
 });
 
 describe('Elo like chess puzzles', () => {

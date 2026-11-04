@@ -199,7 +199,7 @@ const TYPE_RE = /\b(a|an|the) (Station|Nit|Maniac|Whale)\b/g;
 /** With player styles hidden at the live table, the coach keeps the read to itself. */
 const maskType = (t, hide) => (hide && t ? String(t).replace(/the play against (a|an) (Station|Nit|Maniac|Whale)/g, 'the play against this player').replace(/the solver against (a|an) (Station|Nit|Maniac|Whale)/g, 'the solver against a player like him').replace(TYPE_RE, 'this kind of player') : t);
 
-export function coachCard(d, { weights = null, botName = null, live = false, evNote = null, fmt = null, titled = false, hideType = false } = {}) {
+export function coachCard(d, { weights = null, botName = null, live = false, evNote = null, fmt = null, titled = false, hideType = false, whyOpen = false } = {}) {
   LABEL_FMT = fmt;
   const chosen = { ...d.options[d.chosen], label: labelText(d.options[d.chosen].label) };
   const best = { ...d.options[d.best], label: labelText(d.options[d.best].label) };
@@ -215,7 +215,7 @@ export function coachCard(d, { weights = null, botName = null, live = false, evN
   else head += verdict(d.verdict, `${d.verdict === 'blunder' ? 'Blunder' : 'Mistake'}: ${esc(chosen.label)} costs ${fmtBB(d.loss)}`, `Best: <b>${esc(best.label)}</b>.`);
   if (d.preflop) {
     return `<div class="space-y-3">${head}
-      ${disc('Why', `<div class="space-y-1.5">${(d.notes || []).map(n => `<p>${n}</p>`).join('')}</div>`)}</div>`;
+      ${disc('Why', `<div class="space-y-1.5">${(d.notes || []).map(n => `<p>${n}</p>`).join('')}</div>`, whyOpen)}</div>`;
   }
   const why = [...(sol?.detail ? [`The plan: ${esc(maskType(sol.detail, hideType))}`] : []), ...whyLines(d)].map(l => `<p>${l}</p>`).join('');
   const other = otherLevelHtml(d);
@@ -236,7 +236,7 @@ export function coachCard(d, { weights = null, botName = null, live = false, evN
     <div class="text-xs text-ink-400">${evNote ?? evNoteFor(d, { botName })}${sol ? ' The verdict is the plan for your kind of hand: a play on it costs nothing, one off it costs what the EV model says, at least a little.' : ''}</div>
     ${modelNote}
     ${live ? `<details class="disc" data-rangeview open><summary>Your range by bucket: a plan for each kind of hand</summary><div class="body"><div class="text-ink-400 text-sm">Working it out…</div></div></details>` : ''}
-    ${disc('Why', `<div class="space-y-1.5">${why}</div>`)}
+    ${disc('Why', `<div class="space-y-1.5">${why}</div>`, whyOpen)}
     ${his ? disc(`His range${d.buckets?.length ? ' by bucket' : ''} · you have ${pct(d.equity)} against it`, his + (weights ? `<div class="pt-2">${weightGrid(weights, d.hole)}</div>` : '')) : ''}
   </div>`;
 }

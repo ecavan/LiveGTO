@@ -10,7 +10,8 @@ import {
 import { getLevel, LEVELS } from '../engine/level.js';
 import { AGENTS, AGENT_IDS, eloOf, levelOf } from '../engine/hu/agents.js';
 import { settings, saveSettings, loadRaw, save, KEYS } from '../store.js';
-import { seg, wireSeg, icon, disc, fmtBB, esc, levelSwitch, wireLevel, ratingText } from './kit.js';
+import { seg, wireSeg, icon, disc, fmtBB, esc, levelSwitch, wireLevel, ratingText, PROVISIONAL_SE } from './kit.js';
+import { playRatingSeries } from './ratings.js';
 import {
   liveTable, actionBar, historyHtml, coachCard, sessionPanel, handRecap, reviewHtml, bucketViewHtml, playTabs,
 } from './play/views.js';
@@ -85,6 +86,57 @@ function recordSession() {
   window.dispatchEvent(new Event('livegto:ratings'));
 }
 
+/**
+ * Your Play rating after each session (Level-specific), with its ± band. Hollow dots are still
+ * provisional. Shown once there are two rated sessions.
+ */
+/** The chart's inner width in px: the page (max-w-6xl, px-4/sm:px-6) less the panel padding (p-4/sm:p-5). */
+function chartWidth(container) {
+  const cw = container.clientWidth || 640;
+  const sm = cw >= 640;
+  return Math.min(cw, 1152) - (sm ? 48 : 32) - (sm ? 40 : 32) - 2;
+}
+
+function ratingChart(series, width = 640) {
+  if (series.length < 2) return '';
+  const pts = series.slice(-30);
+  const W = Math.max(280, Math.round(width)), H = 160, L = 44, R = 10, T = 12, B = 22;
+  const lo0 = Math.min(...pts.map(p => p.rating - Math.min(p.se ?? 0, 300)));
+  const hi0 = Math.max(...pts.map(p => p.rating + Math.min(p.se ?? 0, 300)));
+  const pad = Math.max(25, (hi0 - lo0) * 0.08);
+  const lo = Math.floor((lo0 - pad) / 50) * 50, hi = Math.ceil((hi0 + pad) / 50) * 50;
+  const x = (i) => L + (i * (W - L - R)) / (pts.length - 1);
+  const y = (v) => T + ((hi - v) * (H - T - B)) / Math.max(1, hi - lo);
+  const band = pts.map((p, i) => `${x(i).toFixed(1)},${y(p.rating + Math.min(p.se ?? 0, 300)).toFixed(1)}`)
+    .concat([...pts].reverse().map((p, j) => `${x(pts.length - 1 - j).toFixed(1)},${y(p.rating - Math.min(p.se ?? 0, 300)).toFixed(1)}`)).join(' ');
+  const line = pts.map((p, i) => `${x(i).toFixed(1)},${y(p.rating).toFixed(1)}`).join(' ');
+  const grid = [lo, Math.round((lo + hi) / 2 / 50) * 50, hi].map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="rgb(var(--ink-700))" stroke-dasharray="3 4"/>
+    <text x="${L - 6}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end" font-size="11" fill="rgb(var(--ink-400))">${v}</text>`).join('');
+  const day = (t) => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' });
+  const dots = pts.map((p, i) => {
+    const prov = p.se != null && p.se > PROVISIONAL_SE;
+    return `<circle cx="${x(i).toFixed(1)}" cy="${y(p.rating).toFixed(1)}" r="3.5" fill="${prov ? 'rgb(var(--ink-900))' : 'currentColor'}" stroke="currentColor" stroke-width="1.5"><title>${day(p.at)}: ${p.rating}${p.se != null ? ` ± ${p.se}` : ''} after ${p.hands} hands${prov ? ' (provisional)' : ''}</title></circle>`;
+  }).join('');
+  const first = pts[0], last = pts.at(-1);
+  const settled = pts.find(p => p.se == null || p.se <= PROVISIONAL_SE);
+  const d = settled && settled !== last ? last.rating - settled.rating : null;
+  return `<div class="panel panel-pad space-y-2">
+    <div class="flex items-baseline justify-between gap-3 flex-wrap">
+      <div class="h-sec"><span class="text-amber-300">Your Play rating · ${LEVELS[getLevel()].short}</span></div>
+      <div class="text-xs text-ink-400">${pts.length} sessions${d != null ? ` · <span class="${d > 0 ? 'text-emerald-300' : d < 0 ? 'text-rose-300' : ''}">${d > 0 ? '+' : ''}${d}</span> since ${day(settled.at)}` : ''}</div>
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" class="max-w-full h-auto text-amber-300" role="img" aria-label="Play rating over your last ${pts.length} sessions, ${first.rating} to ${last.rating}">
+      ${grid}
+      <polygon points="${band}" fill="currentColor" opacity="0.12"/>
+      <polyline points="${line}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${dots}
+      <text x="${L}" y="${H - 5}" font-size="11" fill="rgb(var(--ink-400))">${day(first.at)}</text>
+      <text x="${W - R}" y="${H - 5}" text-anchor="end" font-size="11" fill="rgb(var(--ink-400))">${day(last.at)}</text>
+    </svg>
+    <p class="text-xs text-ink-400">Your rating after each session, pooled over your last 1000 hands. The shaded band is its ± spread: it narrows as you play. Hollow dots are still provisional.</p>
+  </div>`;
+}
+
 // ------------------------------------------------------------------ setup
 
 function setup(container) {
@@ -99,6 +151,7 @@ function setup(container) {
       <div class="flex items-end gap-3 flex-wrap max-w-full">${playTabs('')}<div class="stat min-w-[150px]"><div class="k">Play rating · ${LEVELS[getLevel()].short}</div><div class="v text-amber-200">${mine ? ratingText(mine.rating, mine.se) : '—'}</div>
         <div class="s">${mine ? `${mine.hands} hands · ${mine.edge >= 0 ? '+' : ''}${Math.round(mine.edge)}bb/100 vs the bots on the same cards` : `rated after ${MIN_RATED} hands`}</div></div></div>
     </div>
+    ${ratingChart(playRatingSeries(), chartWidth(container))}
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
       ${bots.map(id => {
         const a = AGENTS[id];

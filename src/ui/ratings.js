@@ -16,6 +16,21 @@ export function playRatingInfo(level = getLevel()) {
   return poolRating([...store.sessions].reverse().filter(p => p.edgeN >= 1 && (p.level ?? 2) === level));
 }
 
+/**
+ * Your Play rating after each session, oldest first: the pooled rating over the sessions up to
+ * that one, the same way the current rating is pooled. [{ at, rating, se, hands }]
+ */
+export function playRatingSeries(level = getLevel()) {
+  const store = loadRaw(KEYS.play, { sessions: [] });
+  const rows = store.sessions.filter(p => p.edgeN >= 1 && (p.level ?? 2) === level);
+  const out = [];
+  for (let i = 0; i < rows.length; i++) {
+    const r = poolRating(rows.slice(0, i + 1).reverse());
+    if (r) out.push({ at: rows[i].at, rating: r.rating, se: r.se, hands: r.hands });
+  }
+  return out;
+}
+
 export function renderRatings(el) {
   if (!el) return;
   const pz = loadStats();

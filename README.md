@@ -48,8 +48,10 @@ Six tabs, laid out like ChessBot's:
     $600 deep ones, SPR shown). The coach grades you against everyone still in the hand.
 - **Watch**: two bots, cards face up, every decision explained (how the Pro takes apart a
   Station), with match stats and how the winner is winning.
-- **Review**: chess-style game review of every hand you played: accuracy, Best / Good /
-  Inaccuracy / Mistake / Blunder, a replayer that hides your answer until you've guessed,
+- **Review**: chess.com-style game review of every session you played: pick a session, then Next
+  walks you through each of your decisions, hand after hand, with the spot you faced, what you did
+  (Best / Good / Inaccuracy / Mistake / Blunder) and the coach on why; an optional quiz hides
+  your move until you've answered;
   insights (accuracy by session, by street and by decision, your biggest mistakes) and a leak
   report across sessions. **Live sessions** tracks your casino results ($ an hour), and
   **Log a hand** from the casino and the coach grades it too.

@@ -239,7 +239,7 @@ function actionButtons(r) {
 function feedback(r, p, g, choice) {
   const a = r.actions_short;
   const kind = g.verdict === 'best' ? 'best' : g.verdict === 'fine' ? 'fine' : lossKind(g.loss_bb, r.pot);
-  const head = g.verdict === 'best' ? verdict('best', `Best move: ${esc(a[p.answer])}`)
+  const head = g.verdict === 'best' ? verdict('best', `Best move: ${esc(a[choice])}`, choice === p.answer ? '' : `The solver's main play here is ${esc(a[p.answer])}; yours earns ${p.ev[choice] > p.ev[p.answer] + 0.005 ? `${fmtBB(p.ev[choice] - p.ev[p.answer])} more` : 'as much'}.`)
     : g.verdict === 'fine' ? verdict('fine', `Good: ${esc(a[choice])}`, `Best was ${esc(a[p.answer])}.`)
       : verdict(kind, `${kind === 'blunder' ? 'Blunder' : 'Mistake'}: ${esc(a[choice])} costs ${fmtBB(g.loss_bb)}`, `${pct(g.loss_pct, 1)} of the pot. Best: <b>${esc(a[p.answer])}</b>.`);
   const opts = a.map((label, i) => ({ label, ev: p.ev[i] }));

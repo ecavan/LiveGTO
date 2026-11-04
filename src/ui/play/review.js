@@ -16,6 +16,7 @@ import { ringTable, fmtBB, icon, esc, stat, handText, seg, wireSeg, disc, sprOf,
 import { coachCard, actionBar, reviewTabs, evNoteFor, handName } from './views.js';
 import { settings, saveSettings } from '../../store.js';
 import { pct } from '../../engine/potmath.js';
+import { navigate } from '../../router.js';
 
 const STREET = ['Preflop', 'Flop', 'Turn', 'River'];
 const byRank = (h) => [...h].sort((a, b) => (b >> 2) - (a >> 2));
@@ -149,14 +150,8 @@ function home(container) {
       ${stat('Decisions', rep.spots, `${sessions.length} session${sessions.length === 1 ? '' : 's'}`)}
       ${stat('Result', `<span class="${tone(hands.reduce((a, h) => a + (h.net ?? 0), 0))}">${fmtBB(hands.reduce((a, h) => a + (h.net ?? 0), 0), { sign: true })}</span>`, 'all stored hands')}
     </div>
-    ${insights(hands, sessions)}
-    <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5 items-start">
-      <div class="space-y-2">
-        <div class="flex items-baseline justify-between"><div class="h-sec">Your leaks</div><span class="text-xs text-ink-400">cost per 100 hands</span></div>
-        ${leaks}
-      </div>
-      <div class="space-y-2">
-        <div class="h-sec">Sessions</div>
+    <div class="space-y-2">
+        <div class="flex items-baseline justify-between gap-3"><div class="h-sec">Your sessions</div><span class="text-xs text-ink-400">pick one to review it hand by hand</span></div>
         <div class="panel divide-y divide-ink-800">${sessions.map(x => {
           const a = accuracyOf(x.hands);
           const net = x.hands.reduce((q, h) => q + (h.net ?? 0), 0);
@@ -165,11 +160,16 @@ function home(container) {
             <div class="min-w-0 flex-1"><div class="text-sm font-semibold text-white truncate">${sessionTitle(x)}</div>
               <div class="text-xs text-ink-400">${new Date(x.sid).toLocaleString([], x.level === 'live' || x.hands[0]?.live ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · ${x.hands.length} hand${x.hands.length === 1 ? '' : 's'} · <span class="${tone(net)}">${fmtBB(net, { sign: true })}</span>${c.blunder ? ` · <span class="text-rose-300">${c.blunder} blunder${c.blunder > 1 ? 's' : ''}</span>` : ''}</div></div>
             <div class="text-right"><div class="text-xl font-semibold num ${accTone(a)}">${a ?? '—'}</div><div class="text-[10px] uppercase tracking-wider text-ink-400">accuracy</div></div>
-            ${icon('next', 'w-4 h-4 text-ink-400')}</a>`;
+            <span class="btn btn-sm hidden sm:inline-flex">Review</span>${icon('next', 'w-4 h-4 text-ink-400 sm:hidden')}</a>`;
         }).join('')}</div>
-        <button id="clear" class="btn btn-quiet text-xs !px-0 text-ink-400">Clear hand history</button>
+    </div>
+    ${insights(hands, sessions)}
+    <div class="space-y-2">
+        <div class="flex items-baseline justify-between"><div class="h-sec">Your leaks</div><span class="text-xs text-ink-400">cost per 100 hands</span></div>
+        ${leaks}
       </div>
-    </div>`}
+    <button id="clear" class="btn btn-quiet text-xs !px-0 text-ink-400">Clear hand history</button>
+`}
   </div>`;
   const clr = container.querySelector('#clear');
   clr?.addEventListener('click', () => {
@@ -198,9 +198,9 @@ function sessionView(container, sid) {
       <div><a href="#review" class="text-sm text-ink-400 hover:text-white inline-flex items-center gap-1">${icon('back', 'w-4 h-4')} Review</a>
         <h1 class="h-title mt-1">${sessionTitle(x)}</h1>
         <div class="text-sm text-ink-400">${new Date(x.sid).toLocaleString()} · ${x.hands.length} hands</div></div>
-      <div class="flex gap-2">
-        ${firstKey ? `<a class="btn btn-primary" href="#review/h/${firstKey.h.id}/${firstKey.d.at}">${icon('target', 'w-4 h-4')} Retry your mistakes</a>` : ''}
-        <a class="btn" href="#review/h/${x.hands[0].id}">${icon('play', 'w-4 h-4')} Replay from hand 1</a></div>
+      <div class="flex gap-2 flex-wrap">
+        <a class="btn btn-primary btn-lg" href="#review/h/${x.hands[0].id}">${icon('play', 'w-5 h-5')} Start review</a>
+        ${firstKey ? `<a class="btn btn-lg" id="quiz-mistakes" href="#review/h/${firstKey.h.id}/${firstKey.d.at}">${icon('target', 'w-4 h-4')} Retry your mistakes</a>` : ''}</div>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       ${stat('Accuracy', `<span class="${accTone(acc)}">${acc ?? '—'}</span>`, 'chess-style: 100 = every move best')}
@@ -214,11 +214,11 @@ function sessionView(container, sid) {
     </div>
     <div class="grid lg:grid-cols-2 gap-5 items-start">
       <div class="space-y-2"><div class="h-sec">Key moments</div>
-        ${key.length ? key.map(({ h, d }) => `<a href="#review/h/${h.id}/${d.at}" class="panel flex items-center gap-3 px-4 py-3 hover:border-ink-500">
+        ${key.length ? key.map(({ h, d }) => `<a href="#review/h/${h.id}/${d.at + 1}" class="panel flex items-center gap-3 px-4 py-3 hover:border-ink-500">
           ${glyph(d)}<span class="text-xs text-ink-400 w-14">Hand ${h.no}</span>
           <span class="text-sm">${handText(byRank(d.hole).map(cardStr))}</span>
           <span class="text-sm text-ink-400 truncate">${d.board.length ? handText(d.board.map(cardStr)) : 'preflop'}</span>
-          <span class="ml-auto text-xs text-ink-300">Find a better move</span>${icon('next', 'w-4 h-4 text-ink-400')}</a>`).join('')
+          <span class="ml-auto text-xs text-rose-300 num">−${d.loss.toFixed(1)}bb</span>${icon('next', 'w-4 h-4 text-ink-400')}</a>`).join('')
           : '<p class="text-sm text-ink-400">No mistakes this session. Clean.</p>'}
       </div>
       <div class="space-y-2"><div class="h-sec">Every hand</div>
@@ -230,6 +230,7 @@ function sessionView(container, sid) {
       </div>
     </div>
   </div>`;
+  container.querySelector('#quiz-mistakes')?.addEventListener('click', () => saveSettings({ ...settings(), reviewGuess: 'mistakes' }));
 }
 
 // ------------------------------------------------------------------ replayer
@@ -242,13 +243,15 @@ function replayer(container, id, stepParam) {
     const session = sessionsOf().find(q => q.sid === hand.sid);
     rv = { hand, states, step: 0, guess: {}, showCards: false, session };
   }
-  rv.step = stepParam != null ? Math.max(0, Math.min(rv.states.length - 1, Number(stepParam) || 0)) : rv.step;
+  const L = hand.log.length;
+  // no step: your first decision (or the end of a hand you had none in); 'end': the result
+  rv.step = stepParam === 'end' ? L : stepParam != null ? Math.max(0, Math.min(L, Number(stepParam) || 0)) : stopsOf(hand)[0];
   keyHandler = (e) => {
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.key === 'ArrowRight') { e.preventDefault(); container.querySelector('#rv-next')?.click(); }
-    else if (e.key === 'ArrowLeft') { e.preventDefault(); go(container, rv.step - 1); }
-    else if (e.key === 'Home') go(container, 0);
-    else if (e.key === 'End') go(container, rv.states.length - 1);
+    if (e.metaKey || e.ctrlKey || e.altKey || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target?.tagName)) return;
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); container.querySelector('#rv-next')?.click(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); container.querySelector('#rv-prev')?.click(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); container.querySelector('#rv-next-hand')?.click(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); container.querySelector('#rv-prev-hand')?.click(); }
     else {
       const n = Number(e.key);
       if (n >= 1 && n <= 9) container.querySelector(`#guess [data-i="${n - 1}"]`)?.click();
@@ -264,7 +267,26 @@ function go(container, k) {
   draw(container);
 }
 
-const guessMode = () => settings().reviewGuess ?? 'mistakes';
+/**
+ * Where Next and Back stop in a hand: each of your decisions (the spot you faced, with the
+ * coach's verdict on what you did) and the result. With "Quiz me" on, a decision you still have
+ * to answer stops one step earlier, before your move is shown.
+ */
+function stopsOf(h) {
+  const out = new Set();
+  for (const d of h.decisions) {
+    if (rv?.hand.id === h.id && needsGuess(d) && rv.guess[d.at] == null) out.add(d.at);
+    out.add(d.at + 1);
+  }
+  out.add(h.log.length);
+  return [...out].sort((a, b) => a - b);
+}
+
+const RANK = { blunder: 4, mistake: 3, inaccuracy: 2, good: 1, best: 0 };
+/** A hand's worst decision, for the hand strip. */
+const worstOf = (h) => h.decisions.reduce((w, d) => (!w || RANK[grade(d)] > RANK[grade(w)] ? d : w), null);
+
+const guessMode = () => settings().reviewGuess ?? 'off';
 function needsGuess(d) {
   const m = guessMode();
   if (m === 'off') return false;
@@ -284,10 +306,11 @@ function actLabel(e, you = false) {
 }
 const tagLabel = (e) => (e.type === 'fold' ? 'Fold' : e.type === 'check' ? 'Check' : e.type === 'call' ? `Call ${e.amount}` : e.type === 'bet' ? `Bet ${e.amount ?? e.to}` : e.type === 'raise' ? `Raise ${e.to}` : e.callAllIn ? 'Call all-in' : `All-in ${e.to}`);
 
-function tableAt(h, k) {
+/** The table at state k; `through` shows action tags up to that log index (your move, on a decision). */
+function tableAt(h, k, through = k) {
   const s = rv.states[k];
   const v = viewOf(h, s);
-  const log = h.log.slice(0, k);
+  const log = h.log.slice(0, through);
   const curStreet = s.done ? log.at(-1)?.street ?? 0 : s.street;
   const tags = {};
   for (const e of log) if (e.street === curStreet) tags[e.seat] = { lab: tagLabel(e), tone: e.type === 'fold' ? 't-fold' : ['bet', 'raise', 'allin'].includes(e.type) ? 't-aggr' : '' };
@@ -398,6 +421,38 @@ function resultPanel(h) {
 
 const evNote = (h, d) => (h.kind === 'table' ? evNoteFor(d, { table: true }) : null);
 
+/** The session's hands as a strip of chips: number, worst grade, result. Tap one to jump to it. */
+function handStrip(hands, cur) {
+  return `<div id="hand-strip" class="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">${hands.map(x => {
+    const w = worstOf(x);
+    return `<a href="#review/h/${x.id}" data-hand="${x.id}" class="shrink-0 flex flex-col items-center gap-0.5 rounded-lg border px-2 py-1 min-w-[52px] ${x.id === cur ? 'border-emerald-500/70 bg-emerald-500/10' : 'border-ink-700 bg-ink-850 hover:border-ink-500'}">
+      <span class="text-[11px] text-ink-400 num">#${x.no}</span>
+      ${w ? glyph(w, 'text-[10px]') : '<span class="text-[10px] text-ink-500 h-[20px] leading-[20px]">—</span>'}
+      <span class="text-[10px] num ${tone(x.net ?? 0)}">${x.net == null ? '·' : fmtBB(x.net, { sign: true })}</span></a>`;
+  }).join('')}</div>`;
+}
+
+/** Hand start: who you are, what you hold, and the decisions coming. */
+function introPanel(h) {
+  const opp = h.kind === 'hu' ? esc(AGENTS[h.opp]?.name ?? 'him') : `${h.n - 1} players`;
+  return `<div class="space-y-2">
+    <div class="text-sm text-ink-200">Hand ${h.no}. You are <b class="text-white">${posName(h, h.hero)}</b> with ${handText(byRank(h.holes[h.hero]).map(cardStr))} against ${opp}.</div>
+    <div class="text-sm text-ink-300">${h.decisions.length ? `${h.decisions.length} decision${h.decisions.length === 1 ? '' : 's'} this hand: ${h.decisions.map(d => glyph(d, 'text-[10px]')).join(' ')}` : 'You had no decision this hand.'}</div>
+    <div class="text-xs text-ink-400">Next goes to your first decision. Tap any action in the list to see the table at that point.</div></div>`;
+}
+
+/** Your decision: the spot, what you did, and the coach on it. */
+function decisionPanel(h, d, e) {
+  const g = GRADES[grade(d)];
+  const opp = h.kind === 'hu' ? AGENTS[h.opp]?.name ?? 'him' : 'them';
+  const spot = `${STREET[d.street]}${d.board.length ? ` ${handText(d.board.map(cardStr))}` : ''} · pot ${fmtBB(d.pot)}${d.toCall > 0.001 ? ` · ${fmtBB(d.toCall)} to call` : ''}`;
+  const n = h.decisions.indexOf(d) + 1;
+  return `<div class="space-y-3">
+    <div class="flex items-center justify-between gap-2 text-xs text-ink-400"><span>${spot}</span><span>Decision ${n} of ${h.decisions.length}</span></div>
+    <div class="flex items-center gap-2">${glyph(d, 'text-sm')}<span class="font-semibold ${g.tone}">${g.label}</span><span class="text-ink-200">· you ${actLabel(e, true)}</span></div>
+    ${coachCard(d, { botName: opp, evNote: evNote(h, d), whyOpen: !['best', 'good'].includes(grade(d)) })}</div>`;
+}
+
 function draw(container) {
   const h = rv.hand;
   const k = rv.step;
@@ -407,80 +462,104 @@ function draw(container) {
   const guessed = nextD && rv.guess[k] != null && rv.guess[k] >= 0;
   const lastD = k > 0 ? decisionAt(h, k - 1) : null;
   const lastE = k > 0 ? h.log[k - 1] : null;
-  const opp = h.kind === 'hu' ? AGENTS[h.opp]?.name ?? 'him' : 'them';
 
   let panel;
   if (guessing) panel = guessPanel(nextD);
   else if (guessed) panel = guessResult(nextD, rv.guess[k]);
-  else if (lastD) {
-    const g = GRADES[grade(lastD)];
-    panel = `<div class="space-y-2"><div class="flex items-center gap-2 text-sm text-ink-300">${glyph(lastD, 'text-sm')}<span class="${g.tone} font-semibold">${g.label}</span><span>· you ${actLabel(lastE, true)}</span></div>
-      ${coachCard(lastD, { botName: opp, evNote: evNote(h, lastD) })}</div>`;
-  } else if (k === L) panel = resultPanel(h);
+  else if (lastD) panel = decisionPanel(h, lastD, lastE);
+  else if (k === L) panel = resultPanel(h);
   else if (lastE) panel = `<div class="text-sm text-ink-200"><b class="text-white">${esc(h.names[lastE.seat])}</b> ${actLabel(lastE)}.</div>
     ${nextD ? '<div class="text-sm text-ink-400 mt-2">Your decision is next.</div>' : ''}`;
-  else panel = `<div class="text-sm text-ink-300">Blinds posted. You are <b class="text-white">${posName(h, h.hero)}</b> with ${handText(byRank(h.holes[h.hero]).map(cardStr))}. Step through with ${icon('next', 'w-3.5 h-3.5 inline')} or the arrow keys.</div>`;
-  if (k === L && !guessing && lastD) panel += `<div class="mt-4">${resultPanel(h)}</div>`;
+  else panel = introPanel(h);
+  if (k === L && lastD) panel += `<div class="mt-4">${resultPanel(h)}</div>`;
+
+  // a decision shows the spot you faced (before your move), with your move tagged on your seat
+  const table = lastD && !guessing ? tableAt(h, k - 1, k) : tableAt(h, k);
 
   const hands = rv.session?.hands ?? [h];
   const hi = hands.findIndex(x => x.id === h.id);
   const prevHand = hands[hi - 1], nextHand = hands[hi + 1];
-  const disabledNext = guessing || k >= L;
+  const stops = stopsOf(h);
+  const nextStop = stops.find(x => x > k);
+  const prevStop = [...stops].reverse().find(x => x < k);
+  const atEnd = nextStop == null;
+  const nextLabel = guessing ? 'Answer first' : !atEnd ? `Next ${icon('next', 'w-5 h-5')}` : nextHand ? `Hand ${nextHand.no} ${icon('next', 'w-5 h-5')}` : 'End of session';
+  const nextOff = guessing || (atEnd && !nextHand);
+  const prevOff = k === 0 && !prevHand;
 
-  const openState = [...container.querySelectorAll('#rv-panel details')].map(d => d.open);
-  container.innerHTML = `<div class="page">
-    <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
-      <div class="flex items-center gap-3 min-w-0">
-        <a href="${rv.session ? `#review/s/${h.sid}` : '#review'}" class="btn btn-quiet text-sm !px-2">${icon('back', 'w-4 h-4')}</a>
-        <div class="min-w-0"><div class="text-sm font-semibold text-white truncate">Hand ${h.no} · ${sessionTitle(h)}</div>
-          <div class="text-xs text-ink-400">${new Date(h.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div></div>
+  // a redraw of the same step (show their cards, quiz mode) keeps what you had opened
+  const openState = rv.drawn === `${h.id}/${k}` ? [...container.querySelectorAll('#rv-panel details')].map(d => d.open) : [];
+  rv.drawn = `${h.id}/${k}`;
+  const stripScroll = container.querySelector('#hand-strip')?.scrollLeft ?? null;
+  container.innerHTML = `<div class="page space-y-3">
+    <div class="flex items-center justify-between gap-3 flex-wrap">
+      <div class="flex items-center gap-2 min-w-0">
+        <a href="${rv.session ? `#review/s/${h.sid}` : '#review'}" class="btn btn-quiet text-sm !px-2" aria-label="Back to the session">${icon('back', 'w-4 h-4')}</a>
+        <div class="min-w-0"><div class="text-sm font-semibold text-white truncate">${sessionTitle(h)}</div>
+          <div class="text-xs text-ink-400">Hand ${h.no}${hands.length > 1 ? ` of ${hands.length}` : ''} · ${new Date(h.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div></div>
       </div>
       <div class="flex items-center gap-2">
-        <span class="text-xs text-ink-400 uppercase tracking-wider font-semibold">Guess first</span>
-        ${seg('guess', [{ v: 'mistakes', label: 'My mistakes' }, { v: 'all', label: 'Every move' }, { v: 'off', label: 'Off' }], guessMode())}
+        <span class="text-xs text-ink-400 uppercase tracking-wider font-semibold">Quiz me</span>
+        ${seg('guess', [{ v: 'off', label: 'Off' }, { v: 'mistakes', label: 'Mistakes' }, { v: 'all', label: 'Every move' }], guessMode())}
       </div>
     </div>
-    <div class="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-5 items-start">
+    ${hands.length > 1 ? handStrip(hands, h.id) : ''}
+    <div class="grid lg:grid-cols-[minmax(0,1fr)_400px] gap-5 items-start">
       <div class="space-y-3 min-w-0">
-        ${tableAt(h, k)}
+        ${table}
         <div class="flex items-center gap-2">
-          <button class="btn" id="rv-first" ${k === 0 ? 'disabled' : ''} aria-label="Start">${icon('first', 'w-5 h-5')}</button>
-          <button class="btn" id="rv-prev" ${k === 0 ? 'disabled' : ''} aria-label="Back">${icon('back', 'w-5 h-5')}</button>
-          <button class="btn btn-primary flex-1 btn-lg" id="rv-next" ${disabledNext ? 'disabled' : ''}>${guessing ? 'Your move first' : k >= L ? 'End of hand' : `Next ${icon('next', 'w-5 h-5')}`}</button>
-          <button class="btn" id="rv-last" ${k >= L || guessing ? 'disabled' : ''} aria-label="End">${icon('last', 'w-5 h-5')}</button>
+          <button class="btn" id="rv-first" ${k === 0 ? 'disabled' : ''} aria-label="Start of the hand" title="Start of the hand">${icon('first', 'w-5 h-5')}</button>
+          <button class="btn" id="rv-prev" ${prevOff ? 'disabled' : ''} aria-label="Back">${icon('back', 'w-5 h-5')}</button>
+          <button class="btn btn-primary flex-1 btn-lg" id="rv-next" ${nextOff ? 'disabled' : ''}>${nextLabel}</button>
         </div>
         <div class="flex items-center justify-between gap-2 text-sm">
-          ${prevHand ? `<a class="btn btn-quiet !px-2" href="#review/h/${prevHand.id}">${icon('back', 'w-4 h-4')} Hand ${prevHand.no}</a>` : '<span></span>'}
+          ${prevHand ? `<button class="btn btn-quiet !px-2" id="rv-prev-hand">${icon('back', 'w-4 h-4')} Hand ${prevHand.no}</button>` : '<span></span>'}
           <label class="flex items-center gap-2 text-ink-300"><input type="checkbox" id="show-cards" ${rv.showCards ? 'checked' : ''} class="accent-amber-400"> Show their cards</label>
-          ${nextHand ? `<a class="btn btn-quiet !px-2" href="#review/h/${nextHand.id}">Hand ${nextHand.no} ${icon('next', 'w-4 h-4')}</a>` : '<span></span>'}
+          ${nextHand ? `<button class="btn btn-quiet !px-2" id="rv-next-hand">Hand ${nextHand.no} ${icon('next', 'w-4 h-4')}</button>` : '<span></span>'}
         </div>
+        <p class="text-xs text-ink-400 hidden lg:block">Keys: → next decision, ← back, ↓ ↑ next / previous hand.</p>
       </div>
-      <div class="space-y-4 lg:row-span-2">
-        <div class="panel panel-pad" id="rv-panel">${panel}</div>
-        <div class="panel panel-pad">${moveList(h, k)}</div>
+      <div class="space-y-4">
+        <div class="panel panel-pad" id="rv-panel">${panel}
+          ${nextOff ? '' : `<button class="btn btn-primary btn-block btn-lg mt-4 lg:hidden" id="rv-next-2">${nextLabel}</button>`}</div>
+        <div class="panel panel-pad"><div class="h-sec mb-2">Hand ${h.no}: every action</div>${moveList(h, k)}</div>
       </div>
     </div>
   </div>`;
-  container.querySelectorAll('#rv-panel details').forEach((d, i) => { if (openState[i]) d.open = true; });
+  container.querySelectorAll('#rv-panel details').forEach((d, i) => { if (openState[i] != null) d.open = openState[i]; });
+  const strip = container.querySelector('#hand-strip');
+  if (strip) {
+    if (stripScroll != null) strip.scrollLeft = stripScroll;
+    const on = strip.querySelector(`[data-hand="${h.id}"]`);
+    if (on && (on.offsetLeft < strip.scrollLeft || on.offsetLeft + on.offsetWidth > strip.scrollLeft + strip.clientWidth)) strip.scrollLeft = on.offsetLeft - strip.clientWidth / 2 + on.offsetWidth / 2;
+  }
   // stepping re-draws the table: only newly dealt board cards animate
-  const boardLen = viewOf(h, rv.states[k]).board.length;
+  const shownState = lastD && !guessing ? k - 1 : k;
+  const boardLen = viewOf(h, rv.states[shownState]).board.length;
   const grew = boardLen > (rv.boardLen ?? 0) ? boardLen - (rv.boardLen ?? 0) : 0;
   rv.boardLen = boardLen;
   const dealt = [...container.querySelectorAll('.tbl-board .deal')];
   container.querySelectorAll('.rtable .deal').forEach(el => { if (!dealt.slice(dealt.length - grew).includes(el)) el.classList.remove('deal'); });
 
+  const toHand = (x, step = null) => navigate(`review/h/${x.id}${step != null ? `/${step}` : ''}`);
   container.querySelector('#rv-first').addEventListener('click', () => go(container, 0));
-  container.querySelector('#rv-prev').addEventListener('click', () => go(container, k - 1));
-  container.querySelector('#rv-next').addEventListener('click', () => { if (!disabledNext) go(container, k + 1); });
-  container.querySelector('#rv-last').addEventListener('click', () => {
-    // stop at the next move you still have to guess
-    let j = k;
-    while (j < L) { const d = decisionAt(h, j); if (d && needsGuess(d) && rv.guess[j] == null) break; j++; }
-    go(container, j);
+  container.querySelector('#rv-prev').addEventListener('click', () => {
+    if (prevStop != null) go(container, prevStop);
+    else if (k > 0) go(container, 0);
+    else if (prevHand) toHand(prevHand, 'end');
   });
+  container.querySelector('#rv-next').addEventListener('click', () => {
+    if (nextOff) return;
+    if (!atEnd) go(container, nextStop);
+    else toHand(nextHand);
+  });
+  // the second Next, under the coach on a phone or a portrait iPad: back up to the table after
+  container.querySelector('#rv-next-2')?.addEventListener('click', () => { container.querySelector('#rv-next').click(); window.scrollTo(0, 0); });
+  container.querySelector('#rv-prev-hand')?.addEventListener('click', () => toHand(prevHand));
+  container.querySelector('#rv-next-hand')?.addEventListener('click', () => toHand(nextHand));
   container.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', () => {
     let j = Number(b.dataset.step);
-    // jumping past a move you haven't guessed stops there first
+    // jumping past a move you haven't answered stops there first
     for (let q = k; q < j; q++) { const d = decisionAt(h, q); if (d && needsGuess(d) && rv.guess[q] == null) { j = q; break; } }
     go(container, j);
   }));
