@@ -175,7 +175,7 @@ function draw(container, p) {
         <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Puzzle</div><div class="text-2xl font-semibold num text-ink-200">${h.rating}</div></div>
       </div>
     </div>
-    <div>${puzzleTabs(p.review ? 'review' : '')}</div>
+    <div>${puzzleTabs(p.review ? 'review' : 'rated')}</div>
     <div class="grid lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_1fr] gap-5 lg:grid-flow-dense items-start">
       <div class="space-y-4 min-w-0">
         ${tableHtml(p)}
@@ -207,9 +207,9 @@ function draw(container, p) {
     saveStats(st);
     draw(container, p);
   }));
-  container.querySelector('#gz-next')?.addEventListener('click', () => { navigate(p.review ? 'puzzles/review' : 'puzzles'); window.scrollTo(0, 0); });
-  wireFilters(container, () => { if (p.ref) p.ref.answered = true; navigate('puzzles'); });
-  wireLevel(container, () => { if (p.ref) p.ref.answered = true; filters.profile = ''; navigate('puzzles'); });
+  container.querySelector('#gz-next')?.addEventListener('click', () => { navigate(p.review ? 'puzzles/review' : 'puzzles/rated'); window.scrollTo(0, 0); });
+  wireFilters(container, () => { if (p.ref) p.ref.answered = true; navigate('puzzles/rated'); });
+  wireLevel(container, () => { if (p.ref) p.ref.answered = true; filters.profile = ''; navigate('puzzles/rated'); });
 }
 
 function answer(container, p, idx) {
@@ -225,7 +225,7 @@ function answer(container, p, idx) {
     stats.played += 1;
     if (correct) stats.solved += 1;
     stats.seen = [...(stats.seen || []), k].slice(-300);
-    stats.history = [...(stats.history || []), { id: k, v: correct ? 'best' : 'mistake', d: stats.rating - before }].slice(-500);
+    stats.history = [...(stats.history || []), { id: k, lv: stats.level, v: correct ? 'best' : 'mistake', d: stats.rating - before }].slice(-500);
     if (!correct) queueMiss(stats, { id: `gen:${p.kind}`, file: null, i: h.id, rating: h.rating });
   }
   saveStats(stats);

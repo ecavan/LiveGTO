@@ -1,19 +1,19 @@
 /**
  * Review: chess-style game review of the hands you played, and the leak report across sessions.
- *   #play/review                    sessions + leaks
- *   #play/review/s/<sid>            one session: accuracy, grades, key moments, every hand
- *   #play/review/h/<id>[/<step>]    the hand replayer: step through it move by move; before each of
+ *   #review                    your numbers, insights (trend, by street, by spot), leaks, sessions
+ *   #review/s/<sid>            one session: accuracy, grades, key moments, every hand
+ *   #review/h/<id>[/<step>]    the hand replayer: step through it move by move; before each of
  *                                   your decisions you can guess first, and the grade shows after
  */
 import {
   loadHands, sessionsOf, statesOf, viewOf, posName, decisionAt, grade, GRADES, accuracyOf, gradeCounts,
-  leakReport, getHand, clearHands,
+  moveAccuracy, leakReport, getHand, clearHands,
 } from '../../engine/history.js';
 import { AGENTS, eloOf } from '../../engine/hu/agents.js';
 import { LEVELS } from '../../engine/ring/players.js';
 import { cardStr } from '../../engine/hu/hand.js';
 import { ringTable, fmtBB, icon, esc, stat, handText, seg, wireSeg, disc, sprOf, optionLabel } from '../kit.js';
-import { coachCard, actionBar, playTabs, evNoteFor, handName } from './views.js';
+import { coachCard, actionBar, reviewTabs, evNoteFor, handName } from './views.js';
 import { settings, saveSettings } from '../../store.js';
 import { pct } from '../../engine/potmath.js';
 
@@ -29,6 +29,7 @@ export function render(container, params = []) {
   if (keyHandler) window.removeEventListener('keydown', keyHandler);
   keyHandler = null;
   if (params[0] === 'log') return import('./logger.js').then(m => m.render(container, params.slice(1)));
+  if (params[0] === 'sessions') return import('./sessions.js').then(m => m.render(container, params.slice(1)));
   if (params[0] === 's') sessionView(container, Number(params[1]));
   else if (params[0] === 'h') replayer(container, params[1], params[2]);
   else home(container);
@@ -46,6 +47,68 @@ const glyph = (d, size = 'text-xs') => {
   return `<span class="inline-flex items-center justify-center min-w-[22px] h-[20px] px-1 rounded-md border ${g.bg} ${g.tone} ${size} font-bold" title="${g.label}">${g.glyph}</span>`;
 };
 
+// ------------------------------------------------------------------ insights
+
+/**
+ * Where your accuracy comes from: the trend over your sessions, accuracy by street and by kind of
+ * decision, how your moves grade, and the single biggest mistakes to replay.
+ */
+function insights(hands, sessions) {
+  const ds = hands.flatMap(h => h.decisions.map(d => ({ h, d })));
+  if (ds.length < 5) return '';
+  const accOf = (list) => (list.length ? Math.round(list.reduce((a, x) => a + moveAccuracy(x.d), 0) / list.length) : null);
+  const bar = (label, list, sub) => {
+    const a = accOf(list);
+    return `<div class="grid grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)_2.5rem] items-center gap-3 text-sm">
+      <div class="text-ink-200 min-w-0">${label}<div class="text-[11px] text-ink-400 leading-tight">${list.length} decision${list.length === 1 ? '' : 's'}${sub ? ` · ${sub}` : ''}</div></div>
+      <span class="evbar"><i style="width:${a == null ? 0 : Math.max(3, a)}%" class="${a == null ? '' : a >= 90 ? 'bg-emerald-400' : a >= 75 ? 'bg-sky-400' : a >= 60 ? 'bg-yellow-400' : 'bg-rose-400'}"></i></span>
+      <div class="text-right num font-semibold ${accTone(a)}">${a ?? '—'}</div></div>`;
+  };
+  const lost = (list) => list.reduce((a, x) => a + (x.d.loss || 0), 0);
+  const byStreet = STREET.map((n, i) => ({ n, list: ds.filter(x => x.d.street === i) })).filter(x => x.list.length);
+  const post = ds.filter(x => x.d.street > 0);
+  const facing = post.filter(x => x.d.toCall > 0.001), open = post.filter(x => !(x.d.toCall > 0.001));
+  const worst = (by) => { const m = [...by].sort((a, b) => lost(b.list) - lost(a.list))[0]; return m && lost(m.list) > 0.05 ? m : null; };
+  const ws = worst(byStreet);
+
+  // trend: accuracy of each session, oldest first (the last 12)
+  const trend = [...sessions].reverse().slice(-12).map(x => ({ x, a: accuracyOf(x.hands) })).filter(t => t.a != null);
+  const trendHtml = trend.length >= 2 ? `<div class="flex items-end gap-1.5 h-24">${trend.map(t => `<a href="#review/s/${t.x.sid}" class="flex-1 min-w-0 flex flex-col items-center justify-end h-full gap-1 group" title="${new Date(t.x.sid).toLocaleDateString([], { month: 'short', day: 'numeric' })}: ${t.a} accuracy, ${t.x.hands.length} hands">
+      <span class="text-[10px] num text-ink-400 group-hover:text-white">${t.a}</span>
+      <span class="w-full rounded-t ${t.a >= 90 ? 'bg-emerald-400' : t.a >= 75 ? 'bg-sky-400' : t.a >= 60 ? 'bg-yellow-400' : 'bg-rose-400'} opacity-80 group-hover:opacity-100" style="height:${Math.max(6, t.a)}%"></span></a>`).join('')}</div>
+    <div class="flex justify-between text-[11px] text-ink-400 mt-1"><span>older</span><span>latest session</span></div>`
+    : '<p class="text-sm text-ink-400">Play a second session and your accuracy trend shows here.</p>';
+
+  const c = gradeCounts(hands);
+  const tot = Object.values(c).reduce((a, b) => a + b, 0) || 1;
+  const COL = { best: '#34d399', good: '#38bdf8', inaccuracy: '#facc15', mistake: '#fb923c', blunder: '#f43f5e' };
+  const grades = `<div class="flex h-3 rounded-full overflow-hidden bg-ink-800">${Object.keys(GRADES).map(k => c[k] ? `<span style="width:${(100 * c[k]) / tot}%;background:${COL[k]}" title="${GRADES[k].label}: ${c[k]}"></span>` : '').join('')}</div>
+    <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs mt-2">${Object.entries(GRADES).map(([k, g]) => `<span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full" style="background:${COL[k]}"></span><span class="text-ink-300">${g.label}</span><b class="num text-white">${c[k]}</b></span>`).join('')}</div>`;
+
+  const big = ds.filter(x => x.d.loss > 0.05 && x.d.verdict !== 'best' && x.d.verdict !== 'fine').sort((a, b) => b.d.loss - a.d.loss).slice(0, 5);
+  const bigHtml = big.length ? big.map(({ h, d }) => `<a href="#review/h/${h.id}/${d.at}" class="flex items-center gap-2 text-sm rounded-lg bg-ink-850 border border-ink-700 px-3 py-2 hover:border-ink-500">
+      ${glyph(d)}<span>${handText(byRank(d.hole).map(cardStr))}</span><span class="text-ink-400 whitespace-nowrap">${d.board.length ? 'on ' + handText(d.board.map(cardStr)) : STREET[d.street]}</span>
+      <span class="truncate text-ink-300">· ${esc(optionLabel(d.options[d.chosen].label))} <span class="text-ink-500">(best: ${esc(optionLabel(d.options[d.best].label))})</span></span>
+      <span class="ml-auto text-rose-300 text-xs font-semibold num">−${d.loss.toFixed(1)}</span></a>`).join('')
+    : '<p class="text-sm text-ink-400">No real mistakes yet.</p>';
+
+  const summary = ws ? `You lose the most EV on the <b class="text-white">${ws.n.toLowerCase()}</b> (${fmtBB(lost(ws.list))} over ${ws.list.length} decisions).`
+    : 'No street stands out yet.';
+  return `<section class="space-y-3">
+    <div class="flex items-baseline justify-between gap-3 flex-wrap"><div class="h-sec">Insights</div><span class="text-xs text-ink-400">accuracy: 100 = the coach's play every time</span></div>
+    <div class="grid lg:grid-cols-3 gap-4 items-start">
+      <div class="panel panel-pad space-y-2"><div class="text-sm font-semibold text-white">Accuracy by session</div>${trendHtml}</div>
+      <div class="panel panel-pad space-y-3"><div class="text-sm font-semibold text-white">By street</div>
+        ${byStreet.map(x => bar(x.n, x.list, lost(x.list) > 0.05 ? `−${lost(x.list).toFixed(1)}bb` : '')).join('')}
+        <p class="text-xs text-ink-400">${summary}</p></div>
+      <div class="panel panel-pad space-y-3"><div class="text-sm font-semibold text-white">By decision (after the flop)</div>
+        ${post.length ? `${bar('Facing a bet', facing, lost(facing) > 0.05 ? `−${lost(facing).toFixed(1)}bb` : '')}${bar('Bet or check', open, lost(open) > 0.05 ? `−${lost(open).toFixed(1)}bb` : '')}` : '<p class="text-sm text-ink-400">No postflop decisions yet.</p>'}
+        <div class="pt-1">${grades}</div></div>
+    </div>
+    <div class="panel panel-pad space-y-2"><div class="flex items-baseline justify-between"><div class="text-sm font-semibold text-white">Your biggest mistakes</div><span class="text-xs text-ink-400">tap one to replay it</span></div>${bigHtml}</div>
+  </section>`;
+}
+
 // ------------------------------------------------------------------ review home
 
 function home(container) {
@@ -58,7 +121,7 @@ function home(container) {
     <div class="mx-auto w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-300 flex items-center justify-center">${icon('review', 'w-6 h-6')}</div>
     <div class="text-lg font-semibold text-white">No hands yet</div>
     <p class="text-sm text-ink-300 max-w-md mx-auto">Every hand you play heads-up or at the live table lands here. Replay it move by move, guess your move before the coach shows the grade, and see which leaks cost you the most.</p>
-    <div class="flex gap-2 justify-center flex-wrap"><a class="btn btn-primary" href="#play">Play heads-up</a><a class="btn" href="#play/table">Live table</a><a class="btn" href="#play/review/log">${icon('pen', 'w-4 h-4')} Log a hand from the casino</a></div></div>`;
+    <div class="flex gap-2 justify-center flex-wrap"><a class="btn btn-primary" href="#play">Play heads-up</a><a class="btn" href="#play/table">Live table</a><a class="btn" href="#review/log">${icon('pen', 'w-4 h-4')} Log a hand from the casino</a></div></div>`;
 
   const leaks = rep.leaks.length ? rep.leaks.slice(0, 8).map(l => disc(`<span class="flex-1 min-w-0">
       <span class="flex items-center gap-2"><span class="font-semibold text-white truncate">${esc(l.name)}</span>
@@ -66,8 +129,8 @@ function home(container) {
       <span class="evbar mt-1.5 block"><i style="width:${Math.max(3, (100 * l.lost) / maxLost)}%;background:#f43f5e"></i></span></span>`,
     `<p class="text-ink-200">${esc(l.fix)}</p>
      <p class="text-xs text-ink-400">${l.count} time${l.count === 1 ? '' : 's'} · ${fmtBB(l.lost)} of EV in total.</p>
-     <a class="btn btn-primary btn-sm" href="${l.key.startsWith('pre-') ? '#learn/preflop' : `#puzzles/drill/${l.key}`}">${icon('target', 'w-4 h-4')} ${l.key.startsWith('pre-') ? 'Practise preflop' : 'Drill this leak'}</a>
-     <div class="space-y-1.5 pt-1">${l.examples.map(e => `<a href="#play/review/h/${e.id}/${e.at}" class="flex items-center gap-2 text-sm rounded-lg bg-ink-850 border border-ink-700 px-3 py-2 hover:border-ink-500">
+     <a class="btn btn-primary btn-sm" href="${l.key.startsWith('pre-') ? '#train/preflop' : `#puzzles/drill/${l.key}`}">${icon('target', 'w-4 h-4')} ${l.key.startsWith('pre-') ? 'Practise preflop' : 'Drill this leak'}</a>
+     <div class="space-y-1.5 pt-1">${l.examples.map(e => `<a href="#review/h/${e.id}/${e.at}" class="flex items-center gap-2 text-sm rounded-lg bg-ink-850 border border-ink-700 px-3 py-2 hover:border-ink-500">
        <span>${handText(byRank(e.hole).map(cardStr))}</span><span class="text-ink-400">${e.board.length ? 'on ' + handText(e.board.map(cardStr)) : STREET[e.street]}</span>
        <span class="truncate text-ink-300">· ${esc(e.label)} <span class="text-ink-500">(best: ${esc(e.best)})</span></span>
        <span class="ml-auto text-rose-300 text-xs font-semibold num">−${e.loss.toFixed(1)}</span></a>`).join('')}</div>`)).join('')
@@ -75,9 +138,9 @@ function home(container) {
 
   container.innerHTML = `<div class="page space-y-6 fade-up">
     <div class="flex items-end justify-between gap-4 flex-wrap">
-      <div><div class="h-sec">Play</div><h1 class="h-title">Review</h1>
+      <div><div class="h-sec">Review</div><h1 class="h-title">Your hands</h1>
         <p class="muted mt-1 text-sm max-w-2xl">Game review, like chess: replay your hands, find the better move, and see where your EV goes.</p></div>
-      <div class="flex items-center gap-2 flex-wrap max-w-full"><a href="#play/review/log" class="btn btn-primary">${icon('pen', 'w-4 h-4')} Log a live hand</a>${playTabs('review')}</div>
+      <div class="flex items-center gap-2 flex-wrap max-w-full">${reviewTabs('')}</div>
     </div>
     ${!hands.length ? empty : `
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -86,6 +149,7 @@ function home(container) {
       ${stat('Decisions', rep.spots, `${sessions.length} session${sessions.length === 1 ? '' : 's'}`)}
       ${stat('Result', `<span class="${tone(hands.reduce((a, h) => a + (h.net ?? 0), 0))}">${fmtBB(hands.reduce((a, h) => a + (h.net ?? 0), 0), { sign: true })}</span>`, 'all stored hands')}
     </div>
+    ${insights(hands, sessions)}
     <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5 items-start">
       <div class="space-y-2">
         <div class="flex items-baseline justify-between"><div class="h-sec">Your leaks</div><span class="text-xs text-ink-400">cost per 100 hands</span></div>
@@ -97,7 +161,7 @@ function home(container) {
           const a = accuracyOf(x.hands);
           const net = x.hands.reduce((q, h) => q + (h.net ?? 0), 0);
           const c = gradeCounts(x.hands);
-          return `<a href="#play/review/s/${x.sid}" class="flex items-center gap-3 px-4 py-3 hover:bg-ink-850/60">
+          return `<a href="#review/s/${x.sid}" class="flex items-center gap-3 px-4 py-3 hover:bg-ink-850/60">
             <div class="min-w-0 flex-1"><div class="text-sm font-semibold text-white truncate">${sessionTitle(x)}</div>
               <div class="text-xs text-ink-400">${new Date(x.sid).toLocaleString([], x.level === 'live' || x.hands[0]?.live ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · ${x.hands.length} hand${x.hands.length === 1 ? '' : 's'} · <span class="${tone(net)}">${fmtBB(net, { sign: true })}</span>${c.blunder ? ` · <span class="text-rose-300">${c.blunder} blunder${c.blunder > 1 ? 's' : ''}</span>` : ''}</div></div>
             <div class="text-right"><div class="text-xl font-semibold num ${accTone(a)}">${a ?? '—'}</div><div class="text-[10px] uppercase tracking-wider text-ink-400">accuracy</div></div>
@@ -120,7 +184,7 @@ function home(container) {
 
 function sessionView(container, sid) {
   const x = sessionsOf().find(q => q.sid === sid);
-  if (!x) { container.innerHTML = `<div class="page text-ink-300">That session is no longer stored. <a class="underline" href="#play/review">Back to Review</a></div>`; return; }
+  if (!x) { container.innerHTML = `<div class="page text-ink-300">That session is no longer stored. <a class="underline" href="#review">Back to Review</a></div>`; return; }
   const acc = accuracyOf(x.hands);
   const c = gradeCounts(x.hands);
   const net = x.hands.reduce((a, h) => a + (h.net ?? 0), 0);
@@ -131,12 +195,12 @@ function sessionView(container, sid) {
   const firstKey = [...key].sort((a, b) => a.h.no - b.h.no || a.d.at - b.d.at)[0];
   container.innerHTML = `<div class="page space-y-5 fade-up">
     <div class="flex items-end justify-between gap-3 flex-wrap">
-      <div><a href="#play/review" class="text-sm text-ink-400 hover:text-white inline-flex items-center gap-1">${icon('back', 'w-4 h-4')} Review</a>
+      <div><a href="#review" class="text-sm text-ink-400 hover:text-white inline-flex items-center gap-1">${icon('back', 'w-4 h-4')} Review</a>
         <h1 class="h-title mt-1">${sessionTitle(x)}</h1>
         <div class="text-sm text-ink-400">${new Date(x.sid).toLocaleString()} · ${x.hands.length} hands</div></div>
       <div class="flex gap-2">
-        ${firstKey ? `<a class="btn btn-primary" href="#play/review/h/${firstKey.h.id}/${firstKey.d.at}">${icon('target', 'w-4 h-4')} Retry your mistakes</a>` : ''}
-        <a class="btn" href="#play/review/h/${x.hands[0].id}">${icon('play', 'w-4 h-4')} Replay from hand 1</a></div>
+        ${firstKey ? `<a class="btn btn-primary" href="#review/h/${firstKey.h.id}/${firstKey.d.at}">${icon('target', 'w-4 h-4')} Retry your mistakes</a>` : ''}
+        <a class="btn" href="#review/h/${x.hands[0].id}">${icon('play', 'w-4 h-4')} Replay from hand 1</a></div>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       ${stat('Accuracy', `<span class="${accTone(acc)}">${acc ?? '—'}</span>`, 'chess-style: 100 = every move best')}
@@ -150,7 +214,7 @@ function sessionView(container, sid) {
     </div>
     <div class="grid lg:grid-cols-2 gap-5 items-start">
       <div class="space-y-2"><div class="h-sec">Key moments</div>
-        ${key.length ? key.map(({ h, d }) => `<a href="#play/review/h/${h.id}/${d.at}" class="panel flex items-center gap-3 px-4 py-3 hover:border-ink-500">
+        ${key.length ? key.map(({ h, d }) => `<a href="#review/h/${h.id}/${d.at}" class="panel flex items-center gap-3 px-4 py-3 hover:border-ink-500">
           ${glyph(d)}<span class="text-xs text-ink-400 w-14">Hand ${h.no}</span>
           <span class="text-sm">${handText(byRank(d.hole).map(cardStr))}</span>
           <span class="text-sm text-ink-400 truncate">${d.board.length ? handText(d.board.map(cardStr)) : 'preflop'}</span>
@@ -158,7 +222,7 @@ function sessionView(container, sid) {
           : '<p class="text-sm text-ink-400">No mistakes this session. Clean.</p>'}
       </div>
       <div class="space-y-2"><div class="h-sec">Every hand</div>
-        <div class="panel divide-y divide-ink-800">${x.hands.map(h => `<a href="#play/review/h/${h.id}" class="flex items-center gap-3 px-4 py-2.5 hover:bg-ink-850/60">
+        <div class="panel divide-y divide-ink-800">${x.hands.map(h => `<a href="#review/h/${h.id}" class="flex items-center gap-3 px-4 py-2.5 hover:bg-ink-850/60">
           <span class="text-xs text-ink-400 w-12">#${h.no}</span><span class="text-xs text-ink-300 w-9">${posName(h, h.hero)}</span>
           <span class="text-sm">${handText(byRank(h.holes[h.hero]).map(cardStr))}</span>
           <span class="flex gap-1">${h.decisions.map(d => glyph(d, 'text-[10px]')).join('')}</span>
@@ -172,7 +236,7 @@ function sessionView(container, sid) {
 
 function replayer(container, id, stepParam) {
   const hand = getHand(id);
-  if (!hand) { container.innerHTML = `<div class="page text-ink-300">That hand is no longer stored. <a class="underline" href="#play/review">Back to Review</a></div>`; return; }
+  if (!hand) { container.innerHTML = `<div class="page text-ink-300">That hand is no longer stored. <a class="underline" href="#review">Back to Review</a></div>`; return; }
   if (!rv || rv.hand.id !== id) {
     const states = statesOf(hand);
     const session = sessionsOf().find(q => q.sid === hand.sid);
@@ -196,7 +260,7 @@ function replayer(container, id, stepParam) {
 
 function go(container, k) {
   rv.step = Math.max(0, Math.min(rv.states.length - 1, k));
-  history.replaceState(null, '', `#play/review/h/${rv.hand.id}/${rv.step}`);
+  history.replaceState(null, '', `#review/h/${rv.hand.id}/${rv.step}`);
   draw(container);
 }
 
@@ -367,7 +431,7 @@ function draw(container) {
   container.innerHTML = `<div class="page">
     <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
       <div class="flex items-center gap-3 min-w-0">
-        <a href="${rv.session ? `#play/review/s/${h.sid}` : '#play/review'}" class="btn btn-quiet text-sm !px-2">${icon('back', 'w-4 h-4')}</a>
+        <a href="${rv.session ? `#review/s/${h.sid}` : '#review'}" class="btn btn-quiet text-sm !px-2">${icon('back', 'w-4 h-4')}</a>
         <div class="min-w-0"><div class="text-sm font-semibold text-white truncate">Hand ${h.no} · ${sessionTitle(h)}</div>
           <div class="text-xs text-ink-400">${new Date(h.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</div></div>
       </div>
@@ -386,9 +450,9 @@ function draw(container) {
           <button class="btn" id="rv-last" ${k >= L || guessing ? 'disabled' : ''} aria-label="End">${icon('last', 'w-5 h-5')}</button>
         </div>
         <div class="flex items-center justify-between gap-2 text-sm">
-          ${prevHand ? `<a class="btn btn-quiet !px-2" href="#play/review/h/${prevHand.id}">${icon('back', 'w-4 h-4')} Hand ${prevHand.no}</a>` : '<span></span>'}
+          ${prevHand ? `<a class="btn btn-quiet !px-2" href="#review/h/${prevHand.id}">${icon('back', 'w-4 h-4')} Hand ${prevHand.no}</a>` : '<span></span>'}
           <label class="flex items-center gap-2 text-ink-300"><input type="checkbox" id="show-cards" ${rv.showCards ? 'checked' : ''} class="accent-amber-400"> Show their cards</label>
-          ${nextHand ? `<a class="btn btn-quiet !px-2" href="#play/review/h/${nextHand.id}">Hand ${nextHand.no} ${icon('next', 'w-4 h-4')}</a>` : '<span></span>'}
+          ${nextHand ? `<a class="btn btn-quiet !px-2" href="#review/h/${nextHand.id}">Hand ${nextHand.no} ${icon('next', 'w-4 h-4')}</a>` : '<span></span>'}
         </div>
       </div>
       <div class="space-y-4 lg:row-span-2">

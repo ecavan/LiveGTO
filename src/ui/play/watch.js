@@ -6,7 +6,7 @@ import { AGENT_IDS, eloOf } from '../../engine/hu/agents.js';
 import { board, pot, BTN } from '../../engine/hu/game.js';
 import { pokerTable, fmtBB, seg, wireSeg, icon, esc, handText, stat, disc, optionLabel } from '../kit.js';
 import { pct } from '../../engine/potmath.js';
-import { historyHtml, playTabs } from './views.js';
+import { historyHtml } from './views.js';
 
 const SPEED = { slow: 2200, normal: 1200, fast: 450 };
 let st = { a: 'pro', b: 'station', speed: 'normal', running: false };
@@ -29,9 +29,8 @@ function setup(container) {
   const opt = (sel) => [...AGENT_IDS].sort((x, y) => eloOf(x) - eloOf(y)).map(id => `<option value="${id}" ${id === sel ? 'selected' : ''}>${AGENTS[id].name} (${eloOf(id)})</option>`).join('');
   container.innerHTML = `<div class="page space-y-6 fade-up">
     <div class="flex items-end justify-between gap-4 flex-wrap">
-      <div><div class="h-sec">Play</div><h1 class="h-title">Watch two bots play</h1>
+      <div><div class="h-sec">Watch</div><h1 class="h-title">Watch two bots play</h1>
         <p class="muted mt-1 text-sm">Every card face up. See how the Pro takes apart a Station, or how a Maniac blows up against a Nit, one explained decision at a time.</p></div>
-      ${playTabs('watch')}
     </div>
     <div class="panel panel-pad grid sm:grid-cols-[1fr_auto_1fr] gap-4 items-end">
       <label class="space-y-1.5 block"><span class="h-sec">Player 1</span><select id="w-a" class="w-full">${opt(st.a)}</select></label>
@@ -117,7 +116,7 @@ function draw(container) {
   container.innerHTML = `<div class="page">
     <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
       <div class="text-sm text-ink-300"><b class="text-white">${a.name}</b> vs <b class="text-white">${b.name}</b> · ${m.s.done ? `hand ${m.handNo} done` : `playing hand ${m.handNo}`}</div>
-      <div class="flex items-center gap-2 flex-wrap max-w-full">${playTabs('watch')}<button id="w-new" class="btn btn-quiet text-sm">Change bots</button></div>
+      <div class="flex items-center gap-2 flex-wrap max-w-full"><button id="w-new" class="btn btn-quiet text-sm">Change bots</button></div>
     </div>
     <div class="grid lg:grid-cols-[minmax(0,1fr)_400px] gap-5 lg:grid-flow-dense items-start">
       <div class="space-y-4 min-w-0">

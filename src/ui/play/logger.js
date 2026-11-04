@@ -3,6 +3,7 @@
  * the board as it came), tag the players who played, and the coach grades your decisions when the
  * hand is done. The hand goes into Review with everything else.
  */
+import { reviewTabs } from './views.js';
 import {
   createLog, logAction, foldToHero, stateOf, boardNeeded, gradeLog, toHistory, undo, HERO, N, VILLAIN_TYPES, STAKES,
   posOf, legal, positions,
@@ -115,9 +116,10 @@ function setup(container) {
   const used = new Set();
   container.innerHTML = `<div class="page space-y-5 max-w-4xl">
     <div class="flex items-end justify-between gap-3 flex-wrap">
-      <div><a href="#play/review" class="text-sm text-ink-400 hover:text-white inline-flex items-center gap-1">${icon('back', 'w-4 h-4')} Review</a>
-        <h1 class="h-title mt-1">Log a live hand</h1>
+      <div><div class="h-sec">Review</div>
+        <h1 class="h-title">Log a live hand</h1>
         <p class="muted mt-1 text-sm max-w-2xl">Played a hand at the casino? Enter it here and the coach grades your decisions against the players you were up against. Amounts in dollars.</p></div>
+      ${reviewTabs('log')}
     </div>
     <div class="panel panel-pad grid md:grid-cols-2 gap-5">
       <div class="space-y-2"><div class="h-sec">Game</div>${seg('stakes', Object.keys(STAKES).map(k => ({ v: k, label: `$${k}` })), d.stakes)}</div>
@@ -284,7 +286,7 @@ function graded(container) {
       <div><div class="h-sec">Live hand · $${L.stakes}</div><h1 class="h-title">${bad.length ? `${bad.length} decision${bad.length > 1 ? 's' : ''} to fix` : ds.length ? 'Well played' : 'Nothing to decide'}</h1>
         <p class="muted mt-1 text-sm">${ds.length} decision${ds.length === 1 ? '' : 's'} graded against ${[...new Set(L.types.filter((t, i) => i !== HERO && h.log.some(e => e.seat === i && e.type !== 'fold')).map(t => VILLAIN_TYPES[t].name))].join(', ') || 'the table'}.
         ${h.evLost > 0.005 ? `<span class="text-rose-300">EV lost: ${fmtBB(h.evLost)} (${money(h.evLost)}).</span>` : '<span class="text-emerald-300">No EV lost.</span>'}</p></div>
-      <div class="flex gap-2 flex-wrap"><a class="btn" href="#play/review/h/${h.id}">${icon('review', 'w-4 h-4')} Replay it</a><button id="lg-again" class="btn btn-primary">${icon('pen', 'w-4 h-4')} Log another hand</button></div>
+      <div class="flex gap-2 flex-wrap"><a class="btn" href="#review/h/${h.id}">${icon('review', 'w-4 h-4')} Replay it</a><button id="lg-again" class="btn btn-primary">${icon('pen', 'w-4 h-4')} Log another hand</button></div>
     </div>
     <div class="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5 items-start">
       <div class="space-y-2">${ds.length ? ds.map((d, i) => decisionRow(d, i, { fmt: money, evNote: d.level === 1 ? 'Level 1: EV as if the players still in played solid, whatever types you gave them.' : 'EV against the players still in, read as the types you gave them.' })).join('') : '<p class="text-sm text-ink-400">You had no decision in this hand.</p>'}</div>

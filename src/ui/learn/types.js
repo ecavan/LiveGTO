@@ -1,5 +1,5 @@
 /**
- * Learn → Player types: the eight kinds of player at the live table, with the HUD stats an online
+ * Train → Player types: the eight kinds of player at the live table, with the HUD stats an online
  * player would see (real numbers: the players the bots are calibrated to), how to spot each one
  * live without a HUD, and the Level 2 adjustment against him.
  */
@@ -57,7 +57,7 @@ const GUIDE = {
 export function render(container) {
   const stats = TYPES.stats;
   container.innerHTML = `<div class="page max-w-4xl space-y-5 fade-up">
-    <a href="#learn" class="btn btn-quiet text-sm">${icon('back', 'w-4 h-4')} Learn</a>
+    <a href="#train" class="btn btn-quiet text-sm">${icon('back', 'w-4 h-4')} Train</a>
     <div><div class="h-sec">Reading players</div><h1 class="h-title">Player types</h1>
       <p class="text-ink-300 mt-1">The eight kinds of player at the live table, with the HUD stats an online player would see. Live you have no HUD, so count: how many hands he plays, how often he raises, whether he shows up at showdown. These are real numbers, from the players the bots are calibrated to.</p></div>
 
@@ -85,7 +85,7 @@ export function render(container) {
       }).join('')}
     </section>
     <div class="grid sm:grid-cols-2 gap-3">
-      <a href="#learn/buckets" class="panel px-4 py-3 hover:border-ink-500 transition"><b class="text-white">Hand buckets</b><div class="text-xs text-ink-300 mt-1">The plan for each kind of hand, at Level 1 and against each type.</div></a>
+      <a href="#train/buckets" class="panel px-4 py-3 hover:border-ink-500 transition"><b class="text-white">Hand buckets</b><div class="text-xs text-ink-300 mt-1">The plan for each kind of hand, at Level 1 and against each type.</div></a>
       <a href="#play/table" class="panel px-4 py-3 hover:border-ink-500 transition"><b class="text-white">Live table</b><div class="text-xs text-ink-300 mt-1">Read them from VPIP / PFR, then reveal their styles.</div></a>
     </div>
   </div>`;

@@ -9,7 +9,8 @@ export function puzzleTabs(active) {
   const due = dueItems(st).length;
   const dailyDone = !!dailyAt(st, today());
   const items = [
-    ['', 'Rated'],
+    ['', 'Overview'],
+    ['rated', 'Rated'],
     ['daily', `Daily${dailyDone ? ' ✓' : ''}`],
     ['review', `Review${due ? ` <span class="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-rose-500 text-white text-[10px] font-bold px-1">${due}</span>` : ''}`],
     ['ranges', 'Ranges'],

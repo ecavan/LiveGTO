@@ -1,5 +1,5 @@
 /**
- * Learn → Hand buckets: sort your hand after the flop into one of six buckets, then play the plan
+ * Train → Hand buckets: sort your hand after the flop into one of six buckets, then play the plan
  * for that bucket on that kind of board. Level 1 shows the baseline plan (the solver), Level 2 how
  * it changes against each villain type. The plans come from the solved library (plans.json); the
  * examples from the same bucket code the coach and the puzzles use.
@@ -85,7 +85,7 @@ function draw(container) {
   const level = getLevel();
   const b = BOARDS[kind];
   container.innerHTML = `<div class="page max-w-3xl space-y-5 fade-up">
-    <a href="#learn" class="btn btn-quiet text-sm">${icon('back', 'w-4 h-4')} Learn</a>
+    <a href="#train" class="btn btn-quiet text-sm">${icon('back', 'w-4 h-4')} Train</a>
     <div><div class="h-sec">Hand reading</div><h1 class="h-title">Hand buckets</h1>
       <p class="text-ink-300 mt-1">After the flop, don't think "I have J♠T♠". Think "I have air with equity". Every hand falls into one of six buckets, and each bucket has a plan that depends on the board. Sort your hand first; the play follows.</p></div>
 
@@ -132,7 +132,7 @@ function draw(container) {
     <section class="space-y-2">
       <h2 class="text-lg font-semibold text-white">Practise</h2>
       <div class="grid sm:grid-cols-3 gap-3">
-        <a href="#learn/drill/bucket" class="panel px-4 py-3 hover:border-ink-500 transition"><b class="text-white">Bucket your hand</b><div class="text-xs text-ink-300 mt-1">A hand you'd really have and a board: name the bucket, then see the plan. Endless.</div></a>
+        <a href="#train/drill/bucket" class="panel px-4 py-3 hover:border-ink-500 transition"><b class="text-white">Bucket your hand</b><div class="text-xs text-ink-300 mt-1">A hand you'd really have and a board: name the bucket, then see the plan. Endless.</div></a>
         <a href="#puzzles" class="panel px-4 py-3 hover:border-ink-500 transition"><b class="text-white">Puzzles</b><div class="text-xs text-ink-300 mt-1">Every postflop puzzle asks for your bucket before your play.</div></a>
         <a href="#puzzles/buckets" class="panel px-4 py-3 hover:border-ink-500 transition"><b class="text-white">Range buckets</b><div class="text-xs text-ink-300 mt-1">Your whole range in a real spot: one plan for each bucket.</div></a>
       </div>

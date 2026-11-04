@@ -2,13 +2,13 @@
  * Sessions: your live results. Start a session at the casino (the clock runs, add re-buys, cash
  * out), or enter one afterwards; see profit, $/hour and big blinds per hour, by stakes and casino,
  * and the graph of your results over time.
- *   #play/sessions
+ *   #review/sessions
  */
 import {
   loadSessions, saveSessions, makeSession, startSession, endSession, totals, groupBy, curve, profit, toCSV, today, bbOf,
 } from '../../engine/sessions.js';
 import { icon, esc, stat } from '../kit.js';
-import { playTabs } from './views.js';
+import { reviewTabs } from './views.js';
 
 let editing = null; // session id being edited, or 'new'
 let tick = null;
@@ -116,9 +116,9 @@ function draw(container) {
 
   container.innerHTML = `<div class="page space-y-5 fade-up">
     <div class="flex items-end justify-between gap-4 flex-wrap">
-      <div><div class="h-sec">Play</div><h1 class="h-title">Sessions</h1>
+      <div><div class="h-sec">Review</div><h1 class="h-title">Live sessions</h1>
         <p class="muted mt-1 text-sm max-w-2xl">Your live results: profit, $ an hour and big blinds an hour, over time and by stakes and casino. Kept on this device; export a copy now and then.</p></div>
-      ${playTabs('sessions')}
+      ${reviewTabs('sessions')}
     </div>
     ${editing ? form(editRow) : run ? runningCard(run) : `${startCard()}<div class="flex gap-2 flex-wrap"><button id="ss-new" class="btn">${icon('pen', 'w-4 h-4')} Add a past session</button>${all.length ? '<button id="ss-csv" class="btn btn-quiet">Export CSV</button>' : ''}</div>`}
     ${all.some(s => !s.running) ? `<div class="flex justify-end"><div class="seg">${[['all', 'All time'], ['year', 'This year'], ['90', '90 days']].map(([v, l]) => `<button data-range="${v}" class="px-3 py-1.5 rounded-lg text-sm font-medium ${v === range ? 'bg-ink-700 text-white shadow-card' : 'text-ink-300 hover:text-ink-100'}">${l}</button>`).join('')}</div></div>` : ''}

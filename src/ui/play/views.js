@@ -320,7 +320,7 @@ export function reviewHtml(sess, sum, pastSessions) {
   return `<div class="space-y-5 fade-up">
     <div class="flex items-end justify-between gap-3 flex-wrap">
       <div><div class="h-sec">Session review</div><h1 class="h-title">vs ${AGENTS[sess.botId].name} <span class="text-ink-400 text-lg font-medium">${eloOf(sess.botId)}</span></h1></div>
-      <div class="flex gap-2 flex-wrap"><a class="btn" href="#play/review/s/${sess.startedAt}">${icon('review', 'w-4 h-4')} Game review</a><button class="btn" id="rv-again">Play again</button><button class="btn btn-primary" id="rv-new">New session</button></div>
+      <div class="flex gap-2 flex-wrap"><a class="btn" href="#review/s/${sess.startedAt}">${icon('review', 'w-4 h-4')} Game review</a><button class="btn" id="rv-again">Play again</button><button class="btn btn-primary" id="rv-new">New session</button></div>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       ${stat('Played like', sum.rating ? ratingText(sum.rating, sum.ratingSe, 'text-base') : '—', sum.rating ? `${sum.edge >= 0 ? '+' : ''}${Math.round(sum.edge)}bb/100 vs ${AGENTS[sess.botId].name} on the same cards · EV lost ${sum.lossPer100.toFixed(1)}bb/100` : `play ${MIN_RATED}+ hands`, 'text-amber-200')}
@@ -402,8 +402,15 @@ export function rangeViewHtml(v, heroHole) {
   </div>`;
 }
 
-/** Heads-up · Live table · Watch · Review */
+const segLinks = (items, active) => `<div class="seg overflow-x-auto max-w-full gap-0 sm:gap-1">${items.map(([href, l, k]) =>
+  `<a href="${href}" class="px-2 sm:px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap ${k === active ? 'bg-ink-700 text-white shadow-card' : 'text-ink-300 hover:text-ink-100'}">${l}</a>`).join('')}</div>`;
+
+/** Play: Heads-up · Live table */
 export function playTabs(active) {
-  return `<div class="seg overflow-x-auto max-w-full gap-0 sm:gap-1">${[['', 'Heads-up'], ['table', 'Live table'], ['watch', 'Watch'], ['review', 'Review'], ['sessions', 'Sessions']].map(([v, l]) =>
-    `<a href="#play${v ? '/' + v : ''}" class="px-2 sm:px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap ${v === active ? 'bg-ink-700 text-white shadow-card' : 'text-ink-300 hover:text-ink-100'}">${l}</a>`).join('')}</div>`;
+  return segLinks([['#play', 'Heads-up', ''], ['#play/table', 'Live table', 'table']], active);
+}
+
+/** Review: your hands and leaks · live sessions (results) · log a live hand */
+export function reviewTabs(active) {
+  return segLinks([['#review', 'Hands & leaks', ''], ['#review/sessions', 'Live sessions', 'sessions'], ['#review/log', 'Log a hand', 'log']], active);
 }

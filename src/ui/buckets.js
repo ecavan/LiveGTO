@@ -123,7 +123,7 @@ export function bucketStepHtml(g, { multiway = false, stats = null, facing = fal
       <div class="text-sm text-ink-100"><b class="text-white">First: what kind of hand is this?</b> <span class="text-ink-400">Then pick your play.</span></div>
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">${BUCKETS.map((B, i) => `<button data-bk="${B.key}" class="rounded-lg border border-ink-600 bg-ink-800 hover:bg-ink-700 px-2.5 py-2 text-left text-sm transition">
         <span class="text-ink-500 num text-xs mr-1">${i + 1}</span><i class="inline-block w-2 h-2 rounded-sm mr-1" style="background:${BCOL[B.key]}"></i><span class="font-semibold text-white">${esc(B.name)}</span></button>`).join('')}</div>
-      <div class="flex justify-between items-center text-xs text-ink-400"><a href="#learn/buckets" class="underline-offset-2 hover:underline">What are the buckets?</a><button data-bk="skip" class="hover:text-ink-200">Skip this step</button></div>
+      <div class="flex justify-between items-center text-xs text-ink-400"><a href="#train/buckets" class="underline-offset-2 hover:underline">What are the buckets?</a><button data-bk="skip" class="hover:text-ink-200">Skip this step</button></div>
     </div>`;
   }
   const B = BUCKET[g.key];

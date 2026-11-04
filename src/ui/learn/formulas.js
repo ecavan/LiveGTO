@@ -27,7 +27,7 @@ const ROWS = [
 
 export function render(container) {
   container.innerHTML = `<div class="page max-w-3xl space-y-4 fade-up">
-    <a href="#learn" class="btn btn-quiet text-sm">${icon('back', 'w-4 h-4')} Learn</a>
+    <a href="#train" class="btn btn-quiet text-sm">${icon('back', 'w-4 h-4')} Train</a>
     <div><div class="h-sec">Cheat sheet</div><h1 class="h-title">Formula sheet</h1>
       <p class="text-sm text-ink-300 mt-1">P = pot before the bet · B = bet · C = to call · e = equity.</p></div>
     <div class="space-y-2">${ROWS.map(([name, eq, why, anchors]) => `

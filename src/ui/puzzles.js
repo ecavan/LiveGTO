@@ -31,6 +31,13 @@ let keyHandler = null;
 
 export async function render(container, params = []) {
   const m = params[0] || '';
+  if (m === '') return (await import('./puzzles/hub.js')).render(container);
+  if (m === 'rated' && params[1]) {
+    // a preset from the hub (#puzzles/rated/flop), or 'all' to clear the filters
+    const { applyPreset } = await import('./puzzles/hub.js');
+    if (applyPreset(params[1])) cur.rated = null;
+    history.replaceState(null, '', '#puzzles/rated');
+  }
   if (m === 'ranges') return (await import('./puzzles/ranges.js')).render(container, params.slice(1));
   if (m === 'buckets') return (await import('./puzzles/bucketdrill.js')).render(container, params.slice(1));
   if (m === 'flop' || m === 'multiway') {
@@ -38,12 +45,12 @@ export async function render(container, params = []) {
     filters.street = m === 'flop' ? 'flop' : '';
     filters.players = m === 'multiway' ? 'multiway' : '';
     cur.rated = null;
-    navigate('puzzles');
+    navigate('puzzles/rated');
     return undefined;
   }
   if (m === 'drill') {
     const leak = params[1];
-    if (!LEAK_DRILLS[leak]) { navigate('play/review'); return undefined; }
+    if (!LEAK_DRILLS[leak]) { navigate('review'); return undefined; }
     if (drill?.leak !== leak) { drill = { leak, n: 0, right: 0 }; cur.drill = null; }
   }
   mode = m === 'daily' || m === 'review' || m === 'drill' ? m : 'rated';
@@ -91,14 +98,14 @@ function loadError(container, e) {
   const it = mode === 'review' ? reviewItem : null;
   container.innerHTML = `<div class="page space-y-4">
     <div><div class="h-sec">Puzzles</div><h1 class="h-title">${missing ? 'That puzzle is gone' : 'Couldn\'t load a puzzle'}</h1></div>
-    <div>${puzzleTabs(mode === 'rated' ? '' : mode)}</div>
+    <div>${puzzleTabs(mode)}</div>
     <div class="panel panel-pad space-y-3">
       <p class="text-sm text-ink-200">${missing ? 'It was in your review queue, but the puzzle library has changed since.' : 'You may be offline, with this part of the puzzle library not downloaded yet. Settings → "Download puzzle library" makes every puzzle work offline.'}</p>
       <div class="flex gap-2 flex-wrap"><button id="pz-retry" class="btn btn-primary">Try again</button>
         ${it ? '<button id="pz-drop" class="btn">Remove it from the queue</button>' : ''}
         ${mode !== 'rated' ? '<a class="btn" href="#puzzles/buckets">Buckets drill (works offline)</a>' : ''}</div>
     </div></div>`;
-  container.querySelector('#pz-retry').addEventListener('click', () => { cur[mode] = null; navigate(mode === 'rated' ? 'puzzles' : mode === 'drill' ? `puzzles/drill/${drill.leak}` : `puzzles/${mode}`); });
+  container.querySelector('#pz-retry').addEventListener('click', () => { cur[mode] = null; navigate(mode === 'rated' ? 'puzzles/rated' : mode === 'drill' ? `puzzles/drill/${drill.leak}` : `puzzles/${mode}`); });
   container.querySelector('#pz-drop')?.addEventListener('click', () => {
     stats.queue = (stats.queue || []).filter(x => x.k !== it.k);
     saveStats(stats);
@@ -296,7 +303,7 @@ function libraryPlan(r, p) {
 
 function nextButton() {
   if (mode === 'daily') return `<div class="text-sm text-ink-300 text-center">Streak: <b class="text-amber-200">${dailyStreak(stats)} day${dailyStreak(stats) === 1 ? '' : 's'}</b>. A new puzzle tomorrow.</div>
-    <a href="#puzzles" class="btn btn-primary btn-lg btn-block">Rated puzzles ${icon('next', 'w-5 h-5')}</a>`;
+    <a href="#puzzles/rated" class="btn btn-primary btn-lg btn-block">Rated puzzles ${icon('next', 'w-5 h-5')}</a>`;
   if (mode === 'review') return `<button id="pz-next" class="btn btn-primary btn-lg btn-block">Next missed puzzle ${icon('next', 'w-5 h-5')}</button>`;
   return `<button id="pz-next" class="btn btn-primary btn-lg btn-block">Next puzzle ${icon('next', 'w-5 h-5')}</button>`;
 }
@@ -360,16 +367,16 @@ function draw(container) {
       ${statsHtml}
       ${current ? `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Puzzle</div><div class="text-2xl font-semibold num text-ink-200">${current.puzzle.rating}</div></div>` : ''}
     </div></div>
-    <div>${puzzleTabs(mode === 'rated' ? '' : mode)}</div>
+    <div>${puzzleTabs(mode)}</div>
     ${mode === 'review' && current ? `<p class="text-sm text-ink-400">Missed puzzles come back after ${INTERVALS.join(', ')} days. Solve one each time and it leaves the queue. Not rated.</p>` : ''}
     ${mode === 'daily' ? `<p class="text-sm text-ink-400">One spot a day, the same for everyone. Not rated: it counts toward your streak.</p>` : ''}
-    ${mode === 'drill' ? `<p class="text-sm text-ink-300">${esc(LEAK_DRILLS[drill.leak].want)} <a href="#play/review" class="underline text-ink-400">Back to your leaks</a></p>` : ''}`;
+    ${mode === 'drill' ? `<p class="text-sm text-ink-300">${esc(LEAK_DRILLS[drill.leak].want)} <a href="#review" class="underline text-ink-400">Back to your leaks</a></p>` : ''}`;
   if (!current) {
     const empty = mode === 'review'
       ? `<div class="panel panel-pad text-center py-10 space-y-3">
           <div class="text-lg font-semibold text-white">${q.length ? 'Nothing due right now' : 'No missed puzzles'}</div>
           <p class="text-sm text-ink-300 max-w-md mx-auto">${q.length ? `${q.length} puzzle${q.length > 1 ? 's' : ''} will come back over the next days.` : 'Every puzzle you miss comes back here the next day, then after 3 and 7 days, until you get it right.'}</p>
-          ${q.length ? '<button id="practice-all" class="btn btn-primary">Practise them now anyway</button>' : '<a href="#puzzles" class="btn btn-primary">Rated puzzles</a>'}</div>`
+          ${q.length ? '<button id="practice-all" class="btn btn-primary">Practise them now anyway</button>' : '<a href="#puzzles/rated" class="btn btn-primary">Rated puzzles</a>'}</div>`
       : mode === 'drill' ? `<p class="text-ink-400 pt-6">No spots for this drill at this level.</p>`
       : `<p class="text-ink-400 pt-6">No puzzles match these filters. The texture and villain filters only apply to turn and river spots, so try clearing one.</p>`;
     container.innerHTML = `<div class="page space-y-4">${header}${mode === 'rated' ? filterPanel() : ''}${empty}</div>`;
@@ -406,8 +413,8 @@ function draw(container) {
 }
 
 function wire(container) {
-  wireFilters(container, () => { cur.rated = null; navigate('puzzles'); });
-  wireLevel(container, () => { cur.rated = null; filters.profile = ''; stats = loadStats(); navigate(mode === 'daily' ? 'puzzles/daily' : mode === 'drill' ? `puzzles/drill/${drill.leak}` : 'puzzles'); });
+  wireFilters(container, () => { cur.rated = null; navigate('puzzles/rated'); });
+  wireLevel(container, () => { cur.rated = null; filters.profile = ''; stats = loadStats(); navigate(mode === 'daily' ? 'puzzles/daily' : mode === 'drill' ? `puzzles/drill/${drill.leak}` : 'puzzles/rated'); });
   container.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', (e) => {
     // the second tap of a double tap on a bucket lands on the play buttons that replace them
     if (e.detail && performance.now() - (current?.bkAt || 0) < 400) return;
@@ -427,7 +434,7 @@ function wire(container) {
     draw(container);
     container.querySelectorAll('details').forEach((d, i) => { if (open[i]) d.open = true; });
   }));
-  container.querySelector('#pz-next')?.addEventListener('click', () => { navigate(mode === 'review' ? 'puzzles/review' : mode === 'drill' ? `puzzles/drill/${drill.leak}` : 'puzzles'); });
+  container.querySelector('#pz-next')?.addEventListener('click', () => { navigate(mode === 'review' ? 'puzzles/review' : mode === 'drill' ? `puzzles/drill/${drill.leak}` : 'puzzles/rated'); });
   container.querySelector('#practice-all')?.addEventListener('click', async () => { practiceAll = true; cur.review = null; navigate('puzzles/review'); });
 }
 
@@ -443,7 +450,7 @@ function answer(container, choice) {
     stats.played += 1;
     if (g.correct) stats.solved += 1;
     stats.seen = [...stats.seen, k].slice(-300);
-    stats.history = [...stats.history, { id: k, v: g.verdict, loss: +g.loss_bb.toFixed(2), d: stats.rating - before }].slice(-500);
+    stats.history = [...stats.history, { id: k, lv: stats.level, v: g.verdict, loss: +g.loss_bb.toFixed(2), d: stats.rating - before }].slice(-500);
     if (!g.correct) queueMiss(stats, cand);
   } else if (mode === 'daily') {
     setDaily(stats, current.date, current.level ?? getLevel(), { choice, v: g.verdict });

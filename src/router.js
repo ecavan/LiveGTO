@@ -1,5 +1,5 @@
 /**
- * Hash router. "#learn/drill/pot-odds" → route "learn" with params ["drill", "pot-odds"].
+ * Hash router. "#train/drill/pot-odds" → route "train" with params ["drill", "pot-odds"].
  * A view may return a cleanup function (timers etc.), called before the next route renders.
  */
 const routes = {};

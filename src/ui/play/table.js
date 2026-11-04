@@ -352,7 +352,7 @@ function review(container) {
   container.innerHTML = `<div class="page space-y-5 fade-up">
     <div class="flex items-end justify-between gap-3 flex-wrap">
       <div><div class="h-sec">Session review</div><h1 class="h-title">Live table: ${LEVELS[t.level].name}, ${t.n}-handed</h1><p class="muted text-sm mt-1">Graded at Level ${t.coachLevel ?? 2} (${(t.coachLevel ?? 2) === 1 ? 'baseline' : 'exploit'})</p></div>
-      <div class="flex gap-2 flex-wrap"><a class="btn" href="#play/review/s/${t.startedAt}">${icon('review', 'w-4 h-4')} Game review</a><button class="btn" id="rv-again">Same table</button><button class="btn btn-primary" id="rv-new">New table</button></div>
+      <div class="flex gap-2 flex-wrap"><a class="btn" href="#review/s/${t.startedAt}">${icon('review', 'w-4 h-4')} Game review</a><button class="btn" id="rv-again">Same table</button><button class="btn btn-primary" id="rv-new">New table</button></div>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       ${stat('Decisions', pct(sum.accuracy), `${sum.blunders} blunders · ${sum.mistakes} mistakes`)}
@@ -374,3 +374,9 @@ function review(container) {
 }
 
 export { ARCHETYPES, legal, verdict };
+
+/** The live table still open (for Home), or null. */
+export function activeTable() {
+  if (!t || ui.over || !t.hands?.length) return null;
+  return { hands: t.hands.length, n: t.n ?? t.players?.length, level: t.level };
+}

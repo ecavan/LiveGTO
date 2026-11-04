@@ -46,6 +46,8 @@
   .page { @apply max-w-6xl mx-auto px-4 sm:px-6 pb-24 md:pb-10 pt-4 sm:pt-6; }
   .panel { @apply bg-ink-900 border border-ink-700/70 rounded-2xl; }
   .panel-pad { @apply p-4 sm:p-5; }
+  .card-link { @apply block text-left transition hover:border-ink-500 hover:bg-ink-850 active:scale-[.99]; }
+  .hero-play { @apply bg-gradient-to-br from-emerald-950/50 to-ink-900; }
   .h-title { @apply text-2xl sm:text-3xl font-semibold tracking-tight text-white; }
   .h-sec { @apply text-xs font-semibold uppercase tracking-[0.12em] text-ink-300; }
   .muted { @apply text-ink-300; }
@@ -72,6 +74,8 @@
   .seg { @apply inline-flex p-1 rounded-xl bg-ink-850 border border-ink-700 gap-1; }
   .seg > button { @apply px-3 py-1.5 rounded-lg text-sm font-medium text-ink-300 transition hover:text-ink-100; }
   .seg > button.on { @apply bg-ink-700 text-white shadow-card; }
+  .chip { @apply inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border border-ink-700 bg-ink-850 text-ink-200 transition hover:border-ink-500 hover:text-white active:scale-[.98]; }
+  .chip-on { @apply border-emerald-500/70 text-white bg-emerald-900/40; }
 
   /* tags, pills */
   .tag { @apply inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide bg-ink-800 text-ink-200 border border-ink-600/70; }
@@ -100,11 +104,11 @@
 
   /* nav */
   .tabbar-top { @apply hidden md:flex items-center gap-1 p-1 rounded-xl bg-ink-900 border border-ink-700/70; }
-  .tabbar-top a { @apply px-4 py-1.5 rounded-lg text-sm font-semibold text-ink-300 hover:text-white transition; }
+  .tabbar-top a { @apply px-3 lg:px-4 py-1.5 rounded-lg text-sm font-semibold text-ink-300 hover:text-white transition; }
   .tabbar-top a.on { @apply bg-ink-700 text-white; }
-  .tabbar-bottom { @apply md:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-3 border-t border-ink-700 bg-ink-950/95 backdrop-blur;
+  .tabbar-bottom { @apply md:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-6 border-t border-ink-700 bg-ink-950/95 backdrop-blur;
     padding-bottom: env(safe-area-inset-bottom); }
-  .tabbar-bottom a { @apply flex flex-col items-center gap-0.5 py-2 text-[11px] font-semibold text-ink-300; }
+  .tabbar-bottom a { @apply flex flex-col items-center gap-0.5 py-2 text-[10px] font-semibold text-ink-300; }
   .tabbar-bottom a.on { @apply text-emerald-400; }
 
   /* EV bars */
@@ -255,7 +259,7 @@
 :root[data-theme='light'] :is(.text-emerald-400, .text-emerald-300, .text-emerald-200, .text-emerald-100, .text-emerald-50):not(:is(.tbl, .rtable) *) { color: #047857; }
 :root[data-theme='light'] :is(.text-sky-300, .text-sky-200, .text-sky-200\/90, .text-sky-100):not(:is(.tbl, .rtable) *) { color: #0369a1; }
 :root[data-theme='light'] :is(.text-amber-300, .text-amber-200, .text-amber-200\/90, .text-amber-200\/80, .text-amber-50, .text-yellow-300, .text-orange-300):not(:is(.tbl, .rtable) *) { color: #b45309; }
-:root[data-theme='light'] .text-violet-200:not(:is(.tbl, .rtable) *) { color: #6d28d9; }
+:root[data-theme='light'] :is(.text-violet-200, .text-violet-300):not(:is(.tbl, .rtable) *) { color: #6d28d9; }
 :root[data-theme='light'] :is(.bg-emerald-950\/60, .bg-emerald-950\/70) { background-color: #ecfdf5; }
 :root[data-theme='light'] .bg-emerald-900\/80 { background-color: #d1fae5; }
 :root[data-theme='light'] :is(.bg-sky-950\/50, .bg-sky-950\/60) { background-color: #f0f9ff; }
@@ -278,6 +282,7 @@
 :root[data-theme='light'] .erratum { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
 :root[data-theme='light'] .tabbar-bottom a.on { color: #047857; }
 :root[data-theme='light'] :is(.panel, .shadow-card) { box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06); }
+:root[data-theme='light'] .chip-on { background: #d1fae5; color: #065f46; }
 :root[data-theme='light'] .seg > button.on { box-shadow: 0 1px 2px rgba(16,24,40,.08), 0 1px 3px rgba(16,24,40,.1); }
 :root[data-theme='light'] .tbl-rail { box-shadow: 0 16px 40px rgba(16,24,40,.25), 0 0 0 1px rgba(255,255,255,.04) inset; }
 :root[data-theme='light'] .rg > div.me { outline-color: #d97706; }
@@ -287,3 +292,5 @@
 :root[data-theme='light'] .ts-h:not(:is(.tbl, .rtable) *) { color: #dc2626; }
 :root[data-theme='light'] .ts-d:not(:is(.tbl, .rtable) *) { color: #1d4ed8; }
 :root[data-theme='light'] .ts-c:not(:is(.tbl, .rtable) *) { color: #15803d; }
+
+:root[data-theme='light'] .hero-play { background-image: linear-gradient(to bottom right, #d1fae5, #ffffff); }

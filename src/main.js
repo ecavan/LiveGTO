@@ -1,5 +1,5 @@
 /**
- * LiveGTO: Learn · Puzzles · Play.
+ * LiveGTO: Home · Play · Watch · Puzzles · Train · Review.
  */
 import './styles.css';
 import { register, start, onChange } from './router.js';
@@ -10,9 +10,12 @@ import { applyTheme } from './theme.js';
 applyTheme();
 
 const TABS = [
-  { id: 'learn', label: 'Learn', icon: 'learn' },
-  { id: 'puzzles', label: 'Puzzles', icon: 'puzzle' },
+  { id: 'home', label: 'Home', icon: 'home' },
   { id: 'play', label: 'Play', icon: 'play' },
+  { id: 'watch', label: 'Watch', icon: 'bot' },
+  { id: 'puzzles', label: 'Puzzles', icon: 'puzzle' },
+  { id: 'train', label: 'Train', icon: 'learn' },
+  { id: 'review', label: 'Review', icon: 'review' },
 ];
 
 const lazy = (loader) => async (container, params) => {
@@ -21,7 +24,9 @@ const lazy = (loader) => async (container, params) => {
 };
 
 register('home', lazy(() => import('./ui/home.js')));
-register('learn', lazy(() => import('./ui/learn.js')));
+register('train', lazy(() => import('./ui/learn.js')));
+register('watch', lazy(() => import('./ui/play/watch.js')));
+register('review', lazy(() => import('./ui/play/review.js')));
 register('puzzles', lazy(() => import('./ui/puzzles.js')));
 register('play', lazy(() => import('./ui/play.js')));
 register('settings', lazy(() => import('./ui/settings.js')));
@@ -31,9 +36,11 @@ if ('serviceWorker' in navigator) {
   let had = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) window.__swUpdated = true; had = true; });
 }
-// old links
+// old links (bookmarks, the review queue, links saved in hand notes)
+const redirect = (to) => { history.replaceState(null, '', `#${to}`); window.dispatchEvent(new HashChangeEvent('hashchange')); };
+register('learn', (c, params) => redirect(['train', ...params].join('/')));
 for (const old of ['simulate', 'preflop', 'playbook', 'postflop']) {
-  register(old, () => { window.location.hash = old === 'simulate' ? 'play' : old === 'postflop' ? 'puzzles' : `learn/${old}`; });
+  register(old, () => redirect(old === 'simulate' ? 'play' : old === 'postflop' ? 'puzzles' : `train/${old}`));
 }
 
 function drawTabs(active) {

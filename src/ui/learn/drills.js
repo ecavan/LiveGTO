@@ -29,7 +29,7 @@ function draw(container, d) {
   const has = answered != null;
   container.innerHTML = `<div class="page max-w-3xl space-y-4 fade-up">
     <div class="flex items-center justify-between gap-3">
-      <a href="#learn" class="btn btn-quiet text-sm">${icon('back', 'w-4 h-4')} Learn</a>
+      <a href="#train" class="btn btn-quiet text-sm">${icon('back', 'w-4 h-4')} Train</a>
       <select id="dr-pick">${Object.entries(DRILLS).map(([k, v]) => `<option value="${k}" ${k === state.id ? 'selected' : ''}>${v.name}</option>`).join('')}</select>
     </div>
     <div class="flex items-end justify-between">
@@ -61,7 +61,7 @@ function draw(container, d) {
         <button id="dr-next" class="btn btn-primary btn-lg btn-block">Next ${icon('next', 'w-5 h-5')}</button>` : ''}
     </div>
   </div>`;
-  container.querySelector('#dr-pick').addEventListener('change', (e) => { window.location.hash = `learn/drill/${e.target.value}`; });
+  container.querySelector('#dr-pick').addEventListener('change', (e) => { window.location.hash = `train/drill/${e.target.value}`; });
   container.querySelectorAll('[data-opt]').forEach(b => b.addEventListener('click', () => answer(container, d, Number(b.dataset.opt))));
   container.querySelector('#dr-next')?.addEventListener('click', () => {
     state.q = d.gen(Math.random);

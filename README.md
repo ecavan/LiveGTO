@@ -8,9 +8,12 @@ player does against a strong player), **Level 2 · Exploit** against the villain
 Each level has its own puzzle and Play rating, and every answer shows the other level's play too.
 The stats and the words are the online ones (VPIP, PFR, 3-bet, c-bet, fold to c-bet, WTSD, AFq).
 
-Three modes:
+Six tabs, laid out like ChessBot's:
 
-- **Learn**: the Boot Camp course (5 modules, 415 lessons and questions, with Feel / Formula / Proof
+- **Home**: carry on a session in progress, today's puzzle, your biggest leak with the drill for
+  it, your puzzle and Play ratings, mistakes due for review, your decision accuracy, and your
+  recent sessions (each opens in Review).
+- **Train**: the Boot Camp course (5 modules, 415 lessons and questions, with Feel / Formula / Proof
   depths, corrected against the textbooks), a timed bet-size feel drill in dollars, endless
   table-maths drills (pot odds, MDF, α, bluff-to-value, outs, combos, SPR, geometric sizing,
   implied odds), the live preflop charts with a trainer, and cheat sheets. **Hand buckets**: six
@@ -19,7 +22,8 @@ Three modes:
   villain type, with an endless *Bucket your hand* drill on hands you'd really have. **Player
   types**: the eight kinds of player with their real HUD stats, how to spot each one live and how
   to beat him.
-- **Puzzles**: a solved spot with your real hole cards and one right answer, graded by EV against a
+- **Puzzles**: a hub (rating curve, daily, review, a drill for each leak with yours marked, and
+  one-tap presets by street, decision, villain type and board) over the rated solver: a solved spot with your real hole cards and one right answer, graded by EV against a
   specific villain type (Station, Nit, Maniac, Whale) or GTO, plus flop and multiway spots from
   the Play engines. Rated like chess puzzles. Every postflop puzzle first asks which bucket your
   hand is in, then for the play. Every answer shows the plan for your whole range by
@@ -42,11 +46,13 @@ Three modes:
   - *Live table*: 4–6 players drawn from a live $1/$2 pool, each a mix of styles, read from their
     stats; Easy / Medium / Hard; 100bb, 200bb or a live mix of stacks ($50 short stacks next to
     $600 deep ones, SPR shown). The coach grades you against everyone still in the hand.
-  - *Watch*: two bots, cards face up, every decision explained (how the Pro takes apart a
-    Station), with match stats and how the winner is winning.
-  - *Review*: chess-style game review of every hand you played: accuracy, Best / Good /
-    Inaccuracy / Mistake / Blunder, a replayer that hides your answer until you've guessed, and a
-    leak report across sessions. **Log a live hand** from the casino and the coach grades it too.
+- **Watch**: two bots, cards face up, every decision explained (how the Pro takes apart a
+  Station), with match stats and how the winner is winning.
+- **Review**: chess-style game review of every hand you played: accuracy, Best / Good /
+  Inaccuracy / Mistake / Blunder, a replayer that hides your answer until you've guessed,
+  insights (accuracy by session, by street and by decision, your biggest mistakes) and a leak
+  report across sessions. **Live sessions** tracks your casino results ($ an hour), and
+  **Log a hand** from the casino and the coach grades it too.
 
 Every answer is **one action**. There are no "call 55%" answers. Where the solved spots don't
 agree on one play for a bucket (under 65% of the time), the plan says so and names the two

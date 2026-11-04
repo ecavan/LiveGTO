@@ -105,7 +105,7 @@ function draw(container) {
   }
   container.innerHTML = `<div class="page max-w-3xl space-y-4 fade-up">
     <div class="flex items-center justify-between gap-3 flex-wrap">
-      <a href="#learn" class="btn btn-quiet text-sm">${icon('back', 'w-4 h-4')} Learn</a>
+      <a href="#train" class="btn btn-quiet text-sm">${icon('back', 'w-4 h-4')} Train</a>
       ${seg('mode', [{ v: 'drill', label: 'Drill' }, { v: 'charts', label: 'Charts' }], st.mode)}
     </div>
     <div class="flex items-end justify-between gap-3 flex-wrap">

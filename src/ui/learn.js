@@ -1,14 +1,14 @@
 /**
- * Learn: the course, table-maths drills, range drills, preflop, cheat sheets.
- *   #learn                     home
- *   #learn/course/<m>/<s>      course reader
- *   #learn/drill/<id>          a maths drill
- *   #learn/range               → Puzzles → Buckets (the range drill moved there)
- *   #learn/preflop             preflop trainer and charts
- *   #learn/formulas            formula sheet
- *   #learn/playbook            exploit playbook
- *   #learn/buckets             hand buckets: sort your hand after the flop
- *   #learn/types               player types: their HUD stats, how to spot and beat them
+ * Train: the course, table-maths drills, range drills, preflop, cheat sheets.
+ *   #train                     home
+ *   #train/course/<m>/<s>      course reader
+ *   #train/drill/<id>          a maths drill
+ *   #train/range               → Puzzles → Buckets (the range drill moved there)
+ *   #train/preflop             preflop trainer and charts
+ *   #train/formulas            formula sheet
+ *   #train/playbook            exploit playbook
+ *   #train/buckets             hand buckets: sort your hand after the flop
+ *   #train/types               player types: their HUD stats, how to spot and beat them
  */
 import { icon } from './kit.js';
 import { DRILLS } from '../engine/drills.js';
@@ -18,14 +18,14 @@ import { getCourse } from './learn/course.js';
 export async function render(container, params = []) {
   const [sub, ...rest] = params;
   if (sub === 'course') return (await import('./learn/course.js')).render(container, rest);
-  if (sub === 'drill') { if (rest[0] && !DRILLS[rest[0]]) { location.hash = '#learn'; return; } return (await import('./learn/drills.js')).render(container, rest); }
+  if (sub === 'drill') { if (rest[0] && !DRILLS[rest[0]]) { location.hash = '#train'; return; } return (await import('./learn/drills.js')).render(container, rest); }
   if (sub === 'range') { window.location.hash = 'puzzles/buckets'; return undefined; }
   if (sub === 'preflop') return (await import('./learn/preflop.js')).render(container, rest);
   if (sub === 'buckets') return (await import('./learn/buckets.js')).render(container, rest);
   if (sub === 'types') return (await import('./learn/types.js')).render(container, rest);
   if (sub === 'formulas') return (await import('./learn/formulas.js')).render(container, rest);
   if (sub === 'playbook') {
-    container.innerHTML = `<div class="page max-w-4xl space-y-4"><a href="#learn" class="btn btn-quiet text-sm">${icon('back', 'w-4 h-4')} Learn</a><div id="pb"></div></div>`;
+    container.innerHTML = `<div class="page max-w-4xl space-y-4"><a href="#train" class="btn btn-quiet text-sm">${icon('back', 'w-4 h-4')} Train</a><div id="pb"></div></div>`;
     return (await import('./playbook.js')).render(container.querySelector('#pb'), rest);
   }
   return home(container);
@@ -35,7 +35,7 @@ async function home(container) {
   const learn = loadRaw(KEYS.learn, { done: {}, last: null });
   const drills = loadRaw(KEYS.drills, {});
   container.innerHTML = `<div class="page space-y-8 fade-up">
-    <div><div class="h-sec">Learn</div><h1 class="h-title">Understand it, then drill it.</h1></div>
+    <div><div class="h-sec">Train</div><h1 class="h-title">Understand it, then drill it.</h1></div>
     <section class="space-y-3">
       <div class="flex items-center justify-between"><h2 class="text-lg font-semibold text-white">Course</h2><span class="text-xs text-ink-400">Boot Camp, corrected against the textbooks</span></div>
       <div id="modules" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"><div class="text-sm text-ink-400">Loading course…</div></div>
@@ -45,7 +45,7 @@ async function home(container) {
       <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
         ${Object.entries(DRILLS).map(([id, d]) => {
           const st = drills[id];
-          return `<a href="#learn/drill/${id}" class="panel px-4 py-3 hover:border-ink-500 transition">
+          return `<a href="#train/drill/${id}" class="panel px-4 py-3 hover:border-ink-500 transition">
             <div class="flex items-center justify-between"><span class="font-semibold text-white">${d.name}</span><span class="text-[11px] text-ink-400 uppercase tracking-wide">${d.group}</span></div>
             <div class="text-xs text-ink-300 mt-1">${d.blurb}</div>
             ${st ? `<div class="text-xs text-ink-400 mt-2">${st.right}/${st.n} right · best streak ${st.best}</div>` : ''}
@@ -56,12 +56,12 @@ async function home(container) {
     <section class="space-y-3">
       <h2 class="text-lg font-semibold text-white">Hand reading, ranges and preflop</h2>
       <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        ${tile('#learn/buckets', 'grid', 'Hand buckets', 'Six buckets after the flop (nuts, value, bluff-catcher, draw, air with equity, air) and the plan for each, by board.')}
-        ${tile('#learn/types', 'bot', 'Player types', 'Whale, station, nit, reg…: their real HUD stats, how to spot them live, how to beat them.')}
+        ${tile('#train/buckets', 'grid', 'Hand buckets', 'Six buckets after the flop (nuts, value, bluff-catcher, draw, air with equity, air) and the plan for each, by board.')}
+        ${tile('#train/types', 'bot', 'Player types', 'Whale, station, nit, reg…: their real HUD stats, how to spot them live, how to beat them.')}
         ${tile('#puzzles/buckets', 'grid', 'Range buckets', 'Your whole range in a real spot: one plan for your monsters, pairs, draws and air. In Puzzles.')}
-        ${tile('#learn/preflop', 'target', 'Preflop trainer', 'Raise, call or fold from every seat, live 9-handed charts.')}
-        ${tile('#learn/formulas', 'learn', 'Formula sheet', 'Every number you use at the table, on one page.')}
-        ${tile('#learn/playbook', 'flag', 'Exploit playbook', 'How each hand class plays against each villain type.')}
+        ${tile('#train/preflop', 'target', 'Preflop trainer', 'Raise, call or fold from every seat, live 9-handed charts.')}
+        ${tile('#train/formulas', 'learn', 'Formula sheet', 'Every number you use at the table, on one page.')}
+        ${tile('#train/playbook', 'flag', 'Exploit playbook', 'How each hand class plays against each villain type.')}
       </div>
     </section>
   </div>`;
@@ -73,7 +73,7 @@ async function home(container) {
     const n = m.steps.length;
     const done = m.steps.filter((_, si) => learn.done[`${mi}.${si}`]).length;
     const next = m.steps.findIndex((_, si) => !learn.done[`${mi}.${si}`]);
-    return `<a href="#learn/course/${mi}/${next < 0 ? 0 : next}" class="panel panel-pad hover:border-ink-500 transition flex flex-col gap-3">
+    return `<a href="#train/course/${mi}/${next < 0 ? 0 : next}" class="panel panel-pad hover:border-ink-500 transition flex flex-col gap-3">
       <div class="flex items-center justify-between"><span class="text-[11px] uppercase tracking-[0.1em] text-ink-400 font-semibold">Module ${mi + 1}</span>
         <span class="text-xs text-ink-300 num">${done}/${n}</span></div>
       <div><div class="text-lg font-semibold text-white leading-snug">${m.title}</div><div class="text-sm text-ink-300 mt-0.5">${m.sub}</div></div>

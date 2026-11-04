@@ -33,15 +33,15 @@ export async function render(container, [mStr = '0', sStr = '0'] = []) {
     save(KEYS.learn, learn);
   }
 
-  const prevHref = si > 0 ? `#learn/course/${mi}/${si - 1}` : mi > 0 ? `#learn/course/${mi - 1}/${c.modules[mi - 1].steps.length - 1}` : null;
-  const nextHref = si < mod.steps.length - 1 ? `#learn/course/${mi}/${si + 1}` : mi < c.modules.length - 1 ? `#learn/course/${mi + 1}/0` : '#learn';
+  const prevHref = si > 0 ? `#train/course/${mi}/${si - 1}` : mi > 0 ? `#train/course/${mi - 1}/${c.modules[mi - 1].steps.length - 1}` : null;
+  const nextHref = si < mod.steps.length - 1 ? `#train/course/${mi}/${si + 1}` : mi < c.modules.length - 1 ? `#train/course/${mi + 1}/0` : '#train';
   const done = mod.steps.filter((_, k) => learn.done[`${mi}.${k}`]).length;
 
   const body = step.type === 'concept' ? conceptHtml(step, st.tier) : questionHtml(step, answered);
 
   container.innerHTML = `<div class="page max-w-3xl space-y-4 fade-up">
     <div class="flex items-center justify-between gap-3">
-      <a href="#learn" class="btn btn-quiet text-sm">${icon('back', 'w-4 h-4')} Learn</a>
+      <a href="#train" class="btn btn-quiet text-sm">${icon('back', 'w-4 h-4')} Train</a>
       <div class="text-xs text-ink-400 num">Module ${mi + 1} · ${si + 1} / ${mod.steps.length}</div>
     </div>
     <div>
