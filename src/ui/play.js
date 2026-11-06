@@ -12,6 +12,7 @@ import { AGENTS, AGENT_IDS, eloOf, levelOf } from '../engine/hu/agents.js';
 import { settings, saveSettings, loadRaw, save, KEYS } from '../store.js';
 import { seg, wireSeg, icon, disc, fmtBB, esc, levelSwitch, wireLevel, ratingText, PROVISIONAL_SE } from './kit.js';
 import { playRatingSeries } from './ratings.js';
+import { redirect } from '../router.js';
 import {
   liveTable, actionBar, historyHtml, coachCard, sessionPanel, handRecap, reviewHtml, bucketViewHtml, playTabs,
 } from './play/views.js';
@@ -30,9 +31,7 @@ export async function render(container, params = []) {
   if (params[0] === 'table') return (await import('./play/table.js')).render(container, params.slice(1));
   // Watch and Review have their own tabs now; old #play/watch, #play/review/…, #play/sessions links
   if (params[0] === 'watch' || params[0] === 'review' || params[0] === 'sessions') {
-    const to = params[0] === 'sessions' ? ['review', 'sessions'] : params;
-    history.replaceState(null, '', `#${to.join('/')}`);
-    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    redirect((params[0] === 'sessions' ? ['review', 'sessions'] : params).join('/'));
     return undefined;
   }
   if (params[0] === 'new') {

@@ -198,6 +198,9 @@ function preflopArch(arch, s, seat, ctx) {
       rT = r * hi;
       cT = Math.min(1, c * widen) * hi;
     }
+    // pot-committed: a call that costs a tenth of the pot or less (he 4-bet to 99 with 4.5
+    // behind and was shoved on for 0.4 more) is never a fold, whatever he holds
+    if (owe > 0 && owe <= 0.1 * (pot(s) + owe)) cT = 1;
   }
   const R = new Float64Array(N), C = new Float64Array(N), F = new Float64Array(N);
   for (let i = 0; i < N; i++) {

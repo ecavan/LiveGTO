@@ -2,7 +2,7 @@
  * LiveGTO: Home · Play · Watch · Puzzles · Train · Review.
  */
 import './styles.css';
-import { register, start, onChange } from './router.js';
+import { register, start, onChange, redirect } from './router.js';
 import { icon } from './ui/kit.js';
 import { renderRatings } from './ui/ratings.js';
 import { applyTheme } from './theme.js';
@@ -37,7 +37,6 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) window.__swUpdated = true; had = true; });
 }
 // old links (bookmarks, the review queue, links saved in hand notes)
-const redirect = (to) => { history.replaceState(null, '', `#${to}`); window.dispatchEvent(new HashChangeEvent('hashchange')); };
 register('learn', (c, params) => redirect(['train', ...params].join('/')));
 for (const old of ['simulate', 'preflop', 'playbook', 'postflop']) {
   register(old, () => redirect(old === 'simulate' ? 'play' : old === 'postflop' ? 'puzzles' : `train/${old}`));

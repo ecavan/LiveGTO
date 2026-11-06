@@ -15,6 +15,12 @@ export function navigate(hash) {
   else window.location.hash = hash;
 }
 
+/** Go to `hash` in place of the current entry (a redirect from an old or bad route): Back then skips it. */
+export function redirect(hash) {
+  history.replaceState(null, '', `#${hash}`);
+  window.dispatchEvent(new HashChangeEvent('hashchange'));
+}
+
 export function current() {
   const [name, ...params] = (window.location.hash.slice(1) || 'home').split('/');
   return { name, params };

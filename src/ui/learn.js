@@ -12,14 +12,15 @@
  */
 import { icon } from './kit.js';
 import { DRILLS } from '../engine/drills.js';
+import { redirect } from '../router.js';
 import { loadRaw, KEYS } from '../store.js';
 import { getCourse } from './learn/course.js';
 
 export async function render(container, params = []) {
   const [sub, ...rest] = params;
   if (sub === 'course') return (await import('./learn/course.js')).render(container, rest);
-  if (sub === 'drill') { if (rest[0] && !DRILLS[rest[0]]) { location.hash = '#train'; return; } return (await import('./learn/drills.js')).render(container, rest); }
-  if (sub === 'range') { window.location.hash = 'puzzles/buckets'; return undefined; }
+  if (sub === 'drill') { if (rest[0] && !DRILLS[rest[0]]) { redirect('train'); return undefined; } return (await import('./learn/drills.js')).render(container, rest); }
+  if (sub === 'range') { redirect('puzzles/buckets'); return undefined; }
   if (sub === 'preflop') return (await import('./learn/preflop.js')).render(container, rest);
   if (sub === 'buckets') return (await import('./learn/buckets.js')).render(container, rest);
   if (sub === 'types') return (await import('./learn/types.js')).render(container, rest);

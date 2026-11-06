@@ -18,7 +18,7 @@ import { puzzleTabs } from './puzzles/tabs.js';
 import { filters, filterPanel as sharedFilters, wireFilters, libraryOnly } from './puzzles/filters.js';
 import { planFromClasses, CLASS_AS_BUCKET, BUCKET, bucketOf, bucketWhy } from '../engine/buckets.js';
 import { bucketPlanHtml, bucketStepHtml, gradeBucket, recordBucket } from './buckets.js';
-import { navigate } from '../router.js';
+import { navigate, redirect } from '../router.js';
 
 let index = null;
 let stats = loadStats();
@@ -45,12 +45,12 @@ export async function render(container, params = []) {
     filters.street = m === 'flop' ? 'flop' : '';
     filters.players = m === 'multiway' ? 'multiway' : '';
     cur.rated = null;
-    navigate('puzzles/rated');
+    redirect('puzzles/rated');
     return undefined;
   }
   if (m === 'drill') {
     const leak = params[1];
-    if (!LEAK_DRILLS[leak]) { navigate('review'); return undefined; }
+    if (!LEAK_DRILLS[leak]) { redirect('review/insights'); return undefined; }
     if (drill?.leak !== leak) { drill = { leak, n: 0, right: 0 }; cur.drill = null; }
   }
   mode = m === 'daily' || m === 'review' || m === 'drill' ? m : 'rated';

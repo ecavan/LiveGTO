@@ -14,7 +14,7 @@ import { actionBar, coachCard } from '../play/views.js';
 import { bucketPlanHtml, bucketStepHtml, gradeBucket, recordBucket } from '../buckets.js';
 import { puzzleTabs } from './tabs.js';
 import { filterPanel, wireFilters, filters } from './filters.js';
-import { navigate } from '../../router.js';
+import { navigate, redirect } from '../../router.js';
 
 const sets = {};
 const STREET = ['Preflop', 'Flop', 'Turn', 'River'];
@@ -48,7 +48,8 @@ export async function render(container, kind, { review = null, rated = null } = 
   if (!spot) {
     // the spot sets were rebuilt and this one is gone: drop it from the queue
     if (review) { const st = loadStats(); st.queue = (st.queue || []).filter(x => x.k !== review.k); saveStats(st); }
-    navigate(review ? 'puzzles/review' : 'puzzles');
+    if (rated) rated.answered = true; // so the rated solver fetches a fresh one instead of this again
+    redirect(review ? 'puzzles/review' : 'puzzles/rated');
     return undefined;
   }
   const p = make(kind, spot, !!review);

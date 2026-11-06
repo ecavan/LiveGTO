@@ -299,6 +299,7 @@ function replayer(container, id, stepParam) {
   const L = hand.log.length;
   // no step: your first decision (or the end of a hand you had none in); 'end': the result
   rv.step = stepParam === 'end' ? L : stepParam != null ? Math.max(0, Math.min(L, Number(stepParam) || 0)) : stopsOf(hand)[0];
+  rv.ask = stepParam != null && stepParam !== 'end'; // a link to a move to guess ("Retry your mistakes") opens on the quiz
   keyHandler = (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target?.tagName)) return;
     if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); container.querySelector('#rv-next')?.click(); }
@@ -316,6 +317,7 @@ function replayer(container, id, stepParam) {
 
 function go(container, k) {
   rv.step = Math.max(0, Math.min(rv.states.length - 1, k));
+  rv.ask = false;
   history.replaceState(null, '', `#review/h/${rv.hand.id}/${rv.step}`);
   draw(container);
 }
@@ -511,10 +513,14 @@ function draw(container) {
   const k = rv.step;
   const L = h.log.length;
   const nextD = k < L ? decisionAt(h, k) : null;
-  const guessing = nextD && needsGuess(nextD) && rv.guess[k] == null;
-  const guessed = nextD && rv.guess[k] != null && rv.guess[k] >= 0;
   const lastD = k > 0 ? decisionAt(h, k - 1) : null;
   const lastE = k > 0 ? h.log[k - 1] : null;
+  const toGuess = nextD && needsGuess(nextD) && rv.guess[k] == null;
+  // your move right after your last one (you closed the action and act first on the next
+  // street): the verdict on the last one shows first, then the quiz for the next
+  const twin = toGuess && lastD && !rv.ask;
+  const guessing = toGuess && !twin;
+  const guessed = nextD && rv.guess[k] != null && rv.guess[k] >= 0;
 
   let panel;
   if (guessing) panel = guessPanel(nextD);
@@ -536,7 +542,7 @@ function draw(container) {
   const nextStop = stops.find(x => x > k);
   const prevStop = [...stops].reverse().find(x => x < k);
   const atEnd = nextStop == null;
-  const nextLabel = guessing ? 'Answer first' : !atEnd ? `Next ${icon('next', 'w-5 h-5')}` : nextHand ? `Hand ${nextHand.no} ${icon('next', 'w-5 h-5')}` : rv.session ? `Session summary ${icon('next', 'w-5 h-5')}` : 'End of hand';
+  const nextLabel = guessing ? 'Answer first' : twin ? `Your next move ${icon('next', 'w-5 h-5')}` : !atEnd ? `Next ${icon('next', 'w-5 h-5')}` : nextHand ? `Hand ${nextHand.no} ${icon('next', 'w-5 h-5')}` : rv.session ? `Session summary ${icon('next', 'w-5 h-5')}` : 'End of hand';
   const nextOff = guessing || (atEnd && !nextHand && !rv.session);
   const prevOff = k === 0 && !prevHand;
 
@@ -597,13 +603,15 @@ function draw(container) {
   const toHand = (x, step = null) => navigate(`review/h/${x.id}${step != null ? `/${step}` : ''}`);
   container.querySelector('#rv-first').addEventListener('click', () => go(container, 0));
   container.querySelector('#rv-prev').addEventListener('click', () => {
-    if (prevStop != null) go(container, prevStop);
+    if (toGuess && lastD && rv.ask) { rv.ask = false; draw(container); } // back from the quiz to the verdict on your last move
+    else if (prevStop != null) go(container, prevStop);
     else if (k > 0) go(container, 0);
     else if (prevHand) toHand(prevHand, 'end');
   });
   container.querySelector('#rv-next').addEventListener('click', () => {
     if (nextOff) return;
-    if (!atEnd) go(container, nextStop);
+    if (twin) { rv.ask = true; draw(container); }
+    else if (!atEnd) go(container, nextStop);
     else if (nextHand) toHand(nextHand);
     else navigate(`review/s/${h.sid}`);
   });

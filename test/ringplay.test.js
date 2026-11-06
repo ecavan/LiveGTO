@@ -118,3 +118,36 @@ describe('stacks carry over', () => {
   });
 });
 
+
+describe('pot-committed preflop', () => {
+  // from a stored hand: hero (seat 0) called a 3-bet, 4-bet to 33, the button 5-bet to 99 of his
+  // 103.5, and hero shoves 99.38. The button owes 0.38 into 220: he never folds, so the coach's
+  // all-in EV is the call's EV (not "fold equity" on a player who cannot fold)
+  const stacks = [99.38, 103.5, 19.12, 370.16, 129.01, 33.83];
+  const log = [[4, 'raise', 3], [5, 'fold'], [0, 'call'], [1, 'raise', 11], [2, 'call'], [3, 'fold'], [4, 'call'], [0, 'raise', 33], [1, 'raise', 99], [2, 'fold'], [4, 'fold']];
+  const replay = (holes) => {
+    let s = newHand({ n: 6, btn: 1, stacks, rand: rng(1), holes });
+    for (const [seat, type, to] of log) { expect(s.toAct).toBe(seat); s = act(s, to != null ? { type, to } : { type }); }
+    return s;
+  };
+  it('a player owing a tenth of the pot or less never folds', () => {
+    const t = createTable({ n: 6, rand: rng(5) });
+    const s = act(replay(null), { type: 'allin', to: 99.38 });
+    expect(s.toAct).toBe(1);
+    const pol = playerPolicyAll(t.players[1], s, 1, context(s, 1, t.players[1], 0, newHeroStats()));
+    const fk = pol.opts.findIndex(o => o.type === 'fold');
+    expect(Math.max(...pol.P[fk])).toBe(0);
+  });
+  it('the coach prices the shove like the call', async () => {
+    const { ringCoach } = await import('../src/engine/ring/coach.js');
+    const { coachTable } = await import('../src/engine/ring/session.js');
+    const t = createTable({ n: 6, rand: rng(5) });
+    const holes = [[5, 23], [48, 49], [8, 9], [12, 13], [16, 17], [20, 21]]; // hero 73o, the button AA
+    t.s = replay(holes);
+    t.snap = newHeroStats();
+    const k = ringCoach(t.s, 0, coachTable(t), t.snap);
+    const call = k.options.find(o => o.type === 'call'), shove = k.options.find(o => o.type === 'allin');
+    expect(call && shove).toBeTruthy();
+    expect(Math.abs(shove.ev - call.ev)).toBeLessThan(2);
+  });
+});
