@@ -5,6 +5,7 @@
 import { loadStats, dueItems, today, dailyAt } from '../../engine/puzzles.js';
 
 export function puzzleTabs(active) {
+  if (active === 'drill') active = 'rated'; // a leak drill is rated puzzles picked for one leak
   const st = loadStats();
   const due = dueItems(st).length;
   const dailyDone = !!dailyAt(st, today());

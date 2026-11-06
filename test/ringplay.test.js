@@ -151,3 +151,27 @@ describe('pot-committed preflop', () => {
     expect(Math.abs(shove.ev - call.ev)).toBeLessThan(2);
   });
 });
+
+describe('a solid player defends by the price', () => {
+  // the big blind (a Pro) facing an open from the button: a min-raise is defended wider than a
+  // standard 2.5x, a 4x tighter; the standard size itself is where the shares were tuned
+  const share = (openTo, arch = 'pro') => {
+    // btn 0 opens; seats 1 (SB) folds; seat 2 is the BB
+    let s = newHand({ n: 3, btn: 0, stacks: [100, 100, 100], rand: rng(2) });
+    s = act(s, { type: 'raise', to: openTo }); s = act(s, { type: 'fold' });
+    expect(s.toAct).toBe(2);
+    const t = createTable({ n: 3, rand: rng(5) });
+    const p = { ...t.players[1], mix: { [arch]: 1 } };
+    const pol = playerPolicyAll(p, s, 2, context(s, 2, p, 0, newHeroStats()));
+    const fk = pol.opts.findIndex(o => o.type === 'fold');
+    let fold = 0, all = 0;
+    for (let i = 0; i < N; i++) { fold += pol.P[fk][i]; all += 1; }
+    return 1 - fold / all; // share of all hands that continues
+  };
+  it('min-raise > 2.5x > 4x for a Pro; a Station ignores the price', () => {
+    const [mn, std, big] = [share(2), share(2.5), share(4)];
+    expect(mn).toBeGreaterThan(std * 1.05);
+    expect(big).toBeLessThan(std * 0.9);
+    expect(Math.abs(share(2.5, 'station') - share(4, 'station'))).toBeLessThan(0.01);
+  });
+});

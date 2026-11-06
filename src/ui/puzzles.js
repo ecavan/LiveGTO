@@ -284,6 +284,14 @@ function bothLevels(r, p, choice) {
 }
 
 /** The solver's plan for each class of hand in your range (the exploit against this villain). */
+/** What the solve of this spot does with your bucket: "check 65% · bet 75% 27%" (plays of 5%+). */
+function hereMix(r, p, key) {
+  const rows = planFromClasses(r.classes);
+  const row = rows.find(x => x.key === key) || rows.find(x => x.key === CLASS_AS_BUCKET[p.class]?.key);
+  if (!row) return null;
+  return row.mix.map((x, j) => ({ x, j })).filter(o => o.x >= 0.05).sort((a, b) => b.x - a.x).map(o => `${r.actions_short[o.j]} ${pct(o.x)}`).join(' · ');
+}
+
 function libraryPlan(r, p) {
   const typeOf = (a) => (/^fold/i.test(a) ? 'fold' : /^check/i.test(a) ? 'check' : /^call/i.test(a) ? 'call' : /^all-in/i.test(a) ? 'allin' : /^raise/i.test(a) ? 'raise' : 'bet');
   const options = r.actions.map((a, i) => ({ type: typeOf(a), label: r.actions_short[i].replace(/^\w/, c => c.toUpperCase()) }));
@@ -396,7 +404,7 @@ function draw(container) {
       <div class="space-y-4 min-w-0">
         ${tableHtml(r, current.view)}
         <div class="text-center text-ink-200">You have <b class="text-white">${esc(p.hand)}</b>. What's your play?</div>
-        ${bucketStepHtml(current.bk, { stats, facing: r.to_call > 0, villain: r.villain.profile, showPlan: !!answered, street: r.street === 'flop' ? 'flop' : 'later' })}
+        ${bucketStepHtml(current.bk, { stats, facing: r.to_call > 0, villain: r.villain.profile, showPlan: !!answered, street: r.street === 'flop' ? 'flop' : 'later', here: answered && current.bk ? hereMix(r, p, current.bk.key) : null })}
         ${answered || !current.bk ? '' : actionButtons(r)}
       </div>
       <div class="space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">

@@ -145,6 +145,16 @@ What surprised me:
    thin value bets and folds pass through. The library puzzles are pruned by the same rule, and
    the check-raise records of flops where GTO never raises the c-bet are dropped
    (`scripts/prune-library.mjs`).
+9. **Solid players defend by the price preflop** (Nov 2026). The fitted shares (`vs1`, `bb`,
+   `vs2`, `vs3`) say what fraction of his range a player continues with against a raise, and were
+   fitted at the sizes the hands had (a 2.5x open, a 3x 3-bet). They were applied at every size,
+   so a Pro folded the same 65% of his 3-bets to a 4-bet whether it cost him 14bb or 0.4, and
+   the coach once graded a 4-bet with 73o as best because three "solid" players folded a short
+   stack's last 8bb into a 90bb pot. Two rules now, for the Reg, Shark and Pro only (the fish
+   keep their fitted numbers: over-folding and over-calling are their leaks): the continuing share
+   scales with the minimum defence frequency 1 − owe/pot relative to the standard size's, clamped
+   to ×0.5–1.6 (a min-raise is defended wider, a 4x open tighter), and anyone owing a tenth of
+   the pot or less never folds. A 2.5x open and a 3x 3-bet are unchanged.
 
 ## A 2026 Reg
 

@@ -5,6 +5,7 @@
  *   #review/s/<sid>            one session: accuracy, grades, key moments, every hand
  *   #review/h/<id>[/<step>]    the hand replayer: step through it move by move; before each of
  *                                   your decisions you can guess first, and the grade shows after
+ *   #review/h/<id>/<step>/quiz the same, quizzing your mistakes for this visit ("Retry your mistakes")
  */
 import {
   loadHands, sessionsOf, statesOf, viewOf, posName, decisionAt, grade, GRADES, accuracyOf, gradeCounts,
@@ -27,10 +28,13 @@ const accTone = (a) => (a == null ? '' : a >= 90 ? 'text-emerald-300' : a >= 75 
 
 let rv = null; // replayer state
 let keyHandler = null;
+let quizOverride = null; // "Retry your mistakes": quiz mode for this visit to the replayer, not a saved setting
 
 export function render(container, params = []) {
   if (keyHandler) window.removeEventListener('keydown', keyHandler);
   keyHandler = null;
+  if (params[0] !== 'h') quizOverride = null;
+  else if (params[3] === 'quiz') quizOverride = 'mistakes';
   if (params[0] === 'log') return import('./logger.js').then(m => m.render(container, params.slice(1)));
   if (params[0] === 'sessions') return import('./sessions.js').then(m => m.render(container, params.slice(1)));
   if (params[0] === 'insights') home(container, 'insights');
@@ -212,11 +216,13 @@ function home(container, page = '') {
 /**
  * "Played like": the rating a session was played at, like chess.com's game rating. Heads-up
  * with 20+ hands: the Play rating for that session (your result against the bot on the same
- * cards, blended with your decisions). Otherwise: from the EV your decisions gave up per 100
- * hands, on the bot ladder. Not for logged live hands (you pick which ones to log).
+ * cards, blended with your decisions). A shorter heads-up session: from the EV your decisions
+ * gave up per 100 hands, on the bot ladder. Not for logged live hands (you pick which ones to
+ * log) and not for table sessions: the ladder is calibrated heads-up, where you decide every
+ * hand against one strong player, so EV lost per 100 table hands is not the same currency.
  */
 function playedLike(x) {
-  if (x.level === 'live' || x.hands[0]?.live) return null;
+  if (x.kind !== 'hu' || x.level === 'live' || x.hands[0]?.live) return null;
   const row = x.kind === 'hu' ? (loadRaw(KEYS.play, { sessions: [] }).sessions || []).find(r => r.at === x.sid) : null;
   if (row?.rating) return { rating: row.rating, how: `Your result against ${esc(AGENTS[x.opp]?.name ?? 'the bot')} on the same cards, with your decisions, over ${row.hands} hands.` };
   const decisions = x.hands.reduce((a, h) => a + h.decisions.length, 0);
@@ -244,7 +250,7 @@ function sessionView(container, sid) {
         <div class="text-sm text-ink-400">${new Date(x.sid).toLocaleString()} · ${x.hands.length} hands</div></div>
       <div class="flex gap-2 flex-wrap">
         <a class="btn btn-primary btn-lg" href="#review/h/${x.hands[0].id}">${icon('play', 'w-5 h-5')} Start review</a>
-        ${firstKey ? `<a class="btn btn-lg" id="quiz-mistakes" href="#review/h/${firstKey.h.id}/${firstKey.d.at}">${icon('target', 'w-4 h-4')} Retry your mistakes</a>` : ''}</div>
+        ${firstKey ? `<a class="btn btn-lg" href="#review/h/${firstKey.h.id}/${firstKey.d.at}/quiz">${icon('target', 'w-4 h-4')} Retry your mistakes</a>` : ''}</div>
     </div>
     <div class="panel panel-pad grid md:grid-cols-[auto_minmax(0,1fr)] gap-6 items-center">
       <div class="flex gap-8">
@@ -283,7 +289,6 @@ function sessionView(container, sid) {
       </div>
     </div>
   </div>`;
-  container.querySelector('#quiz-mistakes')?.addEventListener('click', () => saveSettings({ ...settings(), reviewGuess: 'mistakes' }));
 }
 
 // ------------------------------------------------------------------ replayer
@@ -341,7 +346,7 @@ const RANK = { blunder: 4, mistake: 3, inaccuracy: 2, good: 1, best: 0 };
 /** A hand's worst decision, for the hand strip. */
 const worstOf = (h) => h.decisions.reduce((w, d) => (!w || RANK[grade(d)] > RANK[grade(w)] ? d : w), null);
 
-const guessMode = () => settings().reviewGuess ?? 'off';
+const guessMode = () => quizOverride ?? settings().reviewGuess ?? 'off';
 function needsGuess(d) {
   const m = guessMode();
   if (m === 'off') return false;
@@ -629,5 +634,5 @@ function draw(container) {
   container.querySelector('#skip')?.addEventListener('click', () => { rv.guess[k] = -1; go(container, k + 1); });
   container.querySelector('#reveal-move')?.addEventListener('click', () => go(container, k + 1));
   container.querySelector('#show-cards').addEventListener('change', (e) => { rv.showCards = e.target.checked; draw(container); });
-  wireSeg(container, (name, v) => { saveSettings({ ...settings(), reviewGuess: v }); draw(container); });
+  wireSeg(container, (name, v) => { quizOverride = null; saveSettings({ ...settings(), reviewGuess: v }); draw(container); });
 }

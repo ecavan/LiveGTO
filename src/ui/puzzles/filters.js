@@ -5,8 +5,14 @@
 import { PROFILES, families } from '../../engine/puzzles.js';
 import { disc } from '../kit.js';
 import { getLevel } from '../../engine/level.js';
+import { loadRaw, save, KEYS } from '../../store.js';
 
-export const filters = { street: '', players: '', profile: '', decision: '', family: '', suits: '', connect: '', paired: '', height: '' };
+const DEFAULTS = { street: '', players: '', profile: '', decision: '', family: '', suits: '', connect: '', paired: '', height: '' };
+// kept across reloads (a preset from the hub, or the filter panel), so a reload mid-set doesn't quietly serve mixed puzzles
+const stored = Object(loadRaw(KEYS.puzzleFilters, {}));
+export const filters = new Proxy({ ...DEFAULTS, ...Object.fromEntries(Object.keys(DEFAULTS).filter(k => typeof stored[k] === 'string').map(k => [k, stored[k]])) }, {
+  set(t, k, v) { t[k] = v; save(KEYS.puzzleFilters, { ...t }); return true; },
+});
 export const LIBRARY_ONLY = ['profile', 'family', 'suits', 'connect', 'paired', 'height'];
 // the villain type only counts at Level 2 (it's hidden at Level 1)
 export const libraryOnly = () => LIBRARY_ONLY.some(k => filters[k] && !(k === 'profile' && getLevel() === 1));

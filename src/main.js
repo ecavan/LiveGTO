@@ -39,7 +39,7 @@ if ('serviceWorker' in navigator) {
 // old links (bookmarks, the review queue, links saved in hand notes)
 register('learn', (c, params) => redirect(['train', ...params].join('/')));
 for (const old of ['simulate', 'preflop', 'playbook', 'postflop']) {
-  register(old, () => redirect(old === 'simulate' ? 'play' : old === 'postflop' ? 'puzzles' : `train/${old}`));
+  register(old, () => redirect(old === 'simulate' ? 'play' : old === 'postflop' ? 'puzzles/rated' : `train/${old}`));
 }
 
 function drawTabs(active) {

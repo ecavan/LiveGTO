@@ -30,6 +30,8 @@ const PCT_OF = Float64Array.from(HT, k => PCT[k]);
  *   vs2 / vs3      [raise, continue] facing a 3-bet / a 4-bet or a big shove: shares of the
  *                  range he came in with (the opener's opening range, the 3-bettor's 3-bets)
  *   noise          recreational randomness: a slice of the hands he'd fold he plays anyway
+ *   solid (ARCH)   a reg, shark or pro: facing a raise, his continuing share scales with the price
+ *                  (the shares are tuned at standard sizes: a 2.5x open, a 3x 3-bet)
  */
 const ARCH = {
   whale: { name: 'Whale', profile: 'whale', learn: 0.2, ramp: 200, blurb: 'plays half his hands, limps and calls, chases draws' },
@@ -37,9 +39,9 @@ const ARCH = {
   passive: { name: 'Passive', profile: 'passive', learn: 0.3, ramp: 150, blurb: 'tight-passive: a normal number of hands, rarely raises; limps and calls, folds when he misses' },
   nit: { name: 'Nit', profile: 'nit', learn: 0.35, ramp: 140, blurb: 'tight and scared; folds to pressure; big bets are the nuts' },
   maniac: { name: 'Maniac', profile: 'maniac', learn: 0.3, ramp: 160, blurb: 'raises and bluffs relentlessly' },
-  reg: { name: 'Reg', profile: 'reg', learn: 0.5, ramp: 90, blurb: 'tight-aggressive: raises first in, 3-bets, c-bets, and folds to resistance' },
-  shark: { name: 'Shark', profile: 'shark', learn: 0.7, ramp: 60, blurb: 'tight-aggressive, adjusts to you quickly' },
-  pro: { name: 'Pro', profile: 'pro', learn: 1, ramp: 30, blurb: 'a strong regular: disciplined ranges, reads you fast and exploits it' },
+  reg: { name: 'Reg', profile: 'reg', learn: 0.5, ramp: 90, solid: true, blurb: 'tight-aggressive: raises first in, 3-bets, c-bets, and folds to resistance' },
+  shark: { name: 'Shark', profile: 'shark', learn: 0.7, ramp: 60, solid: true, blurb: 'tight-aggressive, adjusts to you quickly' },
+  pro: { name: 'Pro', profile: 'pro', learn: 1, ramp: 30, solid: true, blurb: 'a strong regular: disciplined ranges, reads you fast and exploits it' },
 };
 export const ARCHETYPES = Object.fromEntries(Object.entries(ARCH).map(([k, a]) => [k, { ...a, pre: PREFLOP[k] }]));
 
@@ -197,6 +199,17 @@ function preflopArch(arch, s, seat, ctx) {
       const [r, c] = lvl === 2 ? a.vs2 : a.vs3;
       rT = r * hi;
       cT = Math.min(1, c * widen) * hi;
+    }
+    // a solid player defends by the price: the minimum defence frequency 1 − owe/pot against a
+    // standard size for the spot (a 2.5x open, a 3x 3-bet, a 2.3x 4-bet) is what the shares
+    // above were tuned at; a min-raise is defended wider, an oversized raise tighter
+    if (arch.solid && owe > 0) {
+      const P = pot(s);
+      const mdf = Math.max(0, 1 - owe / Math.max(owe, P));
+      const std = lvl >= 3 ? 0.62 : lvl === 2 ? 0.55 : pos === 'BB' ? 0.62 : pos === 'SB' ? 0.5 : 0.38;
+      const m = Math.min(1.6, Math.max(0.5, mdf / std));
+      rT = Math.min(1, rT * Math.min(1, m)); // a bigger raise also thins his re-raises
+      cT = Math.min(1, cT * m);
     }
     // pot-committed: a call that costs a tenth of the pot or less (he 4-bet to 99 with 4.5
     // behind and was shoved on for 0.4 more) is never a fold, whatever he holds

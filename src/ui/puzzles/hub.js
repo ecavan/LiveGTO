@@ -8,6 +8,7 @@ import { loadHands, leakReport, LEAKS } from '../../engine/history.js';
 import { getLevel, LEVELS } from '../../engine/level.js';
 import { icon, esc, levelSwitch, wireLevel } from '../kit.js';
 import { filters } from './filters.js';
+import { puzzleTabs } from './tabs.js';
 
 /** Preset spots: each sets the rated-puzzle filters (everything else cleared). */
 export const PRESETS = {
@@ -157,6 +158,7 @@ export function render(container) {
       <div><div class="h-sec">Puzzles</div><h1 class="h-title">Find the best play</h1></div>
       ${levelSwitch({ blurb: false })}
     </div>
+    <div>${puzzleTabs('')}</div>
     <div class="grid md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-4">${rated}${side}</div>
     ${drills}
     ${spots}
