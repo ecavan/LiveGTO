@@ -154,7 +154,12 @@ What surprised me:
    keep their fitted numbers: over-folding and over-calling are their leaks): the continuing share
    scales with the minimum defence frequency 1 − owe/pot relative to the standard size's, clamped
    to ×0.5–1.6 (a min-raise is defended wider, a 4x open tighter), and anyone owing a tenth of
-   the pot or less never folds. A 2.5x open and a 3x 3-bet are unchanged.
+   the pot or less never folds. A 2.5x open and a 3x 3-bet are unchanged. The read beats the
+   price: once he has seen you raise a lot (PFR over 28% in 15+ hands), your big raise gets less
+   credit, by how far he has adjusted — the Pro gives it none after 30 hands, the Shark 30% of
+   it after 60, the Reg half after 90 — on top of the wider defence every bot already shows an
+   aggressive raiser. In the big blind against a 4x open from a 40%-PFR hero: the Pro goes from
+   37% to 75% of hands, the Shark 41% to 70%, the Reg 27% to 41%; a Station stays at 40–45%.
 
 ## A 2026 Reg
 

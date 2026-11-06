@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { rng } from '../src/engine/ring/game.js';
 import { createTable, startHand, heroToAct, coachNow, heroAct, botAct, endHand, summary } from '../src/engine/ring/session.js';
-import { playerPolicyAll, context, randomPlayer, newHeroStats } from '../src/engine/ring/players.js';
+import { playerPolicyAll, context, randomPlayer, newHeroStats, ARCHETYPES } from '../src/engine/ring/players.js';
 import { newHand, act } from '../src/engine/ring/game.js';
 import { N } from '../src/engine/hu/equity.js';
 
@@ -173,5 +173,32 @@ describe('a solid player defends by the price', () => {
     expect(mn).toBeGreaterThan(std * 1.05);
     expect(big).toBeLessThan(std * 0.9);
     expect(Math.abs(share(2.5, 'station') - share(4, 'station'))).toBeLessThan(0.01);
+  });
+});
+
+describe('the read beats the price', () => {
+  // the big blind facing a 4x open from a hero he has seen raise 40% of hands: a Pro gives the
+  // size no credit (defends as against 2.5x, and wider for the read), the Shark most of it, the
+  // Reg half; a Station doesn't read sizes at all
+  const share = (openTo, arch, stats) => {
+    let s = newHand({ n: 3, btn: 0, stacks: [100, 100, 100], rand: rng(2) });
+    s = act(s, { type: 'raise', to: openTo }); s = act(s, { type: 'fold' });
+    const p = { name: arch, mix: { [arch]: 1 }, learn: ARCHETYPES[arch].learn, ramp: ARCHETYPES[arch].ramp, seen: 0 };
+    const pol = playerPolicyAll(p, s, 2, context(s, 2, p, 0, stats));
+    const fk = pol.opts.findIndex(o => o.type === 'fold');
+    let fold = 0; for (let i = 0; i < N; i++) fold += pol.P[fk][i];
+    return 1 - fold / N;
+  };
+  const aggro = { ...newHeroStats(), hands: 100, vpip: 50, pfr: 40 };
+  it('Pro > Shark > Reg against a 4x open from an aggressive hero; the Pro defends at least his 2.5x share', () => {
+    const fresh = newHeroStats();
+    // each against his own standard-size share: how much credit the 4x still gets
+    const credit = (arch, stats) => share(4, arch, stats) / share(2.5, arch, fresh);
+    const pro = credit('pro', aggro), shark = credit('shark', aggro), reg = credit('reg', aggro);
+    expect(pro).toBeGreaterThan(shark);
+    expect(shark).toBeGreaterThan(reg);
+    expect(reg).toBeGreaterThan(credit('reg', fresh));
+    expect(pro).toBeGreaterThanOrEqual(1);
+    expect(Math.abs(share(4, 'station', aggro) - share(2.5, 'station', aggro))).toBeLessThan(0.01); // a fish never reads sizes
   });
 });

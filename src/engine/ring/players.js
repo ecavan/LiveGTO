@@ -207,7 +207,11 @@ function preflopArch(arch, s, seat, ctx) {
       const P = pot(s);
       const mdf = Math.max(0, 1 - owe / Math.max(owe, P));
       const std = lvl >= 3 ? 0.62 : lvl === 2 ? 0.55 : pos === 'BB' ? 0.62 : pos === 'SB' ? 0.5 : 0.38;
-      const m = Math.min(1.6, Math.max(0.5, mdf / std));
+      let m = Math.min(1.6, Math.max(0.5, mdf / std));
+      // the read beats the price: once he has seen you raise a lot, your big raise gets less
+      // credit, by how far he has adjusted (the Pro stops giving any after 30 hands, the Shark
+      // 70% of it after 60, the Reg half after 90); a small raise is still defended wider
+      if (m < 1 && ctx.vsHero && ctx.heroAggro) m += (1 - m) * ctx.adj;
       rT = Math.min(1, rT * Math.min(1, m)); // a bigger raise also thins his re-raises
       cT = Math.min(1, cT * m);
     }
