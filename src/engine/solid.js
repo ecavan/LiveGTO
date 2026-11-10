@@ -33,6 +33,9 @@ const PASSIVE = new Set(['check', 'call', 'fold']);
 /** In a split, the aggressive line must be worth this much more than the simple one to be the play. */
 export const CLEAR_BB = 5;
 export const CLEAR_POT = 0.2;
+/** Between calling and folding, the floor (bb) under the CLEAR_POT bar: a small pot still has a price. */
+export const PRICE_BB = 1;
+
 
 /** Multiway (two or more opponents): the written plan in buckets.js, as shares. */
 export const MULTIWAY_PLAN = {
@@ -135,8 +138,22 @@ export function gradeWithPlan(options, plan, { myBet, pot, facing, natural = () 
   // spots. Deliberately conservative: a big blind here or there is cheap next to a strategy you
   // can actually carry out at the table.
   let lead = chart[0];
-  const split = share[lead] < SPLIT && chart.length > 1;
   let rule = null;
+  let priced = null; // the call or the fold the price took off the plan: it costs what the model says
+  // Call or fold is a question of price: when the plan has both and the model's equity against
+  // the pot odds separates them clearly (CLEAR_POT of the pot, and at least PRICE_BB), the worse one is off the plan and costs what the model says. Without
+  // this a bluff-catcher "called" a river bet with no equity because the plan calls half the time.
+  if (chart.includes('call') && chart.includes('fold')) {
+    const evOf = (k) => options[bestIn(k)].ev;
+    const [win, lose] = evOf('call') >= evOf('fold') ? ['call', 'fold'] : ['fold', 'call'];
+    if (evOf(win) - evOf(lose) > Math.max(PRICE_BB, CLEAR_POT * pot)) {
+      chart.splice(chart.indexOf(lose), 1);
+      priced = lose;
+      rule = 'price';
+      if (lead === lose || PASSIVE.has(lead)) lead = win;
+    }
+  }
+  const split = rule !== 'price' && share[lead] < SPLIT && chart.length > 1;
   if (split) {
     const cheap = chart.find(k => PASSIVE.has(k));
     if (cheap) {
@@ -156,7 +173,7 @@ export function gradeWithPlan(options, plan, { myBet, pot, facing, natural = () 
     const model = Math.max(0, ref - o.ev);
     // a play the solver takes sometimes (10–25%) is a small mistake whatever the model says;
     // one it hardly ever takes costs what the model says, and at least the nominal
-    return Math.round(100 * (s >= RARE ? Math.max(nominal, Math.min(model, 4 * nominal)) : Math.max(nominal, model))) / 100;
+    return Math.round(100 * (s >= RARE && cats[i] !== priced ? Math.max(nominal, Math.min(model, 4 * nominal)) : Math.max(nominal, model))) / 100;
   });
   return { best, fine, losses, cats, chart: [lead, ...chart.filter(k => k !== lead)], share, planBest: lead, split, rule };
 }
@@ -191,10 +208,17 @@ export function planSentence(plan, share, g = null) {
     chart = ranked.filter(([, v]) => v >= CHART_MIN).map(([k]) => k);
     if (!chart.length) chart.push(ranked[0][0]);
   }
-  const [first, ...rest] = chart;
+  const [first, ...rest0] = chart;
+  const lead = g?.planBest && chart.includes(g.planBest) ? g.planBest : first;
+  const rest = chart.filter(k => k !== lead);
+  void rest0;
+  if (g?.rule === 'price') {
+    const also = rest.length ? ` ${rest.map(k => cap(CAT_NAME[k] || k)).join(' or ')} ${rest.length > 1 ? 'are' : 'is'} close enough to be fine too.` : '';
+    return `${planWhere(plan)}: calling or folding is a question of price, and here the price clearly says ${CAT_NAME[lead] || lead}.${also}`;
+  }
   const why = g?.rule === 'cheap' ? ', but it is a close spot: keep it simple and cheap.' : g?.rule === 'ev' ? ', but this one is worth clearly more here.' : '.';
   const also = rest.length ? ` ${rest.map(k => cap(CAT_NAME[k] || k)).join(' or ')} ${rest.length > 1 ? 'are' : 'is'} fine too${why}` : '';
-  return `${planWhere(plan)}: ${SOURCE_NAME[plan.source] || plan.source} is ${CAT_NAME[first] || first}.${also}`;
+  return `${planWhere(plan)}: ${SOURCE_NAME[plan.source] || plan.source} is ${CAT_NAME[lead] || lead}.${also}`;
 }
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 

@@ -2,7 +2,7 @@
  * Bucket views: your range as a handful of kinds of hand, each with one plan, and his range the
  * same way. Used by the Play coach, the puzzles and the Buckets drill.
  */
-import { esc } from './kit.js';
+import { esc, optionLabel } from './kit.js';
 import { pct } from '../engine/potmath.js';
 import { BUCKET, BUCKETS, BUCKET_PLAN, boardLine, bucketOf, bucketWhy, boardKind, BOARD_KINDS } from '../engine/buckets.js';
 import { planFor, PLAN_VILLAINS, planText } from '../engine/plans.js';
@@ -103,7 +103,9 @@ export function recordBucket(stats, g) {
  * `here` (a library puzzle): what the solve of this very spot does with the bucket, which is the
  * rule's exception when the two differ, so the rule is named as a rule of thumb.
  */
-function planLine(g, { multiway, facing, villain, street = null, here = null }) {
+function planLine(g, { multiway, facing, villain, street = null, here = null, coach = null }) {
+  // the coach graded this very spot: its plan is the one to show, so the two never disagree
+  if (coach?.play && (!coach.bucket || coach.bucket === g.key)) return `Plan here: <b class="text-ink-100">${esc(optionLabel(coach.play))}</b>.${coach.text ? ` ${esc(coach.text)}` : ''}`;
   if (multiway || !g.kind) return `Plan multiway: ${esc(BUCKET_PLAN[g.key].mw)}`;
   const dec = facing ? 'facing' : 'bet';
   const say = (lv) => { const pl = planFor(lv, g.kind, dec, g.key, street); return pl ? `<b class="text-ink-100">${esc(planText(pl))}</b>` : null; };
@@ -120,7 +122,7 @@ function planLine(g, { multiway, facing, villain, street = null, here = null }) 
  * plan line for the bucket is shown only once the play has been answered (showPlan), so naming
  * the bucket doesn't hand over the answer.
  */
-export function bucketStepHtml(g, { multiway = false, stats = null, facing = false, villain = null, showPlan = true, street = null, here = null } = {}) {
+export function bucketStepHtml(g, { multiway = false, stats = null, facing = false, villain = null, showPlan = true, street = null, here = null, coach = null } = {}) {
   if (!g) {
     return `<div id="bk-ask" class="panel panel-pad space-y-2.5">
       <div class="text-sm text-ink-100"><b class="text-white">First: what kind of hand is this?</b> <span class="text-ink-400">Then pick your play.</span></div>
@@ -136,5 +138,5 @@ export function bucketStepHtml(g, { multiway = false, stats = null, facing = fal
       : `<span class="text-rose-300 font-semibold">You said ${esc(BUCKET[g.pick]?.name ?? g.pick)}.</span> <span class="text-ink-300">It's</span>`;
   return `<div class="rounded-lg px-3 py-2 text-sm ${g.right ? 'bg-emerald-500/10 border border-emerald-500/30' : g.skipped ? 'bg-ink-850 border border-ink-700' : 'bg-rose-500/10 border border-rose-500/30'}">
     ${head} <b style="color:${BCOL[g.key]}">${esc(B.name)}</b>: <span class="text-ink-200">${esc(g.why)}</span>.
-    <div class="text-xs text-ink-400 mt-1">${showPlan ? planLine(g, { multiway, facing, villain, street, here }) : 'Now pick your play.'}${acc}</div></div>`;
+    <div class="text-xs text-ink-400 mt-1">${showPlan ? planLine(g, { multiway, facing, villain, street, here, coach }) : 'Now pick your play.'}${acc}</div></div>`;
 }

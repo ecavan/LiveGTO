@@ -14,6 +14,8 @@ import { pct } from '../engine/potmath.js';
 import { flopTexture, textureLabel, boardTags, randomSuitMap, remapCard, isCard } from '../engine/texture.js';
 import { pokerTable, icon, esc, verdict, disc, rangeGrid, fmtBB, lossKind, optionLabel, levelSwitch, wireLevel, fitTable, showVerdict } from './kit.js';
 import { ids } from '../engine/hu/hand.js';
+import { spotOfLibrary, playoutHtml } from './playout.js';
+import { bumpPuzzle } from '../engine/path.js';
 import { puzzleTabs } from './puzzles/tabs.js';
 import { filters, filterPanel as sharedFilters, wireFilters, libraryOnly } from './puzzles/filters.js';
 import { planFromClasses, CLASS_AS_BUCKET, BUCKET, bucketOf, bucketWhy } from '../engine/buckets.js';
@@ -247,9 +249,9 @@ function feedback(r, p, g, choice) {
   return `<div class="space-y-3 fade-up">
     ${head}
     ${bothLevels(r, p, choice)}
-    ${evBarsFromLoss(opts, p, choice)}
-    ${disc('Why', `<div class="space-y-2">${points}</div>`, g.verdict !== 'best')}
-    ${disc('Your range by bucket: a plan for each kind of hand', libraryPlan(r, p), true)}
+    ${playoutHtml(spotOfLibrary(r, p, choice), { open: g.verdict !== 'best' && g.verdict !== 'fine' })}
+    ${disc('The numbers: what each play is worth', `${evBarsFromLoss(opts, p, choice)}<div class="space-y-2 pt-2 border-t border-ink-700/60">${points}</div>`)}
+    ${disc('Your range by bucket: a plan for each kind of hand', libraryPlan(r, p))}
     ${disc('Ranges', rangePanel(r, p))}
     <div class="next-sticky space-y-2">${nextButton()}</div>
   </div>`;
@@ -404,9 +406,9 @@ function draw(container) {
     <div class="grid lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_1fr] gap-5 lg:grid-flow-dense items-start">
       <div class="space-y-4 min-w-0">
         ${tableHtml(r, current.view)}
-        <div class="study-q text-center text-ink-200">You have <b class="text-white">${esc(p.hand)}</b>. What's your play?</div>
+        <div class="study-q text-center text-ink-200">You have <b class="text-white">${esc(p.hand)}</b>${r.to_call > 0 ? `, facing ${fmtBB(r.to_call)} into ${fmtBB(r.pot - r.to_call)} <span class="text-ink-400">(a call needs ${Math.round(100 * r.to_call / (r.pot + r.to_call))}%)</span>` : ''}. What's your play?</div>
         <div data-fit-end class="space-y-4">
-        ${bucketStepHtml(current.bk, { stats, facing: r.to_call > 0, villain: r.villain.profile, showPlan: !!answered, street: r.street === 'flop' ? 'flop' : 'later', here: answered && current.bk ? hereMix(r, p, current.bk.key) : null })}
+        ${bucketStepHtml(current.bk, { stats, facing: r.to_call > 0, villain: r.villain.profile, showPlan: !!answered, street: r.street === 'flop' ? 'flop' : 'later', coach: answered && current.bk ? { play: r.actions_short[p.answer].replace(/^\w/, c => c.toUpperCase()), text: (() => { const m = hereMix(r, p, current.bk.key); return m ? `Across the whole bucket the solve plays ${m}.` : ''; })() } : null })}
         ${answered || !current.bk ? '' : actionButtons(r)}
         </div>
       </div>
@@ -421,7 +423,7 @@ function draw(container) {
     </div>
   </div>`;
   wire(container);
-  fitTable(container, { key: 'pz' });
+  fitTable(container, { key: 'pz', fresh: !current.answered && !current.bk });
 }
 
 function wire(container) {
@@ -466,6 +468,7 @@ function answer(container, choice) {
     stats.seen = [...stats.seen, k].slice(-300);
     stats.history = [...stats.history, { id: k, lv: stats.level, v: g.verdict, loss: +g.loss_bb.toFixed(2), d: stats.rating - before }].slice(-500);
     if (!g.correct) queueMiss(stats, cand);
+    bumpPuzzle(g.correct);
   } else if (mode === 'daily') {
     setDaily(stats, current.date, current.level ?? getLevel(), { choice, v: g.verdict });
     if (!g.correct) queueMiss(stats, cand);

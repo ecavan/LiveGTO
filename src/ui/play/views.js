@@ -7,6 +7,7 @@ import { evaluate, category, cardStr, ALL_COMBOS, handType } from '../../engine/
 import { AGENTS, eloOf, readOfYou } from '../../engine/hu/agents.js';
 import { MIN_RATED } from '../../engine/hu/session.js';
 import { pct } from '../../engine/potmath.js';
+import { spotOfDecision, playoutHtml } from '../playout.js';
 import { bucketPlanHtml, bucketBarsHtml, bucketName } from '../buckets.js';
 import { optionLabel,
   pokerTable, card, cards, fmtBB, evBars, disc, stat, verdict, icon, esc, rangeGrid, GRID, handText, sprOf, ratingText } from '../kit.js';
@@ -229,14 +230,18 @@ export function coachCard(d, { weights = null, botName = null, live = false, evN
   // the model), not the raw model EVs: those can rank a shove above the plan's fold and read as
   // "all the same" next to a verdict that says otherwise
   const graded = d.losses && d.losses.length === d.options.length ? d.options.map((o, i) => ({ ...o, ev: -d.losses[i] })) : d.options;
-  return `<div class="space-y-3">${head}
-    ${other}
-    ${d.heroBucket ? `<div class="text-sm text-ink-300">Your hand: <b class="text-amber-200">${esc(bucketName(d.heroBucket))}</b>${d.board?.length ? ` on ${handText(d.board.map(cardStr))}` : ''}</div>` : ''}
+  // one verdict, then the walkthrough; the numbers and the ranges open on request
+  const spot = spotOfDecision(d, { botName });
+  const numbers = `${d.heroBucket ? `<div class="text-sm text-ink-300">Your hand: <b class="text-amber-200">${esc(bucketName(d.heroBucket))}</b>${d.board?.length ? ` on ${handText(d.board.map(cardStr))}` : ''}</div>` : ''}
     ${evBars(graded, { best: d.best, fine: d.fine, chosen: d.chosen })}
     <div class="text-xs text-ink-400">${evNote ?? evNoteFor(d, { botName })}${sol ? ' The verdict is the plan for your kind of hand: a play on it costs nothing, one off it costs what the EV model says, at least a little.' : ''}</div>
     ${modelNote}
-    ${live ? `<details class="disc" data-rangeview open><summary>Your range by bucket: a plan for each kind of hand</summary><div class="body"><div class="text-ink-400 text-sm">Working it out…</div></div></details>` : ''}
-    ${disc('Why', `<div class="space-y-1.5">${why}</div>`, whyOpen)}
+    ${why ? `<div class="space-y-1.5 pt-1 border-t border-ink-700/60">${why}</div>` : ''}`;
+  return `<div class="space-y-3">${head}
+    ${other}
+    ${playoutHtml(spot, { open: d.verdict === 'mistake' || d.verdict === 'blunder' })}
+    ${disc('The numbers: what each play is worth', numbers, whyOpen && !spot)}
+    ${live ? `<details class="disc" data-rangeview><summary>Your range by bucket: a plan for each kind of hand</summary><div class="body"><div class="text-ink-400 text-sm">Working it out…</div></div></details>` : ''}
     ${his ? disc(`His range${d.buckets?.length ? ' by bucket' : ''} · you have ${pct(d.equity)} against it`, his + (weights ? `<div class="pt-2">${weightGrid(weights, d.hole)}</div>` : '')) : ''}
   </div>`;
 }

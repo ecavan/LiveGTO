@@ -14,6 +14,8 @@ import { getCourse } from './learn/course.js';
 import { activeHeadsUp } from './play.js';
 import { activeTable } from './play/table.js';
 import { sessionTitle } from './play/review.js';
+import { pathToday, GOAL } from '../engine/path.js';
+import { LEAK_DRILLS } from '../engine/puzzles.js';
 
 const LEAK_MIN_HANDS = 10;
 const tone = (x) => (x > 0 ? 'text-emerald-300' : x < 0 ? 'text-rose-300' : '');
@@ -52,13 +54,29 @@ export async function render(container) {
       <div class="flex gap-2 flex-wrap mt-2"><a href="#play" class="btn btn-primary">Heads-up</a><a href="#play/table" class="btn">Live table</a></div>
     </div>`;
 
-  const dailyCard = `
-    <a href="#puzzles/daily" class="card-link panel panel-pad flex flex-col gap-2">
-      <div class="h-sec">Daily puzzle · ${LEVELS[lv].short}</div>
-      <div class="text-2xl font-semibold text-white">${daily ? (daily.v === 'mistake' ? 'Missed. It comes back for review.' : 'Solved ✓') : 'Ready for you'}</div>
-      <div class="text-sm text-ink-300">${streak ? `${streak}-day streak. ` : ''}One solved spot a day, with one right answer.</div>
-      <span class="btn self-start mt-2">${daily ? 'Open' : 'Solve'}</span>
-    </a>`;
+  // ---- today's path: three steps, in order
+  const path = pathToday({ dailyDone: !!daily, hands });
+  const drillLeak = hands.length >= LEAK_MIN_HANDS ? leakReport(hands).leaks.find(l => LEAK_DRILLS[l.key]) : null; // your costliest leak that has a drill
+  const drillHref = drillLeak ? `#puzzles/drill/${drillLeak.key}` : '#puzzles/rated';
+  const STEP = {
+    daily: { href: '#puzzles/daily', title: 'The daily puzzle', sub: daily ? (daily.v === 'mistake' ? 'Missed: it comes back for review' : 'Solved') : 'One spot, one right answer' },
+    puzzles: { href: drillHref, title: drillLeak ? `${GOAL.puzzles} puzzles on your leak` : `${GOAL.puzzles} rated puzzles`, sub: drillLeak ? esc(drillLeak.name) : 'Mixed spots at your rating' },
+    hands: { href: hu ? '#play' : table ? '#play/table' : '#play', title: `Play ${GOAL.hands} hands`, sub: 'Heads-up or the live table; the coach grades each decision' },
+  };
+  const todayCard = `
+    <div class="panel panel-pad flex flex-col gap-3 min-w-0">
+      <div class="flex items-center justify-between gap-2">
+        <div class="h-sec"><span class="text-amber-300">Today</span></div>
+        <div class="text-xs text-ink-400">${path.done ? '<span class="text-emerald-300 font-semibold">Done for today ✓</span>' : `${path.steps.filter(x => x.done).length} of 3`}${path.streak ? ` · ${path.streak}-day streak` : ''}</div>
+      </div>
+      <div class="space-y-2 min-w-0">${path.steps.map((x, i) => `
+        <a href="${STEP[x.key].href}" class="path-step${x.done ? ' done' : x.key === path.next ? ' next' : ''}">
+          <span class="path-n">${x.done ? icon('check', 'w-4 h-4') : i + 1}</span>
+          <span class="min-w-0 flex-1"><span class="block font-semibold ${x.done ? 'text-ink-300' : 'text-white'}">${STEP[x.key].title}</span><span class="block text-xs text-ink-400 truncate">${STEP[x.key].sub}</span></span>
+          ${x.of > 1 ? `<span class="text-sm num ${x.done ? 'text-emerald-300' : 'text-ink-300'}">${x.n}/${x.of}</span>` : ''}
+          ${x.key === path.next ? `<span class="btn btn-primary !py-1.5 !px-3 text-sm">${x.n ? 'Continue' : 'Start'}</span>` : icon('next', 'w-4 h-4 text-ink-500')}
+        </a>`).join('')}</div>
+    </div>`;
 
   // ---- focus: the leak that costs you most, and the drill for it (ChessBot's weekly plan)
   const focus = leak ? `
@@ -123,7 +141,7 @@ export async function render(container) {
       <div class="text-sm text-ink-300">Graded at</div>
       ${levelSwitch({ blurb: false })}
     </div>
-    <div class="grid md:grid-cols-2 gap-4">${playCard}${dailyCard}</div>
+    <div class="grid md:grid-cols-2 gap-4">${todayCard}${playCard}</div>
     ${focus}
     ${tiles}
     ${places}

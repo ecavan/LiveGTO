@@ -12,6 +12,7 @@ import { getIndex } from '../../engine/library.js';
 import { ringTable, fmtBB, icon, esc, handText, disc, sprOf, levelSwitch, wireLevel, fitTable, showVerdict } from '../kit.js';
 import { actionBar, coachCard } from '../play/views.js';
 import { bucketPlanHtml, bucketStepHtml, gradeBucket, recordBucket } from '../buckets.js';
+import { bumpPuzzle } from '../../engine/path.js';
 import { puzzleTabs } from './tabs.js';
 import { filterPanel, wireFilters, filters } from './filters.js';
 import { navigate, redirect } from '../../router.js';
@@ -158,7 +159,7 @@ function draw(container, p) {
   const plan = d && h.plan ? disc('Your range by bucket: a plan for each kind of hand', bucketPlanHtml({ ...h.plan, board: h.runout.slice(0, [0, 3, 4, 5][h.street]) }, {
     hero: h.heroBucket,
     note: h.kind === 'hu' ? 'Your range as a solid player has it on this line; each bucket\'s best play against him.' : 'Your range as a solid player has it; a few hands per bucket priced against everyone still in.',
-  }), true) : '';
+  })) : '';
   const feedback = d ? `<div class="panel panel-pad space-y-3 fade-up">
       ${coachCard(d, { botName: who, evNote })}
       ${plan}
@@ -178,9 +179,9 @@ function draw(container, p) {
     <div class="grid lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_1fr] gap-5 lg:grid-flow-dense items-start">
       <div class="space-y-4 min-w-0">
         ${tableHtml(p)}
-        <div class="study-q text-center text-ink-200"><span class="tag mr-2 align-middle">${tag}</span>You have ${handText(byRank(h.holes[h.hero]).map(cardStr))}${h.toCall > 0 ? `, facing ${fmtBB(h.toCall)} into ${fmtBB(h.pot - h.toCall)}` : ''}. What's your play?</div>
+        <div class="study-q text-center text-ink-200"><span class="tag mr-2 align-middle">${tag}</span>You have ${handText(byRank(h.holes[h.hero]).map(cardStr))}${h.toCall > 0 ? `, facing ${fmtBB(h.toCall)} into ${fmtBB(h.pot - h.toCall)} <span class="text-ink-400">(a call needs ${Math.round(100 * h.toCall / (h.pot + h.toCall))}%)</span>` : ''}. What's your play?</div>
         <div data-fit-end class="space-y-4">
-        ${bucketStepHtml(p.bk, { multiway: h.kind === 'table' && h.opponents > 1, stats, facing: h.toCall > 0, villain: h.kind === 'hu' ? h.opp : null, showPlan: !!p.answered, street: h.street === 1 ? 'flop' : 'later' })}
+        ${bucketStepHtml(p.bk, { multiway: h.kind === 'table' && h.opponents > 1, stats, facing: h.toCall > 0, villain: h.kind === 'hu' ? h.opp : null, showPlan: !!p.answered, street: h.street === 1 ? 'flop' : 'later', coach: d ? { bucket: d.heroBucket, play: h.options[h.best].label, text: d.solid?.text } : null })}
         ${d || !p.bk ? '' : `<div id="gz-acts">${actionBar(h.options)}</div>`}
         </div>
       </div>
@@ -211,7 +212,7 @@ function draw(container, p) {
   container.querySelector('#gz-next')?.addEventListener('click', () => { navigate(p.review ? 'puzzles/review' : 'puzzles/rated'); window.scrollTo(0, 0); });
   wireFilters(container, () => { if (p.ref) p.ref.answered = true; navigate('puzzles/rated'); });
   wireLevel(container, () => { if (p.ref) p.ref.answered = true; filters.profile = ''; navigate('puzzles/rated'); });
-  fitTable(container, { key: 'pz' });
+  fitTable(container, { key: 'pz', fresh: !p.answered && !p.bk });
 }
 
 function answer(container, p, idx) {
@@ -229,6 +230,7 @@ function answer(container, p, idx) {
     stats.seen = [...(stats.seen || []), k].slice(-300);
     stats.history = [...(stats.history || []), { id: k, lv: stats.level, v: correct ? 'best' : 'mistake', d: stats.rating - before }].slice(-500);
     if (!correct) queueMiss(stats, { id: `gen:${p.kind}`, file: null, i: h.id, rating: h.rating });
+    bumpPuzzle(correct);
   }
   saveStats(stats);
   p.answered = { idx, before };

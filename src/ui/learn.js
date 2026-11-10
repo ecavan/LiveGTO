@@ -61,6 +61,7 @@ async function home(container) {
         ${tile('#train/types', 'bot', 'Player types', 'Whale, station, nit, reg…: their real HUD stats, how to spot them live, how to beat them.')}
         ${tile('#puzzles/buckets', 'grid', 'Range buckets', 'Your whole range in a real spot: one plan for your monsters, pairs, draws and air. In Puzzles.')}
         ${tile('#train/preflop', 'target', 'Preflop trainer', 'Raise, call or fold from every seat, live 9-handed charts.')}
+        ${tile('#puzzles/ranges', 'grid', 'Preflop range builder', 'Paint the whole range you open or call from a seat, then compare it with the chart.')}
         ${tile('#train/formulas', 'learn', 'Formula sheet', 'Every number you use at the table, on one page.')}
         ${tile('#train/playbook', 'flag', 'Exploit playbook', 'How each hand class plays against each villain type.')}
       </div>

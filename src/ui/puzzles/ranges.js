@@ -113,11 +113,11 @@ function draw(container) {
 
   container.innerHTML = `<div class="page space-y-4">
     <div class="flex items-end justify-between gap-4 flex-wrap">
-      <div><div class="h-sec">Puzzles</div><h1 class="h-title">Range builder</h1>
+      <div><div class="h-sec">Train · Preflop</div><h1 class="h-title">Range builder</h1>
         <p class="muted mt-1 text-sm">Build the whole range, not one hand. Graded against the live chart from The Course.</p></div>
       ${best != null ? `<div class="text-right"><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Best here</div><div class="text-2xl font-semibold num ${scoreTone(best)}">${Math.round(100 * best)}%</div></div>` : ''}
     </div>
-    <div>${puzzleTabs('ranges')}</div>
+    <div><a href="#train" class="text-sm text-ink-300 hover:text-white">← Train</a></div>
     <div class="flex flex-wrap gap-1.5">${SPOTS.map(s => {
       const b = stats.rangeBest?.[s.id];
       return `<button data-spot="${s.id}" class="mv ${s.id === spot.id ? 'on' : ''}">${esc(s.title)}${b != null ? ` <span class="text-[10px] ${scoreTone(b)}">${Math.round(100 * b)}%</span>` : ''}</button>`;

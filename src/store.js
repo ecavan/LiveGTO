@@ -30,6 +30,7 @@ export const KEYS = {
   learn: 'livegto.learn.v1',
   drills: 'livegto.drills.v1',
   puzzleFilters: 'livegto.puzzleFilters.v1',
+  path: 'livegto.path.v1',
 };
 
 export const settings = () => load(KEYS.settings, { coach: 'decision', pauseOn: 'mistake', bot: 'reg', length: 0, tier: 'feel', level: 1 });

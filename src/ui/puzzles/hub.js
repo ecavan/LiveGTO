@@ -142,16 +142,10 @@ export function render(container) {
       ${lv === 1 ? '<p class="text-xs text-ink-400">Level 1 puzzles are against a solid player. Switch to Level 2 to pick a villain type.</p>' : ''}
     </section>`;
 
-  const tools = `<div class="grid sm:grid-cols-2 gap-4">
-    <a href="#puzzles/ranges" class="card-link panel panel-pad">
-      <div class="h-sec"><span class="text-sky-300">Ranges</span></div>
-      <div class="text-white font-semibold mt-1">Build a preflop range</div>
-      <div class="text-sm text-ink-300 mt-1">Paint the hands you open or call from a seat, then see how close you are to the chart.</div></a>
-    <a href="#puzzles/buckets" class="card-link panel panel-pad">
-      <div class="h-sec"><span class="text-sky-300">Buckets</span></div>
-      <div class="text-white font-semibold mt-1">Play your range, not your hand</div>
-      <div class="text-sm text-ink-300 mt-1">Split your whole range into buckets (value, draws, bluff-catchers, air) and pick one play for each. Works offline.</div></a>
-  </div>`;
+  const tools = `<a href="#puzzles/buckets" class="card-link panel panel-pad block">
+      <div class="h-sec"><span class="text-sky-300">Your range, by bucket</span></div>
+      <div class="text-white font-semibold mt-1">One play for each kind of hand</div>
+      <div class="text-sm text-ink-300 mt-1">A real spot with your whole range split into the six buckets (nuts, value, bluff-catchers, draws, air). Pick the play for each: the plan you take to the table. Works offline.</div></a>`;
 
   container.innerHTML = `<div class="page space-y-5 fade-up">
     <div class="flex items-end justify-between gap-3 flex-wrap">

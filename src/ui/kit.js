@@ -267,7 +267,7 @@ export function wireLevel(root, onChange) {
  */
 const fits = new Map();
 let fitArgs = null;
-export function fitTable(root, { end = '[data-fit-end]', min = 380, key = '' } = {}) {
+export function fitTable(root, { end = '[data-fit-end]', min = 380, key = '', fresh = false } = {}) {
   fitArgs = { root, end, min, key };
   const t = root.querySelector('.tbl, .rtable');
   if (!t) { fitSide(root); return; }
@@ -275,8 +275,8 @@ export function fitTable(root, { end = '[data-fit-end]', min = 380, key = '' } =
   if (window.innerWidth < 641) return;
   const k = `${key}|${window.innerWidth}x${window.innerHeight}`;
   const e = root.querySelector(end);
-  if (e && !fits.has(k)) {
-    const over = e.getBoundingClientRect().bottom + window.scrollY + 14 - window.innerHeight;
+  if (e && (fresh || !fits.has(k))) { // `fresh`: a new spot (its question may wrap differently); later states keep its size
+    const over = e.getBoundingClientRect().bottom + window.scrollY + 44 - window.innerHeight; // room for the buttons that replace the bucket step
     const w = t.offsetWidth, h = t.offsetHeight;
     fits.set(k, over > 0 && h > 0 ? Math.max(min, Math.floor(w - over * (w / h))) : null);
   }

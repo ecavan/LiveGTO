@@ -160,6 +160,12 @@ What surprised me:
    it after 60, the Reg half after 90 — on top of the wider defence every bot already shows an
    aggressive raiser. In the big blind against a 4x open from a 40%-PFR hero: the Pro goes from
    37% to 75% of hands, the Shark 41% to 70%, the Reg 27% to 41%; a Station stays at 40–45%.
+10. **Call or fold is a question of price** (Nov 2026). Where the plan has both (a bluff-catcher
+   facing a bet multiway is "call half, fold half") the coach named one by habit, and graded a
+   river call with no equity as the plan. When the model's equity against the pot odds separates
+   them by more than a fifth of the pot (at least 1bb), the worse one is off the plan and costs
+   what the model says; a close one stays a split, both fine (`gradeWithPlan` in solid.js). The
+   flop, multiway and bucket spot sets were regenerated with it.
 
 ## A 2026 Reg
 

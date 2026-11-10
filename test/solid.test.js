@@ -124,3 +124,25 @@ describe('solid grading', () => {
     expect(catcher.dist.fold).toBeGreaterThan(0);
   });
 });
+
+describe('call or fold is a question of price', () => {
+  const ctx = { myBet: 0, pot: 20, facing: true, nominal: 0.5 };
+  it('a clear gap takes the worse one off the plan, at the model\'s cost', () => {
+    // a bluff-catcher facing a river bet with no equity: the plan calls half the time, the price says fold
+    const options = [{ type: 'fold', ev: 0 }, { type: 'call', to: 9, ev: -9 }];
+    const g = gradeWithPlan(options, { dist: { call: 0.5, fold: 0.5 } }, ctx);
+    expect(g.best).toBe(0);
+    expect(g.fine).toEqual([0]);
+    expect(g.losses[1]).toBe(9);
+    expect(g.rule).toBe('price');
+    // and the other way: a call worth 8bb more than folding is the play, folding costs 8
+    const g2 = gradeWithPlan([{ type: 'fold', ev: 0 }, { type: 'call', to: 9, ev: 8 }], { dist: { fold: 0.6, call: 0.4 } }, ctx);
+    expect(g2.best).toBe(1);
+    expect(g2.losses[0]).toBe(8);
+  });
+  it('a close one stays a split: both fine, the plan\'s first play', () => {
+    const g = gradeWithPlan([{ type: 'fold', ev: 0 }, { type: 'call', to: 9, ev: -2 }], { dist: { call: 0.5, fold: 0.5 } }, ctx);
+    expect(g.fine).toEqual([0, 1]);
+    expect(g.rule).not.toBe('price');
+  });
+});
