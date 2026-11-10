@@ -257,3 +257,51 @@ export function wireLevel(root, onChange) {
     onChange(getLevel());
   }));
 }
+
+
+// ------------------------------------------------------------------ study pages
+/**
+ * Sizes the table so that `end` (the last thing you need to answer: the buttons) is on screen
+ * without scrolling, on a tablet or wider. The width is kept per screen size, so the table
+ * doesn't change size between the question and the answer; a rotation measures again.
+ */
+const fits = new Map();
+let fitArgs = null;
+export function fitTable(root, { end = '[data-fit-end]', min = 380, key = '' } = {}) {
+  fitArgs = { root, end, min, key };
+  const t = root.querySelector('.tbl, .rtable');
+  if (!t) { fitSide(root); return; }
+  t.style.maxWidth = '';
+  if (window.innerWidth < 641) return;
+  const k = `${key}|${window.innerWidth}x${window.innerHeight}`;
+  const e = root.querySelector(end);
+  if (e && !fits.has(k)) {
+    const over = e.getBoundingClientRect().bottom + window.scrollY + 14 - window.innerHeight;
+    const w = t.offsetWidth, h = t.offsetHeight;
+    fits.set(k, over > 0 && h > 0 ? Math.max(min, Math.floor(w - over * (w / h))) : null);
+  }
+  const w = fits.get(k);
+  if (w) t.style.maxWidth = `${w}px`;
+  fitSide(root);
+}
+/** The coach column ends at the bottom of the screen, wherever the page header puts its top. */
+export function fitSide(root) {
+  const side = root.querySelector('.study-side');
+  if (!side) return;
+  side.style.maxHeight = '';
+  if (window.innerWidth < 1024) return;
+  const top = side.getBoundingClientRect().top + window.scrollY;
+  side.style.maxHeight = `${Math.max(320, window.innerHeight - top - 12)}px`;
+}
+if (typeof window !== 'undefined') {
+  let timer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { fits.clear(); if (fitArgs?.root?.isConnected) fitTable(fitArgs.root, fitArgs); }, 120);
+  });
+}
+/** Stacked layout (portrait): after you answer, bring the verdict up under the header. */
+export function showVerdict(root) {
+  if (window.innerWidth >= 1024) return;
+  root.querySelector('.study-q')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}

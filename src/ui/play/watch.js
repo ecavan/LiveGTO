@@ -4,7 +4,7 @@
 import { createMatch, startHand, step, scoreboard, agentAt, AGENTS, TYPE_NAME, matchSummary } from '../../engine/hu/watch.js';
 import { AGENT_IDS, eloOf } from '../../engine/hu/agents.js';
 import { board, pot, BTN } from '../../engine/hu/game.js';
-import { pokerTable, fmtBB, seg, wireSeg, icon, esc, handText, stat, disc, optionLabel } from '../kit.js';
+import { pokerTable, fmtBB, seg, wireSeg, icon, esc, handText, stat, disc, optionLabel, fitSide } from '../kit.js';
 import { pct } from '../../engine/potmath.js';
 import { historyHtml } from './views.js';
 
@@ -128,7 +128,7 @@ function draw(container) {
           <span class="ml-auto">${seg('speed', [{ v: 'slow', label: 'Slow' }, { v: 'normal', label: 'Normal' }, { v: 'fast', label: 'Fast' }], st.speed)}</span>
         </div>
       </div>
-      <div class="space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+      <div class="study-side space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
         <div class="panel panel-pad">${explain(last)}${feed ? `<div class="border-t border-ink-700 mt-4 pt-3 space-y-1">${feed}</div>` : ''}</div>
         <div class="panel panel-pad space-y-3">
           <div class="grid grid-cols-2 gap-2">
@@ -145,6 +145,7 @@ function draw(container) {
       <div class="panel panel-pad min-w-0">${historyHtml(m.s, -1, [agentAt(m, 0).name, agentAt(m, 1).name])}</div>
     </div>
   </div>`;
+  fitSide(container);
   container.querySelectorAll('details').forEach((d, i) => { if (openState[i]) d.open = true; });
   container.querySelector('#w-new').addEventListener('click', () => { m = null; st.running = false; setup(container); });
   container.querySelector('#w-toggle').addEventListener('click', () => { st.running = !st.running; draw(container); });

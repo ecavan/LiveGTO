@@ -10,7 +10,7 @@ import {
 import { getLevel, LEVELS } from '../engine/level.js';
 import { AGENTS, AGENT_IDS, eloOf, levelOf } from '../engine/hu/agents.js';
 import { settings, saveSettings, loadRaw, save, KEYS } from '../store.js';
-import { seg, wireSeg, icon, disc, fmtBB, esc, levelSwitch, wireLevel, ratingText, PROVISIONAL_SE } from './kit.js';
+import { seg, wireSeg, icon, disc, fmtBB, esc, levelSwitch, wireLevel, ratingText, PROVISIONAL_SE, fitSide } from './kit.js';
 import { playRatingSeries } from './ratings.js';
 import { redirect } from '../router.js';
 import {
@@ -261,7 +261,7 @@ function table(container) {
         ${liveTable(sess, { thinking: botTurn })}
         <div id="controls">${controls}</div>
       </div>
-      <div class="space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+      <div class="study-side space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
         <div class="panel panel-pad" id="coach">${coachHtml}</div>
         ${sessionPanel(sess, sum)}
       </div>
@@ -270,6 +270,7 @@ function table(container) {
   </div>`;
 
   container.querySelectorAll('#coach details').forEach((d, i) => { if (openState[i]) d.open = true; });
+  fitSide(container);
   const rvEl = container.querySelector('details[data-rangeview]');
   if (rvEl && ui.rangeHtml) { rvEl.dataset.done = '1'; rvEl.querySelector('.body').innerHTML = ui.rangeHtml; }
   wire(container);

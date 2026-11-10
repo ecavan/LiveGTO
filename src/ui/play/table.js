@@ -9,7 +9,7 @@ import { getLevel } from '../../engine/level.js';
 import { board, pot, potShown, posOf, legal } from '../../engine/ring/game.js';
 import { styleLabel, ARCHETYPES, adjustment, LEVELS } from '../../engine/ring/players.js';
 import { settings, saveSettings } from '../../store.js';
-import { ringTable, fmtBB, seg, wireSeg, icon, esc, stat, handText, disc, verdict, sprOf, levelSwitch, wireLevel } from '../kit.js';
+import { ringTable, fmtBB, seg, wireSeg, icon, esc, stat, handText, disc, verdict, sprOf, levelSwitch, wireLevel, fitSide } from '../kit.js';
 import { actionBar, coachCard, decisionRow, playTabs, bucketViewHtml, evNoteFor, handName } from './views.js';
 import { ringBucketView } from '../../engine/ring/coach.js';
 import { pct } from '../../engine/potmath.js';
@@ -274,7 +274,7 @@ function draw(container) {
         ${tableHtml(botTurn)}
         <div id="controls">${controls}</div>
       </div>
-      <div id="side" class="space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+      <div id="side" class="study-side space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
         <div class="panel panel-pad" id="coach">${coach}</div>
         ${sessionPanel()}
       </div>
@@ -282,6 +282,7 @@ function draw(container) {
     </div>
   </div>`;
   container.querySelectorAll('#coach details, #side details').forEach((d, i) => { if (openState[i]) d.open = true; });
+  fitSide(container);
   // your range by bucket for the decision just made (sampled with the coach, off the paint)
   const rv = container.querySelector('details[data-rangeview]');
   if (rv && ui.rangeHtml) { rv.dataset.done = '1'; rv.querySelector('.body').innerHTML = ui.rangeHtml; }

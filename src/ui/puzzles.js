@@ -12,7 +12,7 @@ import { getIndex, getRecord, getFile } from '../engine/library.js';
 import { getLevel } from '../engine/level.js';
 import { pct } from '../engine/potmath.js';
 import { flopTexture, textureLabel, boardTags, randomSuitMap, remapCard, isCard } from '../engine/texture.js';
-import { pokerTable, icon, esc, verdict, disc, rangeGrid, fmtBB, lossKind, optionLabel, levelSwitch, wireLevel } from './kit.js';
+import { pokerTable, icon, esc, verdict, disc, rangeGrid, fmtBB, lossKind, optionLabel, levelSwitch, wireLevel, fitTable, showVerdict } from './kit.js';
 import { ids } from '../engine/hu/hand.js';
 import { puzzleTabs } from './puzzles/tabs.js';
 import { filters, filterPanel as sharedFilters, wireFilters, libraryOnly } from './puzzles/filters.js';
@@ -251,7 +251,7 @@ function feedback(r, p, g, choice) {
     ${disc('Why', `<div class="space-y-2">${points}</div>`, g.verdict !== 'best')}
     ${disc('Your range by bucket: a plan for each kind of hand', libraryPlan(r, p), true)}
     ${disc('Ranges', rangePanel(r, p))}
-    ${nextButton()}
+    <div class="next-sticky space-y-2">${nextButton()}</div>
   </div>`;
 }
 
@@ -361,21 +361,22 @@ function draw(container) {
   const title = { rated: 'Find the best play', daily: 'Daily puzzle', review: 'Your missed puzzles', drill: `Drill: ${LEAKS[drill?.leak]?.name || ''}` }[mode];
   const q = stats.queue || [];
   const statsHtml = mode === 'daily'
-    ? `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Streak</div><div class="text-2xl font-semibold num text-amber-200">${dailyStreak(stats)}<span class="text-sm text-ink-400"> day${dailyStreak(stats) === 1 ? '' : 's'}</span></div></div>`
+    ? `<div><div class="text-[10px] uppercase tracking-wide text-ink-400 font-semibold">Streak</div><div class="text-lg leading-tight font-semibold num text-amber-200">${dailyStreak(stats)}<span class="text-sm text-ink-400"> day${dailyStreak(stats) === 1 ? '' : 's'}</span></div></div>`
     : mode === 'review'
-      ? `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Due</div><div class="text-2xl font-semibold num text-rose-200">${dueItems(stats).length}</div></div>
-         <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">In queue</div><div class="text-2xl font-semibold num">${q.length}</div></div>`
-      : `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Rating · L${stats.level}</div><div class="text-2xl font-semibold num text-emerald-300">${stats.rating}</div></div>
+      ? `<div><div class="text-[10px] uppercase tracking-wide text-ink-400 font-semibold">Due</div><div class="text-lg leading-tight font-semibold num text-rose-200">${dueItems(stats).length}</div></div>
+         <div><div class="text-[10px] uppercase tracking-wide text-ink-400 font-semibold">In queue</div><div class="text-lg leading-tight font-semibold num">${q.length}</div></div>`
+      : `<div><div class="text-[10px] uppercase tracking-wide text-ink-400 font-semibold">Rating · L${stats.level}</div><div class="text-lg leading-tight font-semibold num text-emerald-300">${stats.rating}</div></div>
          ${mode === 'drill'
-    ? `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">This drill</div><div class="text-2xl font-semibold num">${drill.right}/${drill.n}</div></div>`
-    : `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Solved</div><div class="text-2xl font-semibold num">${acc}%</div></div>`}`;
-  const header = `<div class="flex items-end justify-between gap-4 flex-wrap">
-    <div><div class="h-sec">Puzzles</div><h1 class="h-title">${title}</h1>${mode !== 'review' ? `<div class="mt-2">${levelSwitch({ blurb: false })}</div>` : ''}</div>
-    <div class="flex gap-5 text-right items-end">
+    ? `<div><div class="text-[10px] uppercase tracking-wide text-ink-400 font-semibold">This drill</div><div class="text-lg leading-tight font-semibold num">${drill.right}/${drill.n}</div></div>`
+    : `<div><div class="text-[10px] uppercase tracking-wide text-ink-400 font-semibold">Solved</div><div class="text-lg leading-tight font-semibold num">${acc}%</div></div>`}`;
+  // one compact row: the table and the buttons below it have to fit on an iPad screen
+  const header = `<div class="flex items-center justify-between gap-x-4 gap-y-2 flex-wrap">
+    <div class="flex items-center gap-2 flex-wrap min-w-0">${puzzleTabs(mode)}${mode !== 'review' ? levelSwitch({ blurb: false }) : ''}</div>
+    <div class="flex gap-4 text-right items-end ml-auto">
       ${statsHtml}
-      ${current ? `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Puzzle</div><div class="text-2xl font-semibold num text-ink-200">${current.puzzle.rating}</div></div>` : ''}
+      ${current ? `<div><div class="text-[10px] uppercase tracking-wide text-ink-400 font-semibold">Puzzle</div><div class="text-lg leading-tight font-semibold num text-ink-200">${current.puzzle.rating}</div></div>` : ''}
     </div></div>
-    <div>${puzzleTabs(mode)}</div>
+    ${mode === 'drill' ? `<div class="text-sm font-semibold text-white">${esc(title)}</div>` : ''}
     ${mode === 'review' && current ? `<p class="text-sm text-ink-400">Missed puzzles come back after ${INTERVALS.join(', ')} days. Solve one each time and it leaves the queue. Not rated.</p>` : ''}
     ${mode === 'daily' ? `<p class="text-sm text-ink-400">One spot a day, the same for everyone. Not rated: it counts toward your streak.</p>` : ''}
     ${mode === 'drill' ? `<p class="text-sm text-ink-300">${esc(LEAK_DRILLS[drill.leak].want)} <a href="#review/insights" class="underline text-ink-400">Back to your leaks</a></p>` : ''}`;
@@ -403,11 +404,13 @@ function draw(container) {
     <div class="grid lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_1fr] gap-5 lg:grid-flow-dense items-start">
       <div class="space-y-4 min-w-0">
         ${tableHtml(r, current.view)}
-        <div class="text-center text-ink-200">You have <b class="text-white">${esc(p.hand)}</b>. What's your play?</div>
+        <div class="study-q text-center text-ink-200">You have <b class="text-white">${esc(p.hand)}</b>. What's your play?</div>
+        <div data-fit-end class="space-y-4">
         ${bucketStepHtml(current.bk, { stats, facing: r.to_call > 0, villain: r.villain.profile, showPlan: !!answered, street: r.street === 'flop' ? 'flop' : 'later', here: answered && current.bk ? hereMix(r, p, current.bk.key) : null })}
         ${answered || !current.bk ? '' : actionButtons(r)}
+        </div>
       </div>
-      <div class="space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+      <div class="study-side space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
         ${answered ? `<div class="panel panel-pad">${feedback(r, p, answered.g, answered.choice)}</div>` : ''}
         ${villainCard}
       </div>
@@ -418,6 +421,7 @@ function draw(container) {
     </div>
   </div>`;
   wire(container);
+  fitTable(container, { key: 'pz' });
 }
 
 function wire(container) {
@@ -439,8 +443,10 @@ function wire(container) {
   container.querySelectorAll('[data-grid]').forEach(btn => btn.addEventListener('click', () => {
     current.gridTab = btn.dataset.grid;
     const open = [...container.querySelectorAll('details')].map(d => d.open);
+    const at = container.querySelector('.study-side')?.scrollTop ?? 0;
     draw(container);
     container.querySelectorAll('details').forEach((d, i) => { if (open[i]) d.open = true; });
+    const side = container.querySelector('.study-side'); if (side) side.scrollTop = at;
   }));
   container.querySelector('#pz-next')?.addEventListener('click', () => { navigate(mode === 'review' ? 'puzzles/review' : mode === 'drill' ? `puzzles/drill/${drill.leak}` : 'puzzles/rated'); });
   container.querySelector('#practice-all')?.addEventListener('click', async () => { practiceAll = true; cur.review = null; navigate('puzzles/review'); });
@@ -470,4 +476,5 @@ function answer(container, choice) {
   current.answered = { g, choice };
   window.dispatchEvent(new Event('livegto:ratings'));
   draw(container);
+  showVerdict(container);
 }

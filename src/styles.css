@@ -104,7 +104,7 @@
 
   /* nav */
   .tabbar-top { @apply hidden md:flex items-center gap-1 p-1 rounded-xl bg-ink-900 border border-ink-700/70; }
-  .tabbar-top a { @apply px-3 lg:px-4 py-1.5 rounded-lg text-sm font-semibold text-ink-300 hover:text-white transition; }
+  .tabbar-top a { @apply px-2 lg:px-4 py-1.5 rounded-lg text-sm font-semibold text-ink-300 hover:text-white transition whitespace-nowrap; }
   .tabbar-top a.on { @apply bg-ink-700 text-white; }
   .tabbar-bottom { @apply md:hidden fixed bottom-0 inset-x-0 z-40 grid grid-cols-6 border-t border-ink-700 bg-ink-950/95 backdrop-blur;
     padding-bottom: env(safe-area-inset-bottom); }
@@ -294,3 +294,23 @@
 :root[data-theme='light'] .ts-c:not(:is(.tbl, .rtable) *) { color: #15803d; }
 
 :root[data-theme='light'] .hero-play { background-image: linear-gradient(to bottom right, #d1fae5, #ffffff); }
+
+/* ------------------------------------------------------------------ study pages (iPad first)
+   The table and the question on the left, the coach on the right. Side by side (landscape) the
+   coach is its own scrolling column the height of the screen, so it never runs past the board;
+   stacked (portrait) it follows the question. The table is sized by fitTable() (kit.js) so the
+   question and the buttons are on screen without scrolling. */
+.study-side { min-width: 0; }
+@media (min-width: 1024px) {
+  .study-side {
+    position: sticky; top: calc(68px + env(safe-area-inset-top));
+    max-height: calc(100dvh - 80px - env(safe-area-inset-top)); overflow-y: auto;
+    overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scrollbar-width: thin;
+  }
+}
+/* "Next" stays in reach: at the bottom of the coach column, or of the screen when stacked */
+.next-sticky { position: sticky; bottom: 0; z-index: 6; margin: 0 -4px; padding: 10px 4px 2px; background: linear-gradient(to top, #11161d 72%, rgba(17,22,29,0)); }
+@media (max-width: 1023px) { .next-sticky { bottom: 8px; } }
+@media (max-width: 767px) { .next-sticky { bottom: calc(64px + env(safe-area-inset-bottom)); } }
+:root[data-theme='light'] .next-sticky { background: linear-gradient(to top, #ffffff 72%, rgba(255,255,255,0)); }
+.study-q { scroll-margin-top: calc(64px + env(safe-area-inset-top)); }

@@ -9,7 +9,7 @@ import { statesOf, viewOf, posName } from '../../engine/history.js';
 import { AGENTS } from '../../engine/hu/agents.js';
 import { cardStr } from '../../engine/hu/hand.js';
 import { getIndex } from '../../engine/library.js';
-import { ringTable, fmtBB, icon, esc, handText, disc, sprOf, levelSwitch, wireLevel } from '../kit.js';
+import { ringTable, fmtBB, icon, esc, handText, disc, sprOf, levelSwitch, wireLevel, fitTable, showVerdict } from '../kit.js';
 import { actionBar, coachCard } from '../play/views.js';
 import { bucketPlanHtml, bucketStepHtml, gradeBucket, recordBucket } from '../buckets.js';
 import { puzzleTabs } from './tabs.js';
@@ -163,28 +163,28 @@ function draw(container, p) {
       ${coachCard(d, { botName: who, evNote })}
       ${plan}
       ${p.review ? '' : `<div class="text-xs text-ink-400 text-center">Rating ${p.answered.before} → <b class="text-white">${stats.rating}</b></div>`}
-      <button id="gz-next" class="btn btn-primary btn-lg btn-block">${p.review ? 'Next missed puzzle' : 'Next puzzle'} ${icon('next', 'w-5 h-5')}</button></div>` : '';
+      <div class="next-sticky"><button id="gz-next" class="btn btn-primary btn-lg btn-block">${p.review ? 'Next missed puzzle' : 'Next puzzle'} ${icon('next', 'w-5 h-5')}</button></div></div>` : '';
   const acc = stats.played ? Math.round((100 * stats.solved) / stats.played) : 0;
   const tag = h.kind === 'hu' ? `Flop · heads-up vs ${esc(AGENTS[h.opp]?.name ?? h.opp)} · ${h.depth ?? 100}bb` : `${STREET[h.street]} · multiway (${h.opponents + 1} players)`;
   container.innerHTML = `<div class="page space-y-4">
-    <div class="flex items-end justify-between gap-4 flex-wrap">
-      <div><div class="h-sec">Puzzles${p.review ? ' · review' : ''}</div><h1 class="h-title">${p.review ? 'Your missed puzzles' : 'Find the best play'}</h1>${p.review ? '' : `<div class="mt-2">${levelSwitch({ blurb: false })}</div>`}
-        <p class="muted mt-1 text-sm"><span class="tag">${tag}</span></p></div>
-      <div class="flex gap-5 text-right">
-        ${p.review ? '' : `<div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Rating · L${stats.level}</div><div class="text-2xl font-semibold num text-emerald-300">${stats.rating}</div></div>
-        <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Solved</div><div class="text-2xl font-semibold num">${acc}%</div></div>`}
-        <div><div class="text-[11px] uppercase tracking-wide text-ink-400 font-semibold">Puzzle</div><div class="text-2xl font-semibold num text-ink-200">${h.rating}</div></div>
+    <div class="flex items-center justify-between gap-x-4 gap-y-2 flex-wrap">
+      <div class="flex items-center gap-2 flex-wrap min-w-0">${puzzleTabs(p.review ? 'review' : 'rated')}${p.review ? '' : levelSwitch({ blurb: false })}</div>
+      <div class="flex gap-4 text-right items-end ml-auto">
+        ${p.review ? '' : `<div><div class="text-[10px] uppercase tracking-wide text-ink-400 font-semibold">Rating · L${stats.level}</div><div class="text-lg leading-tight font-semibold num text-emerald-300">${stats.rating}</div></div>
+        <div><div class="text-[10px] uppercase tracking-wide text-ink-400 font-semibold">Solved</div><div class="text-lg leading-tight font-semibold num">${acc}%</div></div>`}
+        <div><div class="text-[10px] uppercase tracking-wide text-ink-400 font-semibold">Puzzle</div><div class="text-lg leading-tight font-semibold num text-ink-200">${h.rating}</div></div>
       </div>
     </div>
-    <div>${puzzleTabs(p.review ? 'review' : 'rated')}</div>
     <div class="grid lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_1fr] gap-5 lg:grid-flow-dense items-start">
       <div class="space-y-4 min-w-0">
         ${tableHtml(p)}
-        <div class="text-center text-ink-200">You have ${handText(byRank(h.holes[h.hero]).map(cardStr))}${h.toCall > 0 ? `, facing ${fmtBB(h.toCall)} into ${fmtBB(h.pot - h.toCall)}` : ''}. What's your play?</div>
+        <div class="study-q text-center text-ink-200"><span class="tag mr-2 align-middle">${tag}</span>You have ${handText(byRank(h.holes[h.hero]).map(cardStr))}${h.toCall > 0 ? `, facing ${fmtBB(h.toCall)} into ${fmtBB(h.pot - h.toCall)}` : ''}. What's your play?</div>
+        <div data-fit-end class="space-y-4">
         ${bucketStepHtml(p.bk, { multiway: h.kind === 'table' && h.opponents > 1, stats, facing: h.toCall > 0, villain: h.kind === 'hu' ? h.opp : null, showPlan: !!p.answered, street: h.street === 1 ? 'flop' : 'later' })}
         ${d || !p.bk ? '' : `<div id="gz-acts">${actionBar(h.options)}</div>`}
+        </div>
       </div>
-      <div class="space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+      <div class="study-side space-y-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
         ${feedback}
         ${whoPanel(p)}
       </div>
@@ -211,6 +211,7 @@ function draw(container, p) {
   container.querySelector('#gz-next')?.addEventListener('click', () => { navigate(p.review ? 'puzzles/review' : 'puzzles/rated'); window.scrollTo(0, 0); });
   wireFilters(container, () => { if (p.ref) p.ref.answered = true; navigate('puzzles/rated'); });
   wireLevel(container, () => { if (p.ref) p.ref.answered = true; filters.profile = ''; navigate('puzzles/rated'); });
+  fitTable(container, { key: 'pz' });
 }
 
 function answer(container, p, idx) {
@@ -234,4 +235,5 @@ function answer(container, p, idx) {
   if (p.ref) p.ref.answered = true;
   window.dispatchEvent(new Event('livegto:ratings'));
   draw(container, p);
+  showVerdict(container);
 }

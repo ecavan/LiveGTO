@@ -14,7 +14,7 @@ import {
 import { AGENTS, eloOf } from '../../engine/hu/agents.js';
 import { LEVELS } from '../../engine/ring/players.js';
 import { cardStr } from '../../engine/hu/hand.js';
-import { ringTable, fmtBB, icon, esc, stat, handText, seg, wireSeg, disc, sprOf, optionLabel } from '../kit.js';
+import { ringTable, fmtBB, icon, esc, stat, handText, seg, wireSeg, disc, sprOf, optionLabel, fitTable } from '../kit.js';
 import { coachCard, actionBar, reviewTabs, evNoteFor, handName } from './views.js';
 import { settings, saveSettings, loadRaw, KEYS } from '../../store.js';
 import { pct } from '../../engine/potmath.js';
@@ -571,7 +571,7 @@ function draw(container) {
     <div class="grid lg:grid-cols-[minmax(0,1fr)_400px] gap-5 items-start">
       <div class="space-y-3 min-w-0">
         ${table}
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2" data-fit-end>
           <button class="btn" id="rv-first" ${k === 0 ? 'disabled' : ''} aria-label="Start of the hand" title="Start of the hand">${icon('first', 'w-5 h-5')}</button>
           <button class="btn" id="rv-prev" ${prevOff ? 'disabled' : ''} aria-label="Back">${icon('back', 'w-5 h-5')}</button>
           <button class="btn btn-primary flex-1 btn-lg" id="rv-next" ${nextOff ? 'disabled' : ''}>${nextLabel}</button>
@@ -583,7 +583,7 @@ function draw(container) {
         </div>
         <p class="text-xs text-ink-400 hidden lg:block">Keys: → next decision, ← back, ↓ ↑ next / previous hand.</p>
       </div>
-      <div class="space-y-4">
+      <div class="study-side space-y-4">
         <div class="panel panel-pad" id="rv-panel">${panel}
           ${nextOff ? '' : `<button class="btn btn-primary btn-block btn-lg mt-4 lg:hidden" id="rv-next-2">${nextLabel}</button>`}</div>
         <div class="panel panel-pad"><div class="h-sec mb-2">Hand ${h.no}: every action</div>${moveList(h, k)}</div>
@@ -591,6 +591,7 @@ function draw(container) {
     </div>
   </div>`;
   container.querySelectorAll('#rv-panel details').forEach((d, i) => { if (openState[i] != null) d.open = openState[i]; });
+  fitTable(container, { key: 'rv' });
   const strip = container.querySelector('#hand-strip');
   if (strip) {
     if (stripScroll != null) strip.scrollLeft = stripScroll;
