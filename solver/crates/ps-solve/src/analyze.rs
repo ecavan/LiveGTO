@@ -573,6 +573,10 @@ fn analyze_against(
             }
         }
     });
+    // C and P are only needed for one number each: read it and free the tree, so the peak is
+    // three copies of the tree rather than four.
+    let ev_c = compute_current_ev(&c)[hero];
+    drop(c);
 
     // Solve B: hero's best response against the locked villain. The usual exploitability stop
     // doesn't apply (the locked villain is exploitable by design), so stop on hero's own gap.
@@ -597,13 +601,15 @@ fn analyze_against(
         };
         lock_at(&mut p, h, &s);
     });
+    let ev_p = compute_current_ev(&p)[hero];
+    drop(p);
 
     let headline = Headline {
         gto_vs_gto: to_bb(compute_current_ev(&*a)[hero], spot),
-        gto_vs_profile: to_bb(compute_current_ev(&c)[hero], spot),
+        gto_vs_profile: to_bb(ev_c, spot),
         best_exploit_vs_profile: to_bb(best_b, spot),
         solved_exploit_vs_profile: to_bb(compute_current_ev(&b)[hero], spot),
-        pure_exploit_vs_profile: to_bb(compute_current_ev(&p)[hero], spot),
+        pure_exploit_vs_profile: to_bb(ev_p, spot),
         pure_gto_vs_perfect_opponent: q.as_ref().map_or(f64::NAN, |q| to_bb(-compute_mes_ev(q)[villain], spot)),
         gto_exploitability_pct: 100.0 * expl_a as f64 / spot.pot_chips() as f64,
         exploit_gap_pct: 100.0 * (best_b - compute_current_ev(&b)[hero]) as f64
