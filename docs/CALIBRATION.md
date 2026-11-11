@@ -515,3 +515,10 @@ Close everywhere the sample isn't tiny. The solver calls a bet with air more tha
 ## Reproduce
 
 See [analysis/README.md](../analysis/README.md).
+
+## Table levels: what a solid reg wins
+
+`npx vite-node scripts/table-levels.mjs 200000 400` (the Reg style in the hero seat, 400 line-ups
+of 500 hands per level, 6-max): easy 19.6 ± 8.2, medium 15.8 ± 6.7, hard 3.5 ± 5.0 bb/100 (95%).
+The table-setup text quotes these as about 20, about 15 and under 5. Easy and medium are not
+statistically separated; hard is clearly lower than both.

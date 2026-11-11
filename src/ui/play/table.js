@@ -52,7 +52,7 @@ function setup(container) {
         <div class="flex items-center justify-between"><span class="text-lg font-semibold text-white">${L.name}</span>
           <span class="flex gap-1">${[0, 1, 2].map(j => `<i class="inline-block w-2 h-2 rounded-full ${j <= ['easy', 'medium', 'hard'].indexOf(k) ? 'bg-amber-300' : 'bg-ink-600'}"></i>`).join('')}</span></div>
         <p class="text-sm text-ink-300 mt-2 leading-snug">${L.blurb}</p>
-        <p class="text-xs text-ink-400 mt-2">A solid reg wins about ${{ easy: 100, medium: 45, hard: 20 }[k]}bb/100 here.</p>
+        <p class="text-xs text-ink-400 mt-2">${{ easy: 'A solid reg wins about 20bb/100 here.', medium: 'A solid reg wins about 15bb/100 here.', hard: 'A solid reg barely beats this table: under 5bb/100.' }[k]}</p>
       </button>`).join('')}
     </div>
     <div class="panel panel-pad space-y-2"><div class="h-sec">Graded at</div>${levelSwitch()}</div>
