@@ -200,7 +200,7 @@ function solvedNextHtml(sp) {
       <div class="po-n num ${tone(g.label)}">${g.list.length}<small>of ${total}</small></div>
       <div class="min-w-0">
         <div class="text-ink-200"><b class="${tone(g.label)}">${esc(cap(g.label))}</b>${g.freq < 0.8 ? ` <span class="text-ink-400">(a mix: this ${pct(g.freq)} of the time)</span>` : ''}</div>
-        <div class="text-sm tracking-wide">${g.rest && g.list.length > 12 ? '<span class="text-ink-400">every other card</span>' : handText(g.list.slice().sort((a, b) => b - a).map(cardStr))}</div>
+        <div class="text-sm tracking-wide">${g.rest && g.list.length > 12 ? '<span class="text-ink-400">every other card</span>' : g.list.slice().sort((a, b) => b - a).map(c => handText([cardStr(c)])).join('<wbr>')}</div>
         <div class="text-xs text-ink-400">Your hand there: ${esc(bucketsOf(g.list))}</div>
       </div></div>`).join('')}
     <p class="text-xs text-ink-400">Read off the same solve as the puzzle${sp.level === 2 ? `, against ${esc(sp.who)}` : ''}: the cards where the play changes are the ones to know before they come.</p>
@@ -262,7 +262,7 @@ function steps(sp) {
   // 2. your play, when it was not the best
   if (!same) out.push({ title: `Your play: ${esc(you.label)}`, body: treeHtml(sp, sp.chosen, sp.fine.includes(sp.chosen) ? 'fine' : 'bad') });
   // 3. the better play (or yours, when it was the best)
-  out.push({ title: same ? `Your play: ${esc(best.label)}` : `The better play: ${esc(best.label)}`, body: treeHtml(sp, sp.best, 'good') });
+  out.push({ title: same ? `Your play: ${esc(best.label)}` : sp.fine.includes(sp.chosen) ? `The solver's main play: ${esc(best.label)}` : `The better play: ${esc(best.label)}`, body: treeHtml(sp, sp.best, 'good') });
   // 3b. you were right: the play you might have been tempted by
   if (same && sp.options.length > 1) {
     const alt = sp.options.map((o, i) => ({ o, i })).filter(x => x.i !== sp.best && !sp.fine.includes(x.i))
