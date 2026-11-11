@@ -404,6 +404,9 @@ fn puzzles(r: &Report, is_gto: bool, max: usize) -> Vec<Value> {
         let rel_gto: Vec<f64> = c.ev_gto.iter().map(|x| r2(x - c.ev_gto.iter().cloned().fold(f64::NEG_INFINITY, f64::max))).collect();
         let tags: Vec<&str> = if shift { vec!["exploit"] } else { vec![] };
         let p = json!({
+            "_idx": c.idx,
+            // the best play's EV from here on, bb: folding is 0, taking the pot uncontested is the pot
+            "abs": r2(best),
             "cards": c.cards,
             "hand": c.hand,
             "class": c.class,
@@ -441,7 +444,141 @@ fn puzzles(r: &Report, is_gto: bool, max: usize) -> Vec<Value> {
             break;
         }
     }
+    enrich(r, is_gto, &mut out);
     out
+}
+
+/// Equity of each hero hand against a weighted villain range, over every runout of the board
+/// (exact: all rivers from the turn, all turn-river pairs from the flop). Ties count half.
+fn equity_vs(board: &[u8], heroes: &[(u8, u8)], vcards: &[(u8, u8)], w: &[f32]) -> Vec<Option<f64>> {
+    let live: Vec<usize> = (0..vcards.len()).filter(|&k| w[k] > 0.0).collect();
+    let mut win = vec![0.0f64; heroes.len()];
+    let mut tot = vec![0.0f64; heroes.len()];
+    let dead = |c: u8, b: &[u8]| b.contains(&c);
+    let mut runouts: Vec<Vec<u8>> = Vec::new();
+    match board.len() {
+        5 => runouts.push(vec![]),
+        4 => (0..52u8).filter(|&c| !dead(c, board)).for_each(|c| runouts.push(vec![c])),
+        _ => {
+            for c1 in 0..52u8 {
+                for c2 in 0..c1 {
+                    if !dead(c1, board) && !dead(c2, board) {
+                        runouts.push(vec![c1, c2]);
+                    }
+                }
+            }
+        }
+    }
+    let mut full = [0u8; 7];
+    let mut vval = vec![0u32; vcards.len()];
+    for ro in &runouts {
+        let mut b: Vec<u8> = board.to_vec();
+        b.extend(ro);
+        full[..5].copy_from_slice(&b);
+        for &k in &live {
+            let (a, c) = vcards[k];
+            if b.contains(&a) || b.contains(&c) {
+                vval[k] = 0;
+                continue;
+            }
+            full[5] = a;
+            full[6] = c;
+            vval[k] = ps_core::eval::eval(&full).max(1);
+        }
+        for (i, &(h1, h2)) in heroes.iter().enumerate() {
+            if b.contains(&h1) || b.contains(&h2) {
+                continue;
+            }
+            full[5] = h1;
+            full[6] = h2;
+            let hv = ps_core::eval::eval(&full);
+            for &k in &live {
+                let (a, c) = vcards[k];
+                if vval[k] == 0 || a == h1 || a == h2 || c == h1 || c == h2 {
+                    continue;
+                }
+                let wk = w[k] as f64;
+                tot[i] += wk;
+                win[i] += wk * if hv > vval[k] { 1.0 } else if hv == vval[k] { 0.5 } else { 0.0 };
+            }
+        }
+    }
+    (0..heroes.len()).map(|i| (tot[i] > 0.0).then(|| win[i] / tot[i])).collect()
+}
+
+/// Adds to each puzzle what the walkthrough needs, read off the solved tree (`Report::playout_*`):
+///   resp  per action: [he folds, he continues passively, he continues aggressively] against
+///         this very hand (card removal applied), or null where the action ends his say
+///   eqc   per bet or raise: this hand's equity against the range that continues
+///   next  for the answer: the solver's play with this hand on every card of the next street,
+///         cards grouped by play: { via, vb, acts: [[play, cards, how often]] }
+fn enrich(r: &Report, is_gto: bool, puzzles: &mut [Value]) {
+    let po = if is_gto { &r.playout_gto } else { &r.playout_exploit };
+    let board = ps_core::cards_from_str(&r.board).unwrap_or_default();
+    let idxs: Vec<usize> = puzzles.iter().map(|p| p["_idx"].as_u64().unwrap_or(0) as usize).collect();
+    let heroes: Vec<(u8, u8)> = idxs.iter().map(|&j| r.hero_cards[j]).collect();
+    let n_act = r.actions.len();
+    let aggressive = |x: usize| { let a = r.actions_short[x].as_str(); a.starts_with("bet") || a.starts_with("raise") || a == "all-in" };
+    // equity against the continuing range, per aggressive action (one pass over the runouts each)
+    let mut eqc: Vec<Option<Vec<Option<f64>>>> = vec![None; n_act];
+    for x in 0..n_act {
+        if let (true, Some(resp)) = (aggressive(x), po.get(x).and_then(|a| a.response.as_ref())) {
+            let cont: Vec<f32> = resp.call.iter().zip(&resp.raise).map(|(a, b)| a + b).collect();
+            eqc[x] = Some(equity_vs(&board, &heroes, &r.villain_cards, &cont));
+        }
+    }
+    for (pi, p) in puzzles.iter_mut().enumerate() {
+        let (h1, h2) = heroes[pi];
+        let clash = |k: usize| { let (a, c) = r.villain_cards[k]; a == h1 || a == h2 || c == h1 || c == h2 };
+        let resp: Vec<Value> = (0..n_act).map(|x| match po.get(x).and_then(|a| a.response.as_ref()) {
+            Some(rs) => {
+                let (mut f, mut c, mut z) = (0.0f64, 0.0f64, 0.0f64);
+                for k in (0..r.villain_cards.len()).filter(|&k| !clash(k)) {
+                    f += rs.fold[k] as f64;
+                    c += rs.call[k] as f64;
+                    z += rs.raise[k] as f64;
+                }
+                let t = f + c + z;
+                if t > 0.0 { json!([r3(f / t), r3(c / t), r3(z / t)]) } else { Value::Null }
+            }
+            None => Value::Null,
+        }).collect();
+        let eq: Vec<Value> = (0..n_act).map(|x| match eqc[x].as_ref().and_then(|v| v[pi]) { Some(e) => json!(r3(e)), None => Value::Null }).collect();
+        let answer = p["answer"].as_u64().unwrap_or(0) as usize;
+        let mut next = Value::Null;
+        if let Some(ap) = po.get(answer) {
+            let nh = r.hero_cards.len();
+            // play → (cards, summed frequency, count), in order of first appearance
+            let mut groups: Vec<(String, String, f64, usize)> = Vec::new();
+            let (mut vb, mut nvb) = (0.0f64, 0usize);
+            for nc in ap.next.iter().filter(|nc| nc.card != h1 && nc.card != h2) {
+                let na = nc.actions.len();
+                let j = idxs[pi];
+                let Some(top) = (0..na).max_by(|&a, &b| nc.strategy[a * nh + j].total_cmp(&nc.strategy[b * nh + j])) else { continue };
+                let pr = nc.strategy[top * nh + j] as f64;
+                if let Some(b) = nc.villain_bets { vb += b as f64; nvb += 1; }
+                let card = ps_core::card_to_string(nc.card);
+                match groups.iter_mut().find(|g| g.0 == nc.actions[top]) {
+                    Some(g) => { g.1.push_str(&card); g.2 += pr; g.3 += 1; }
+                    None => groups.push((nc.actions[top].clone(), card, pr, 1)),
+                }
+            }
+            if !groups.is_empty() {
+                groups.sort_by(|a, b| b.3.cmp(&a.3));
+                next = json!({
+                    "via": ap.via,
+                    "vb": if nvb > 0 { json!(r3(vb / nvb as f64)) } else { Value::Null },
+                    // the commonest play lists no cards ("*": every card not named by another play)
+                    "acts": groups.iter().enumerate().map(|(i, g)| json!([g.0, if i == 0 { "*" } else { g.1.as_str() }, r2(g.2 / g.3 as f64), g.3])).collect::<Vec<_>>(),
+                });
+            }
+        }
+        let o = p.as_object_mut().unwrap();
+        o.remove("_idx");
+        o.insert("resp".into(), Value::Array(resp));
+        o.insert("eqc".into(), Value::Array(eq));
+        if !next.is_null() { o.insert("next".into(), next); }
+    }
 }
 
 /// "facing a 33% bet" / "facing an all-in", from what the villain actually bet (a planned 75% bet
@@ -507,6 +644,37 @@ fn record(fam: &Family, id: &str, board: &str, prior: &[String], dec: &str, desc
     })
 }
 
+/// The turn and river cards of an existing library file, by line: a rebuild that reads them deals
+/// the same runouts, so the records keep their ids (review queues, the plan tables).
+#[derive(Default)]
+struct Replay {
+    turns: std::collections::HashMap<String, Vec<String>>,
+    rivers: std::collections::HashMap<(String, String, String), Vec<String>>,
+}
+
+fn replay_of(v: &Value) -> Replay {
+    let mut rp = Replay::default();
+    for r in v["records"].as_array().into_iter().flatten() {
+        let id = r["id"].as_str().unwrap_or("");
+        let parts: Vec<&str> = id.split('/').collect();
+        if parts.len() < 5 {
+            continue;
+        }
+        let (board, line) = (parts[1], parts[2]);
+        let push = |v: &mut Vec<String>, b: &str| if !v.iter().any(|x| x == b) { v.push(b.to_string()) };
+        match r["street"].as_str() {
+            Some("turn") if board.len() == 8 => push(rp.turns.entry(line.to_string()).or_default(), board),
+            Some("river") if board.len() == 10 => {
+                if let Some((fl, tl)) = line.split_once('-') {
+                    push(rp.rivers.entry((board[..8].to_string(), fl.to_string(), tl.to_string())).or_default(), board);
+                }
+            }
+            _ => {}
+        }
+    }
+    rp
+}
+
 /// Builds the library. Writes one JSON file per flop plus `index.json`.
 /// `flop_only`: add the flop decisions to library files that already exist (replacing any flop
 /// records in them) instead of building; files that don't exist are skipped.
@@ -517,6 +685,7 @@ pub fn build(
     only_family: Option<&str>,
     dry_run: bool,
     flop_only: bool,
+    runouts_from: Option<&Path>,
     log: &mut dyn FnMut(&str),
 ) -> Result<()> {
     let cfg_str = std::fs::read_to_string(config_path).with_context(|| format!("reading {}", config_path.display()))?;
@@ -574,6 +743,11 @@ pub fn build(
                 index.extend(index_entries(&v, &file));
                 continue;
             }
+            let replay: Option<Replay> = match runouts_from.map(|d| d.join(&file)) {
+                Some(p) if p.exists() => Some(replay_of(&serde_json::from_str(&std::fs::read_to_string(&p)?)?)),
+                Some(_) => { log(&format!("  {file}: no file to take the runouts from, sampling")); None }
+                None => None,
+            };
             let t0 = std::time::Instant::now();
             let mut records = flop_records(fam, flop, &profiles, &profs, &opts, log, &t0);
             log(&format!("[{}] flop {flop}: solving GTO for turn ranges", fam.id));
@@ -598,7 +772,11 @@ pub fn build(
                         continue;
                     }
                 };
-                for turn in rng.pick_cards(cont.dealable, fam.turns_per_line) {
+                let turns: Vec<u8> = match &replay {
+                    Some(rp) => rp.turns.get(*fl_id).map(|bs| bs.iter().filter_map(|b| ps_core::card_from_str(&b[6..8])).collect()).unwrap_or_default(),
+                    None => rng.pick_cards(cont.dealable, fam.turns_per_line),
+                };
+                for turn in turns {
                     let tboard = format!("{flop}{}", ps_core::card_to_string(turn));
                     let mut prior_t = cont.history.clone();
                     prior_t.push(ps_core::card_to_string(turn));
@@ -628,7 +806,11 @@ pub fn build(
                                 continue;
                             }
                         };
-                        for river in rng.pick_cards(rc.dealable, fam.rivers_per_line) {
+                        let rivers: Vec<u8> = match &replay {
+                            Some(rp) => rp.rivers.get(&(tboard.clone(), fl_id.to_string(), tl_id.to_string())).map(|bs| bs.iter().filter_map(|b| ps_core::card_from_str(&b[8..10])).collect()).unwrap_or_default(),
+                            None => rng.pick_cards(rc.dealable, fam.rivers_per_line),
+                        };
+                        for river in rivers {
                             let rboard = format!("{tboard}{}", ps_core::card_to_string(river));
                             let mut prior_r = prior_t.clone();
                             prior_r.extend(rc.history.iter().cloned());

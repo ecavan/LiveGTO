@@ -137,6 +137,47 @@ pub struct Report {
     pub combos: Vec<ComboRow>,
     /// Every villain combo in his range here, under GTO and under the profile.
     pub villain_combos: Vec<VillainCombo>,
+    /// What happens after each of hero's actions, in the GTO solve and against the profile
+    /// (one entry per action): the villain's response and hero's play on every next card.
+    #[serde(skip)]
+    pub playout_gto: Vec<ActionPlayout>,
+    #[serde(skip)]
+    pub playout_exploit: Vec<ActionPlayout>,
+    /// The solver's private-card lists (the index space of the playout vectors and `ComboRow::idx`).
+    #[serde(skip)]
+    pub hero_cards: Vec<(u8, u8)>,
+    #[serde(skip)]
+    pub villain_cards: Vec<(u8, u8)>,
+}
+
+/// The villain's answer to one hero action, per villain hand: reach × the share of that hand
+/// that gives up (fold), continues passively (call, or check behind / check back) or continues
+/// aggressively (raise, or bet when checked to).
+#[derive(Debug, Clone, Default)]
+pub struct Response {
+    pub fold: Vec<f32>,
+    pub call: Vec<f32>,
+    pub raise: Vec<f32>,
+}
+
+/// Hero's play after one card comes, on the line "hero's action, villain continues passively".
+#[derive(Debug, Clone)]
+pub struct NextCard {
+    pub card: u8,
+    /// The villain acts first on the new street: how often he bets (hero's strategy below is
+    /// after his check).
+    pub villain_bets: Option<f32>,
+    /// Hero's options there (short labels) and his strategy, `actions.len() × hands`.
+    pub actions: Vec<String>,
+    pub strategy: Vec<f32>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ActionPlayout {
+    pub response: Option<Response>,
+    /// How the street ended before the next card: "call", "check", or "" (hero's action ended it).
+    pub via: String,
+    pub next: Vec<NextCard>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -159,6 +200,9 @@ pub struct ComboRow {
     /// Raw reach (0..1): how much of this combo gets here, GTO line / exploit line.
     pub reach_gto: f64,
     pub reach_exploit: f64,
+    /// Index in the solver's private-card list (`Report::hero_cards`).
+    #[serde(skip)]
+    pub idx: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -780,6 +824,7 @@ fn analyze_against(
             eq_exploit: vb.eq[j] as f64,
             reach_gto: va.reach[j] as f64,
             reach_exploit: vb.reach[j] as f64,
+            idx: j,
         })
         .collect();
     let villain_cards = a.private_cards(villain).to_vec();
@@ -798,6 +843,9 @@ fn analyze_against(
             reach_profile: vb.vreach[j] as f64,
         })
         .collect();
+
+    let playout_gto = playout_of(a, line, hero, villain);
+    let playout_exploit = playout_of(&mut b, line, hero, villain);
 
     // Readable history
     let mut history = Vec::new();
@@ -838,7 +886,107 @@ fn analyze_against(
         villain_range,
         combos,
         villain_combos,
+        playout_gto,
+        playout_exploit,
+        hero_cards,
+        villain_cards,
     })
+}
+
+/// What follows each of hero's actions at the decision node reached by `line`: the villain's
+/// response (when the action hands him the decision), and hero's strategy on every card of the
+/// next street after the villain continues passively. Read off the solved tree: no new solve.
+fn playout_of(g: &mut PostFlopGame, line: &[usize], hero: usize, villain: usize) -> Vec<ActionPlayout> {
+    g.apply_history(line);
+    let n_act = g.available_actions().len();
+    let passive = |a: &Action| matches!(a, Action::Check | Action::Call);
+    let aggressive = |a: &Action| matches!(a, Action::Bet(_) | Action::Raise(_) | Action::AllIn(_));
+    let mut out = Vec::with_capacity(n_act);
+    for x in 0..n_act {
+        let mut ap = ActionPlayout::default();
+        let mut hist = line.to_vec();
+        hist.push(x);
+        g.apply_history(&hist);
+        if !g.is_terminal_node() && !g.is_chance_node() && g.current_player() == villain {
+            let vacts = g.available_actions();
+            let s = g.strategy();
+            let w = g.weights(villain).to_vec();
+            let nv = w.len();
+            let mut r = Response { fold: vec![0.0; nv], call: vec![0.0; nv], raise: vec![0.0; nv] };
+            for (ai, act) in vacts.iter().enumerate() {
+                let dst = if matches!(act, Action::Fold) { &mut r.fold } else if passive(act) { &mut r.call } else { &mut r.raise };
+                for k in 0..nv {
+                    dst[k] += w[k] * s[ai * nv + k];
+                }
+            }
+            ap.response = Some(r);
+            match vacts.iter().position(|a| passive(a)) {
+                Some(ci) => {
+                    ap.via = if matches!(vacts[ci], Action::Call) { "call".into() } else { "check".into() };
+                    hist.push(ci);
+                    g.apply_history(&hist);
+                }
+                None => {
+                    out.push(ap);
+                    continue;
+                }
+            }
+        }
+        if !g.is_terminal_node() && g.is_chance_node() {
+            let mask = g.possible_cards();
+            for c in 0..52u8 {
+                if mask & (1u64 << c) == 0 {
+                    continue;
+                }
+                let mut h2 = hist.clone();
+                h2.push(c as usize);
+                g.apply_history(&h2);
+                if g.is_terminal_node() || g.is_chance_node() {
+                    continue; // all-in: the cards run out, nobody acts
+                }
+                let mut villain_bets = None;
+                if g.current_player() == villain {
+                    let vacts = g.available_actions();
+                    let s = g.strategy();
+                    let w = g.weights(villain).to_vec();
+                    let nv = w.len();
+                    let (mut bet, mut tot) = (0.0f64, 0.0f64);
+                    for k in 0..nv {
+                        tot += w[k] as f64;
+                        for (ai, act) in vacts.iter().enumerate() {
+                            if aggressive(act) {
+                                bet += (w[k] * s[ai * nv + k]) as f64;
+                            }
+                        }
+                    }
+                    villain_bets = Some(if tot > 0.0 { (bet / tot) as f32 } else { 0.0 });
+                    match vacts.iter().position(|a| matches!(a, Action::Check)) {
+                        Some(ci) => {
+                            h2.push(ci);
+                            g.apply_history(&h2);
+                        }
+                        None => continue,
+                    }
+                    if g.is_terminal_node() || g.is_chance_node() {
+                        continue;
+                    }
+                }
+                if g.current_player() != hero {
+                    continue;
+                }
+                let pot = pot_at(g);
+                ap.next.push(NextCard {
+                    card: c,
+                    villain_bets,
+                    actions: g.available_actions().iter().map(|a| short_label(a, pot)).collect(),
+                    strategy: g.strategy(),
+                });
+            }
+        }
+        out.push(ap);
+    }
+    g.apply_history(line);
+    out
 }
 
 pub fn short_label(action: &Action, pot_chips: i32) -> String {

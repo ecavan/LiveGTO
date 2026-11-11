@@ -43,3 +43,36 @@ describe('today\'s path', () => {
     expect(streakOf(['2026-11-07'], now)).toBe(0);
   });
 });
+
+describe('library puzzles with the solver\'s playout (library v2)', () => {
+  const r = {
+    id: 'x/KhQd2s7c/cbet_called/oop_first/gto', street: 'turn', board: ['Kh', 'Qd', '2s', '7c'], pot: 20, to_call: 0,
+    actions: ['check', 'bet 15.0bb (75%)'], actions_short: ['check', 'bet 75%'],
+    villain: { profile: 'gto', name: 'GTO' }, villain_range: [['strong', 0.3, 0.3], ['medium', 0.3, 0.3], ['weak', 0.2, 0.2], ['air', 0.2, 0.2]],
+  };
+  const p = { cards: 'AsKs', hand: 'AKs', class: 'strong', answer: 1, fine: [1], ev: [-3, 0], eq: 0.8, abs: 21,
+    resp: [[0, 0.7, 0.3], [0.4, 0.6, 0]], eqc: [null, 0.65], next: { via: 'call', vb: null, acts: [['bet 75%', '*', 0.95, 40], ['check', 'QhQsQc', 0.9, 3]] } };
+  it('shows his real response, the value of each branch and the solver\'s play on each river', async () => {
+    const { spotOfLibrary } = await import('../src/ui/playout.js');
+    const sp = spotOfLibrary(r, p, 0);
+    expect(sp.relative).toBe(false);
+    expect(sp.options[1].ev).toBe(21);
+    expect(sp.options[1].info.fold).toBe(0.4);
+    expect(sp.options[0].info.botBets).toBe(0.3);
+    expect(sp.his.map(x => x.name)).toEqual(['Bluff-catcher', 'Value', 'Air']); // medium + weak merged
+    const html = playoutHtml(sp, { open: true });
+    expect(html).toContain('GTO folds');
+    expect(html).toContain('+21.7bb'); // (21 − 0.4·20) / 0.6
+    expect(html).toContain('A bet for value');
+    expect(html).toContain('3<small>of 46</small>'); // the three queens: check
+    expect(html).toContain('43<small>of 46</small>'); // every other river: bet again
+    expect(html).toContain("The solver's play with your exact hand");
+  });
+  it('an old record (no playout fields) still renders, measured from the best play', async () => {
+    const { spotOfLibrary } = await import('../src/ui/playout.js');
+    const old = { ...p }; delete old.abs; delete old.resp; delete old.eqc; delete old.next;
+    const sp = spotOfLibrary(r, old, 0);
+    expect(sp.relative).toBe(true);
+    expect(playoutHtml(sp, { open: true })).toContain('against the best play');
+  });
+});

@@ -53,23 +53,35 @@ export function spotOfLibrary(r, p, choice) {
   const prof = r.villain.profile;
   // villain_range rows: [class, share in the GTO solve, share against this villain]
   const shares = (r.villain_range || []).map(([cls, g, x]) => ({ class: cls, share: prof === 'gto' ? g : (x ?? g) }));
-  const his = shares.filter(x => typeof x.share === 'number' && x.share >= 0.05).map(x => ({ name: CLASS_AS_BUCKET[x.class]?.name ?? x.class, share: x.share }))
-    .sort((a, b) => b.share - a.share).slice(0, 3);
+  // medium and weak pairs are both bluff-catchers: one row
+  const byName = new Map();
+  for (const x of shares) if (typeof x.share === 'number') { const n = CLASS_AS_BUCKET[x.class]?.name ?? x.class; byName.set(n, (byName.get(n) || 0) + x.share); }
+  const his = [...byName.entries()].map(([name, share]) => ({ name, share })).filter(x => x.share >= 0.05).sort((a, b) => b.share - a.share).slice(0, 3);
   const street = { flop: 1, turn: 2, river: 3 }[r.street] ?? 1;
+  const solved = typeof p.abs === 'number'; // EVs in bb from here on (folding is 0), not only the gap to the best play
   return {
     key: `l|${r.id}|${p.cards}|${choice}`,
     street, board, hole, pot: r.pot, toCall: r.to_call || 0,
     options: r.actions.map((a, i) => {
       const m = a.match(/([\d.]+)bb/);
       const to = m ? Number(m[1]) : null;
+      const t = typeOf(a);
       const info = {};
-      if (typeOf(a) === 'call') { info.eq = p.eq; info.need = r.to_call / (r.pot + r.to_call); }
-      else if (to && typeOf(a) !== 'fold' && typeOf(a) !== 'check') { info.risk = to; info.breakEven = to / (r.pot + to); }
-      return { type: typeOf(a), label: cap(r.actions_short[i]), ev: p.ev[i], cost: -p.ev[i], info };
+      // from the solve (library v2): his answer to this play against your exact hand, and your
+      // equity against the hands that continue
+      const rs = p.resp?.[i];
+      if (t === 'call') { info.eq = p.eq; info.need = r.to_call / (r.pot + r.to_call); }
+      else if (t === 'check') { if (rs) info.botBets = rs[2]; }
+      else if (t !== 'fold') {
+        if (to) { info.risk = to; info.breakEven = to / (r.pot + to); }
+        if (rs) { info.fold = rs[0]; info.calls = rs[1]; info.raises = rs[2]; info.eqCalled = p.eqc?.[i] ?? null; }
+      }
+      return { type: t, label: cap(r.actions_short[i]), ev: solved ? p.abs + p.ev[i] : p.ev[i], cost: -p.ev[i], info };
     }),
     chosen: choice, best: p.answer, fine: p.fine || [], verdict: null, loss: -p.ev[choice],
     bucket: bucketOf(hole, board), equity: p.eq, his, who: r.villain.name, multiway: false,
-    rule: null, exactEv: street === 3, planLevel: PLAN_VILLAINS[prof] ? prof : 'gto', level: prof === 'gto' ? 1 : 2, relative: true,
+    rule: null, exactEv: street === 3, planLevel: PLAN_VILLAINS[prof] ? prof : 'gto', level: prof === 'gto' ? 1 : 2, relative: !solved,
+    next: p.next || null, solver: true,
   };
 }
 
@@ -103,8 +115,10 @@ function branches(sp, i) {
     const F = f.fold;
     const rest = F < 0.995 && o.ev != null && !sp.relative ? (o.ev - F * P) / (1 - F) : null;
     rows.push({ p: F, title: `${He} folds`, sub: `You take the ${bb(P, false)} pot right now.`, bb: P });
-    rows.push({ p: 1 - F, title: `${sp.multiway ? 'Someone continues' : `${He} continues`}`, sub: f.eqCalled != null ? `Against the hands that continue you have <b>${pct(f.eqCalled)}</b>, in a bigger pot.` : 'The pot grows and you play on.', bb: rest });
-    if (f.breakEven != null) foot = `As a pure bluff this needs a fold <b>${pct(f.breakEven)}</b> of the time; ${sp.multiway ? 'they fold' : `${he} folds`} <b>${pct(F)}</b>.`;
+    const how = f.raises != null && f.raises >= 0.05 ? ` (calls ${pct(f.calls)}, raises ${pct(f.raises)})` : '';
+    rows.push({ p: 1 - F, title: `${sp.multiway ? 'Someone continues' : `${He} continues`}${how}`, sub: f.eqCalled != null ? `Against the hands that continue you have <b>${pct(f.eqCalled)}</b>, in a bigger pot.` : 'The pot grows and you play on.', bb: rest });
+    if (f.eqCalled != null && f.eqCalled >= 0.5) foot = `A bet for value: when ${sp.multiway ? 'they continue' : `${he} continues`} you are still ahead <b>${pct(f.eqCalled)}</b> of the time, so every call pays you.`;
+    else if (f.breakEven != null) foot = `As a pure bluff this needs a fold <b>${pct(f.breakEven)}</b> of the time; ${sp.multiway ? 'they fold' : `${he} folds`} <b>${pct(F)}</b>.`;
   } else if (f.breakEven != null) {
     rows.push({ p: null, title: `You put ${bb(f.risk, false)} in to win ${bb(P, false)}`, sub: `With a hand that wants a fold, ${he} has to fold <b>${pct(f.breakEven)}</b> of the time. With a hand that wants a call, worse hands have to pay it.`, bb: null });
   }
@@ -154,7 +168,47 @@ export function nextCards(hole, board) {
   return { now, n, groups: list };
 }
 
+/** The solver's play with your exact hand on every card to come (library v2: `next` on the puzzle). */
+function solvedNextHtml(sp) {
+  const nx = sp.next;
+  const street = NEXT[sp.street];
+  const used = new Set([...sp.hole, ...sp.board]);
+  const named = new Set();
+  const groups = nx.acts.map(([label, cardsStr, freq, n]) => {
+    const list = cardsStr === '*' ? null : (cardsStr.match(/../g) || []).map(cardId);
+    list?.forEach(c => named.add(c));
+    return { label, list, freq, n };
+  });
+  for (const g of groups) if (!g.list) { g.list = []; for (let c = 0; c < 52; c++) if (!used.has(c) && !named.has(c)) g.list.push(c); g.rest = true; }
+  const total = groups.reduce((a, g) => a + g.list.length, 0);
+  const act = sp.options[sp.best];
+  const before = nx.via === 'call' ? `You ${act.label.replace(/^\w/, c => c.toLowerCase())} and ${esc(sp.who)} calls.`
+    : nx.via === 'check' ? `You check and ${esc(sp.who)} checks behind.` : act.type === 'call' ? 'You call.' : 'You check behind.';
+  const lead = nx.vb != null
+    ? `${before} On the ${street} ${esc(sp.who)} acts first and bets <b>${pct(nx.vb)}</b> of the time. When he checks to you, the solver's play with your exact hand:`
+    : `${before} On the ${street} you act first. The solver's play with your exact hand, card by card:`;
+  const now = bucketOf(sp.hole, sp.board);
+  const tone = (label) => (/^(bet|raise|all-in)/i.test(label) ? 'text-emerald-300' : 'text-sky-300');
+  const bucketsOf = (list) => {
+    const m = new Map();
+    for (const c of list) { const k = bucketOf(sp.hole, [...sp.board, c]); m.set(k, (m.get(k) || 0) + 1); }
+    return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k === now ? 'still ' : ''}${BUCKET[k].name.toLowerCase()}${m.size > 1 ? ` on ${n}` : ''}`).join(', ');
+  };
+  return `<div class="space-y-2">
+    <p class="text-sm text-ink-300">${lead}</p>
+    ${groups.filter(g => g.list.length).map(g => `<div class="po-next">
+      <div class="po-n num ${tone(g.label)}">${g.list.length}<small>of ${total}</small></div>
+      <div class="min-w-0">
+        <div class="text-ink-200"><b class="${tone(g.label)}">${esc(cap(g.label))}</b>${g.freq < 0.8 ? ` <span class="text-ink-400">(a mix: this ${pct(g.freq)} of the time)</span>` : ''}</div>
+        <div class="text-sm tracking-wide">${g.rest && g.list.length > 12 ? '<span class="text-ink-400">every other card</span>' : handText(g.list.slice().sort((a, b) => b - a).map(cardStr))}</div>
+        <div class="text-xs text-ink-400">Your hand there: ${esc(bucketsOf(g.list))}</div>
+      </div></div>`).join('')}
+    <p class="text-xs text-ink-400">Read off the same solve as the puzzle${sp.level === 2 ? `, against ${esc(sp.who)}` : ''}: the cards where the play changes are the ones to know before they come.</p>
+  </div>`;
+}
+
 function nextHtml(sp) {
+  if (sp.next?.acts?.length && sp.hole) return solvedNextHtml(sp);
   const nc = nextCards(sp.hole, sp.board);
   if (!nc) return '';
   const act = sp.options[sp.best];
