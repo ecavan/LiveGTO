@@ -7,6 +7,7 @@
  *                                   your decisions you can guess first, and the grade shows after
  *   #review/h/<id>/<step>/quiz the same, quizzing your mistakes for this visit ("Retry your mistakes")
  */
+import { nextPlayJob } from '../../engine/hu/nextplay.js';
 import {
   loadHands, sessionsOf, statesOf, viewOf, posName, decisionAt, grade, GRADES, accuracyOf, gradeCounts,
   moveAccuracy, leakReport, getHand, clearHands,
@@ -507,6 +508,10 @@ function decisionPanel(h, d, e) {
   const opp = h.kind === 'hu' ? AGENTS[h.opp]?.name ?? 'him' : 'them';
   const spot = `${STREET[d.street]}${d.board.length ? ` ${handText(d.board.map(cardStr))}` : ''} · pot ${fmtBB(d.pot)}${d.toCall > 0.001 ? ` · ${fmtBB(d.toCall)} to call` : ''}`;
   const n = h.decisions.indexOf(d) + 1;
+  if (h.kind === 'hu' && !d.preflop && d.street > 0 && d.street < 3 && !d.nextJob) {
+    const s0 = statesOf(h)[d.at];
+    if (s0) d.nextJob = () => nextPlayJob(s0, h.hero, d.options[d.best], d.level === 2 ? h.opp : 'reg', d.level ?? 1);
+  }
   return `<div class="space-y-3">
     <div class="flex items-center justify-between gap-2 text-xs text-ink-400"><span>${spot}</span><span>Decision ${n} of ${h.decisions.length}</span></div>
     <div class="flex items-center gap-2">${glyph(d, 'text-sm')}<span class="font-semibold ${g.tone}">${g.label}</span><span class="text-ink-200">· you ${actLabel(e, true)}</span></div>

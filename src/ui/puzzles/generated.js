@@ -6,6 +6,7 @@
  */
 import { loadStats, saveStats, updateRating, queueMiss, queueResult } from '../../engine/puzzles.js';
 import { statesOf, viewOf, posName } from '../../engine/history.js';
+import { nextPlayJob } from '../../engine/hu/nextplay.js';
 import { AGENTS } from '../../engine/hu/agents.js';
 import { cardStr } from '../../engine/hu/hand.js';
 import { getIndex } from '../../engine/library.js';
@@ -145,6 +146,8 @@ function decisionOf(p, idx) {
     preflop: false, notes: h.notes, opponents: h.opponents, buckets: h.buckets, heroBucket: h.heroBucket, level: h.level ?? 2,
     solid: h.solid ?? null,
     other: h.other ? otherOf(h, idx) : null,
+    // heads-up: the coach's play on every next card, worked out when the walkthrough gets there
+    nextJob: h.kind === 'hu' && h.street < 3 ? () => nextPlayJob(p.s, h.hero, h.options[h.best], (h.level ?? 2) === 2 ? h.opp : 'reg', h.level ?? 2) : null,
   };
 }
 

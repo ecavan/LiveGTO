@@ -4,6 +4,7 @@
  *   coach "hand":     silent during the hand, recap at the end of each hand
  *   coach "off":      a straight session, everything in the review
  */
+import { nextPlayJob } from '../engine/hu/nextplay.js';
 import {
   createSession, startHand, heroToAct, coachNow, coachReady, heroAct, botAct, endHand, sessionOver, summary, coachAgent, poolRating, MIN_RATED,
 } from '../engine/hu/session.js';
@@ -343,6 +344,7 @@ function choose(container, i) {
   ui.lastState = s0;
   ui.rangeHtml = null;
   const d = heroAct(sess, i);
+  if (d && !d.preflop && d.street > 0 && d.street < 3) d.nextJob = () => nextPlayJob(s0, sess.hero, d.options[d.best], sess.level === 2 ? sess.agent : 'reg', sess.level);
   ui.last = d;
   ui.lastWeights = !d.preflop && sess.coachMode === 'decision' ? villainRange(s0, 1 - sess.hero, typeof coachAgent(sess, sess.level, s0) === 'string' ? { id: 'reg', kind: 'profile' } : sess.agent) : null;
   const bad = d.verdict === 'mistake' || d.verdict === 'blunder';

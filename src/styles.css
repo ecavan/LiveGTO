@@ -326,7 +326,8 @@
 .po-dot.on { background: #10b981; }
 .po-title { font-size: 17px; font-weight: 650; color: #fff; margin-bottom: 8px; letter-spacing: -.01em; }
 .po-step { min-height: 150px; animation: fadeUp .18s ease both; }
-.po-nav { display: flex; gap: 8px; margin-top: 12px; }
+.po-nav { display: flex; gap: 8px; margin-top: 12px; scroll-margin-bottom: 88px; scroll-margin-top: 12px; }
+.po-step { scroll-margin-top: 72px; }
 .po-tree { display: grid; gap: 8px; }
 .po-root { display: inline-flex; align-items: baseline; gap: 6px; align-self: start; justify-self: start; font-weight: 700; padding: 4px 12px; border-radius: 999px; border: 1px solid; text-transform: none; }
 .po-root.good { color: #6ee7b7; border-color: rgba(16,185,129,.5); background: rgba(16,185,129,.1); }

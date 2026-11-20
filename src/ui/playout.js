@@ -42,6 +42,7 @@ export function spotOfDecision(d, { botName = null, fmt = null } = {}) {
     equity: d.equity, his: top, who: multiway ? 'they' : (botName || 'he'), multiway,
     rule: d.solid?.text || null, exactEv: d.street === 3 && !multiway,
     planLevel: d.level === 2 && PLAN_VILLAINS[src] ? src : 'gto', level: d.level ?? getLevel(), relative: false,
+    next: d.next || null, nextJob: d.nextJob || null,
   };
 }
 
@@ -184,9 +185,11 @@ function solvedNextHtml(sp) {
   const act = sp.options[sp.best];
   const before = nx.via === 'call' ? `You ${act.label.replace(/^\w/, c => c.toLowerCase())} and ${esc(sp.who)} calls.`
     : nx.via === 'check' ? `You check and ${esc(sp.who)} checks behind.` : act.type === 'call' ? 'You call.' : 'You check behind.';
+  const whose = nx.src === 'coach' ? "the coach's" : "the solver's";
   const lead = nx.vb != null
-    ? `${before} On the ${street} ${esc(sp.who)} acts first and bets <b>${pct(nx.vb)}</b> of the time. When he checks to you, the solver's play with your exact hand:`
-    : `${before} On the ${street} you act first. The solver's play with your exact hand, card by card:`;
+    ? `${before} On the ${street} ${esc(sp.who)} acts first and bets <b>${pct(nx.vb)}</b> of the time. When he checks to you, ${whose} play with your exact hand:`
+    : nx.first === 'villain' ? `${before} On the ${street} ${esc(sp.who)} acts first. When he checks to you, ${whose} play with your exact hand, card by card:`
+    : `${before} On the ${street} you act first. ${cap(whose)} play with your exact hand, card by card:`;
   const now = bucketOf(sp.hole, sp.board);
   const tone = (label) => (/^(bet|raise|all-in)/i.test(label) ? 'text-emerald-300' : 'text-sky-300');
   const bucketsOf = (list) => {
@@ -200,14 +203,49 @@ function solvedNextHtml(sp) {
       <div class="po-n num ${tone(g.label)}">${g.list.length}<small>of ${total}</small></div>
       <div class="min-w-0">
         <div class="text-ink-200"><b class="${tone(g.label)}">${esc(cap(g.label))}</b>${g.freq < 0.8 ? ` <span class="text-ink-400">(a mix: this ${pct(g.freq)} of the time)</span>` : ''}</div>
-        <div class="text-sm tracking-wide">${g.rest && g.list.length > 12 ? '<span class="text-ink-400">every other card</span>' : g.list.slice().sort((a, b) => b - a).map(c => handText([cardStr(c)])).join('<wbr>')}</div>
+        <div class="text-sm tracking-wide">${groups.filter(x => x.list.length).length === 1 ? '<span class="text-ink-400">every card</span>' : g.rest && g.list.length > 12 ? '<span class="text-ink-400">every other card</span>' : g.list.slice().sort((a, b) => b - a).map(c => handText([cardStr(c)])).join('<wbr>')}</div>
         <div class="text-xs text-ink-400">Your hand there: ${esc(bucketsOf(g.list))}</div>
       </div></div>`).join('')}
-    <p class="text-xs text-ink-400">Read off the same solve as the puzzle${sp.level === 2 ? `, against ${esc(sp.who)}` : ''}: the cards where the play changes are the ones to know before they come.</p>
+    <p class="text-xs text-ink-400">${nx.src === 'coach' ? `Each card is the coach's verdict on the real ${street} spot: the pot as it will be and ${esc(sp.who === 'he' ? 'his' : sp.who + "'s")} range after this street` : `Read off the same solve as the puzzle${sp.level === 2 ? `, against ${esc(sp.who)}` : ''}`}: the cards where the play changes are the ones to know before they come.</p>
   </div>`;
 }
 
+// Card-by-card answers worked out on demand (engine spots): the job runs when its step is first shown.
+const JOBS = new Map(); // spot key → { sp, job }
+const DONE = new Map(); // spot key → the result (or false: nothing to show)
+function kick() {
+  if (typeof document === 'undefined') return;
+  for (const el of document.querySelectorAll('[data-po-next]')) {
+    const key = el.dataset.poNext;
+    if (el.closest('.po-step')?.classList.contains('hidden') || el.closest('.po-body')?.classList.contains('hidden')) continue;
+    const j = JOBS.get(key);
+    if (!j || j.running) continue;
+    j.running = true;
+    Promise.resolve().then(() => j.job()).catch(() => null).then((next) => {
+      JOBS.delete(key);
+      if (DONE.size > 60) DONE.clear();
+      DONE.set(key, next?.acts?.length ? next : false);
+      for (const t of document.querySelectorAll('[data-po-next]')) {
+        if (t.dataset.poNext !== key) continue;
+        const root = t.closest('[data-po]');
+        if (next?.acts?.length) t.outerHTML = solvedNextHtml({ ...j.sp, next });
+        else t.querySelector('[data-po-working]')?.remove();
+        if (root) settle(root);
+      }
+    });
+  }
+}
+
 function nextHtml(sp) {
+  if (sp.nextJob && !sp.next && sp.hole) {
+    const done = DONE.get(sp.key);
+    if (done) return solvedNextHtml({ ...sp, next: done });
+    if (done !== false) {
+      JOBS.set(sp.key, { sp, job: sp.nextJob });
+      setTimeout(kick, 0);
+      return `<div data-po-next="${esc(sp.key)}">${nextHtml({ ...sp, nextJob: null })}<p class="text-xs text-ink-400" data-po-working>Working out the play on each card…</p></div>`;
+    }
+  }
   if (sp.next?.acts?.length && sp.hole) return solvedNextHtml(sp);
   const nc = nextCards(sp.hole, sp.board);
   if (!nc) return '';
@@ -320,6 +358,21 @@ export function playoutHtml(sp, { open = false } = {}) {
   </div>`;
 }
 
+/**
+ * Keep the step on screen: Back / Next must not sit under the fold or the sticky bar, and a step
+ * taller than the screen starts at its title.
+ */
+function settle(root) {
+  requestAnimationFrame(() => {
+    const nav = root.querySelector('.po-nav'), step = root.querySelector('.po-step:not(.hidden)');
+    if (!nav || !step) return;
+    const n = nav.getBoundingClientRect(), t = step.getBoundingClientRect();
+    if (t.top >= 8 && n.bottom <= window.innerHeight - 80) return;
+    if (n.bottom - t.top > window.innerHeight - 110) step.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    else nav.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
+}
+
 function go(root, to) {
   const n = Number(root.dataset.poN);
   const cur = Number(root.dataset.poAt);
@@ -334,6 +387,8 @@ function go(root, to) {
   const prev = root.querySelector('[data-po-go="prev"]'), next = root.querySelector('[data-po-go="next"]');
   if (prev) prev.disabled = i <= 0;
   if (next) next.disabled = i >= n - 1;
+  kick();
+  settle(root);
 }
 
 if (typeof document !== 'undefined') {
